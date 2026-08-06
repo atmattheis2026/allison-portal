@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import type {
   SharedPayload, Milestone, Side, Brand, BrandKind, DocGroup, Contact,
+  Transaction, TxStatus,
 } from '../lib/types'
 import { STATUS_LABEL } from '../lib/types'
 import './Dashboard.css'
@@ -54,6 +55,10 @@ export interface DashboardHandlers {
   onChangeMilestoneDate?: (m: Milestone, value: string | null) => void
   onToggleDocLine?: (id: string, checked: boolean) => void
   onChangeDocLine?: (id: string, text: string) => void
+  /** Header fields: address, city, closing date, status, lender. */
+  onPatchTransaction?: (values: Partial<Transaction>) => void
+  onPatchContact?: (id: string, values: Partial<Contact>) => void
+  onUploadPhoto?: (file: File) => void
 }
 
 interface Props extends DashboardHandlers {
@@ -95,18 +100,22 @@ export default function Dashboard({
       {/* One markup for both sizes. `topgrid` is a plain stack on phones and a
           three-up row at 900px, so nothing here depends on a JS width value. */}
       <div className="topgrid">
-        <Hero tx={tx} />
+        <Hero tx={tx} editable={editable} onUploadPhoto={h.onUploadPhoto}
+              onPatch={h.onPatchTransaction} />
         <div className="headline">
-          <h1 className="address">{tx.address_line || 'Untitled property'}</h1>
-          <div className="cityline">{tx.city_state_zip}</div>
-          <div className="statusrow"><StatusPill tx={tx} /></div>
+          <AddressBlock tx={tx} editable={editable} onPatch={h.onPatchTransaction} />
+          <div className="statusrow">
+            <StatusPill tx={tx} editable={editable} onPatch={h.onPatchTransaction} />
+          </div>
         </div>
-        {tx.closing_date && (
+        {(tx.closing_date || editable) && (
           <div className="countdownPhone">
-            <Countdown date={tx.closing_date} />
+            <Countdown date={tx.closing_date} editable={editable}
+                       onPatch={h.onPatchTransaction} />
           </div>
         )}
-        <TeamCards realtor={realtor} lender={tx.lender} />
+        <TeamCards realtor={realtor} lender={tx.lender}
+                   editable={editable} onPatch={h.onPatchTransaction} />
       </div>
 
       {railSteps.length > 0 && <Rail steps={railSteps} currentIdx={currentIdx} />}
@@ -120,12 +129,14 @@ export default function Dashboard({
         </div>
 
         <div className="col">
-          {tx.closing_date && (
+          {(tx.closing_date || editable) && (
             <div className="countdownDesk">
-              <Countdown date={tx.closing_date} />
+              <Countdown date={tx.closing_date} editable={editable}
+                         onPatch={h.onPatchTransaction} />
             </div>
           )}
-          <ContactsSection contacts={contacts} />
+          <ContactsSection contacts={contacts} editable={editable}
+                           onPatch={h.onPatchContact} />
         </div>
 
         {hasLoan && (
@@ -188,53 +199,156 @@ function BrandBar({ brand, viewNote, extra }: {
   )
 }
 
+/**
+ * Edits happen in place rather than in a separate form, so the thing she is
+ * changing is the thing her client will see. Inputs are styled to look like the
+ * finished text until focused.
+ */
+function EditableText({ value, onCommit, placeholder, className }: {
+  value: string; onCommit: (v: string) => void
+  placeholder?: string; className?: string
+}) {
+  const [draft, setDraft] = useState(value)
+  // Resync when the row is replaced underneath us (a reload, or another edit).
+  const [seen, setSeen] = useState(value)
+  if (seen !== value) { setSeen(value); setDraft(value) }
+
+  return (
+    <input
+      className={`inlineEdit ${className ?? ''}`}
+      value={draft}
+      placeholder={placeholder}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => { if (draft !== value) onCommit(draft) }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur()
+        if (e.key === 'Escape') { setDraft(value); e.currentTarget.blur() }
+      }}
+    />
+  )
+}
+
 /** The overlaid address is for the phone layout; CSS hides it at desktop, where
  *  the address sits beside the photo instead. */
-function Hero({ tx }: { tx: SharedPayload['transaction'] }) {
+function Hero({ tx, editable, onUploadPhoto, onPatch }: {
+  tx: Transaction; editable: boolean
+  onUploadPhoto?: (f: File) => void
+  onPatch?: (v: Partial<Transaction>) => void
+}) {
   return (
     <div className={`hero${tx.photo_url ? '' : ' noPhoto'}`}>
       {tx.photo_url && <img src={tx.photo_url} alt={tx.address_line} />}
+      {editable && (
+        <label className="photoSwap">
+          <input type="file" accept="image/*" style={{ display: 'none' }}
+                 onChange={(e) => {
+                   const f = e.target.files?.[0]
+                   if (f) onUploadPhoto?.(f)
+                 }} />
+          {tx.photo_url ? 'Change photo' : 'Add a photo'}
+        </label>
+      )}
+      {/* The phone layout's address. It has to be editable too — .headline is
+          display:none on a phone, so without this she could not fix an address
+          from the device she'll actually have at a closing table. */}
       <div className="heroText">
-        <h1 className="address">{tx.address_line || 'Untitled property'}</h1>
-        <div className="cityline">{tx.city_state_zip}</div>
+        <AddressBlock tx={tx} editable={editable} onPatch={onPatch} />
       </div>
     </div>
   )
 }
 
-function StatusPill({ tx }: { tx: SharedPayload['transaction'] }) {
-  const attention = tx.status === 'attention' || tx.status === 'fell_through'
+function AddressBlock({ tx, editable, onPatch }: {
+  tx: Transaction; editable: boolean; onPatch?: (v: Partial<Transaction>) => void
+}) {
+  if (!editable) {
+    return (
+      <>
+        <h1 className="address">{tx.address_line || 'Untitled property'}</h1>
+        <div className="cityline">{tx.city_state_zip}</div>
+      </>
+    )
+  }
   return (
-    <span className={`pill${attention ? ' attention' : ''}`}>
-      <span className="dot">{attention ? '!' : '✓'}</span>
-      {tx.status_note || STATUS_LABEL[tx.status]}
+    <>
+      <EditableText className="address" value={tx.address_line}
+                    placeholder="Street address"
+                    onCommit={(v) => onPatch?.({ address_line: v })} />
+      <EditableText className="cityline" value={tx.city_state_zip}
+                    placeholder="City, State ZIP"
+                    onCommit={(v) => onPatch?.({ city_state_zip: v })} />
+    </>
+  )
+}
+
+const STATUSES: TxStatus[] =
+  ['under_contract', 'on_track', 'attention', 'closed', 'fell_through']
+
+function StatusPill({ tx, editable, onPatch }: {
+  tx: Transaction; editable?: boolean; onPatch?: (v: Partial<Transaction>) => void
+}) {
+  const attention = tx.status === 'attention' || tx.status === 'fell_through'
+
+  if (!editable) {
+    return (
+      <span className={`pill${attention ? ' attention' : ''}`}>
+        <span className="dot">{attention ? '!' : '✓'}</span>
+        {tx.status_note || STATUS_LABEL[tx.status]}
+      </span>
+    )
+  }
+
+  return (
+    <span className="statusEdit">
+      <span className={`pill${attention ? ' attention' : ''}`}>
+        <span className="dot">{attention ? '!' : '✓'}</span>
+        <select value={tx.status}
+                onChange={(e) => onPatch?.({ status: e.target.value as TxStatus })}>
+          {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+        </select>
+      </span>
+      <EditableText className="statusNote" value={tx.status_note ?? ''}
+                    placeholder="Add your own wording (optional)"
+                    onCommit={(v) => onPatch?.({ status_note: v || null })} />
     </span>
   )
 }
 
-function Countdown({ date }: { date: string }) {
-  const days = daysUntil(date)
-  const past = days < 0
+function Countdown({ date, editable, onPatch }: {
+  date: string | null; editable?: boolean; onPatch?: (v: Partial<Transaction>) => void
+}) {
+  const days = date ? daysUntil(date) : null
+  const past = days !== null && days < 0
 
   return (
     <div className="countdown">
-      <div className="num">{past ? '✓' : days}</div>
+      <div className="num">{days === null ? '—' : past ? '✓' : days}</div>
       <div className="rt">
         <div className="lab">Closing day</div>
         <div className="unit">
-          {past ? 'Closed' : days === 0 ? 'Today!' : days === 1 ? 'day away' : 'days away'}
+          {days === null ? 'Not set'
+            : past ? 'Closed'
+            : days === 0 ? 'Today!'
+            : days === 1 ? 'day away' : 'days away'}
         </div>
-        <div className="when">{fmtLong(date)}</div>
+        {editable ? (
+          <input className="closingInput" type="date" value={date ?? ''}
+                 onChange={(e) => onPatch?.({ closing_date: e.target.value || null })} />
+        ) : (
+          <div className="when">{date ? fmtLong(date) : ''}</div>
+        )}
       </div>
     </div>
   )
 }
 
-function TeamCards({ realtor, lender }: {
-  realtor: SharedPayload['realtor']; lender: SharedPayload['transaction']['lender']
+function TeamCards({ realtor, lender, editable, onPatch }: {
+  realtor: SharedPayload['realtor']; lender: Transaction['lender']
+  editable?: boolean; onPatch?: (v: Partial<Transaction>) => void
 }) {
   const hasLender = Boolean(lender?.name)
-  if (!realtor && !hasLender) return null
+  if (!realtor && !hasLender && !editable) return null
+
   return (
     <div className="team">
       {realtor && (
@@ -247,7 +361,27 @@ function TeamCards({ realtor, lender }: {
           </div>
         </div>
       )}
-      {hasLender && (
+
+      {/* Lender lives on the transaction, not the team — her five agents may each
+          use a different one, so it's typed per deal rather than picked. */}
+      {editable ? (
+        <div className="person lend">
+          <Avatar src={lender.headshot_url} name={lender.name || ''} />
+          <div className="who">
+            <div className="role">Loan Officer</div>
+            <EditableText className="name" value={lender.name ?? ''}
+                          placeholder="Loan officer name"
+                          onCommit={(v) => onPatch?.({
+                            lender: { ...lender, name: v || null },
+                          })} />
+            <EditableText className="lic" value={lender.license ?? ''}
+                          placeholder="NMLS #"
+                          onCommit={(v) => onPatch?.({
+                            lender: { ...lender, license: v || null },
+                          })} />
+          </div>
+        </div>
+      ) : hasLender && (
         <div className="person lend">
           <Avatar src={lender.headshot_url} name={lender.name || ''} />
           <div className="who">
@@ -473,28 +607,73 @@ function FillLines({ lines, editable, onToggle, onChange }: {
   )
 }
 
-function ContactsSection({ contacts }: { contacts: Contact[] }) {
-  const people = contacts.filter((c) => c.group_key === 'people').sort((a, b) => a.sort_order - b.sort_order)
-  const utils = contacts.filter((c) => c.group_key === 'utilities').sort((a, b) => a.sort_order - b.sort_order)
+function ContactsSection({ contacts, editable, onPatch }: {
+  contacts: Contact[]; editable?: boolean
+  onPatch?: (id: string, v: Partial<Contact>) => void
+}) {
+  const by = (g: string) => contacts.filter((c) => c.group_key === g)
+    .sort((a, b) => a.sort_order - b.sort_order)
+  const people = by('people')
+  const utils = by('utilities')
+
+  // Clients don't need to scroll past a dozen "not set" rows on a phone.
+  const shown = (rows: Contact[]) => editable ? rows : rows.filter((c) => c.name?.trim())
+  const filled = contacts.filter((c) => c.name?.trim()).length
 
   return (
-    <Section title="Contacts" count={String(contacts.length)} defaultOpen>
-      {people.map((c) => <ContactRow key={c.id} c={c} />)}
-      {utils.length > 0 && <div className="glabel">Utility Companies</div>}
-      {utils.map((c) => <ContactRow key={c.id} c={c} />)}
+    <Section title="Contacts" count={editable ? `${filled} / ${contacts.length}` : String(filled)}
+             defaultOpen>
+      {shown(people).map((c) => (
+        <ContactRow key={c.id} c={c} editable={editable} onPatch={onPatch} />
+      ))}
+      {shown(utils).length > 0 && <div className="glabel">Utility Companies</div>}
+      {shown(utils).map((c) => (
+        <ContactRow key={c.id} c={c} editable={editable} onPatch={onPatch} />
+      ))}
     </Section>
   )
 }
 
-function ContactRow({ c }: { c: Contact }) {
-  return (
-    <div className="crow">
-      <span className="k">{c.role_label}</span>
-      <div className="rt">
-        <span className={`v${c.name ? '' : ' blank'}`}>{c.name || 'not set'}</span>
-        {c.phone && <a className="tapicon" href={telHref(c.phone)} aria-label={`Call ${c.role_label}`}>✆</a>}
-        {c.email && <a className="tapicon" href={`mailto:${c.email}`} aria-label={`Email ${c.role_label}`}>✉</a>}
+function ContactRow({ c, editable, onPatch }: {
+  c: Contact; editable?: boolean; onPatch?: (id: string, v: Partial<Contact>) => void
+}) {
+  const [open, setOpen] = useState(false)
+
+  if (!editable) {
+    return (
+      <div className="crow">
+        <span className="k">{c.role_label}</span>
+        <div className="rt">
+          <span className="v">{c.name}</span>
+          {c.phone && <a className="tapicon" href={telHref(c.phone)}
+                         aria-label={`Call ${c.role_label}`}>✆</a>}
+          {c.email && <a className="tapicon" href={`mailto:${c.email}`}
+                         aria-label={`Email ${c.role_label}`}>✉</a>}
+        </div>
       </div>
+    )
+  }
+
+  return (
+    <div className="crowEdit">
+      <div className="crow">
+        <span className="k">{c.role_label}</span>
+        <div className="rt">
+          <EditableText className="v" value={c.name ?? ''} placeholder="not set"
+                        onCommit={(v) => onPatch?.(c.id, { name: v || null })} />
+          <button type="button" className={`tapicon${open ? ' on' : ''}`}
+                  onClick={() => setOpen((o) => !o)}
+                  title="Phone and email">⋯</button>
+        </div>
+      </div>
+      {open && (
+        <div className="crowMore">
+          <EditableText value={c.phone ?? ''} placeholder="Phone"
+                        onCommit={(v) => onPatch?.(c.id, { phone: v || null })} />
+          <EditableText value={c.email ?? ''} placeholder="Email"
+                        onCommit={(v) => onPatch?.(c.id, { email: v || null })} />
+        </div>
+      )}
     </div>
   )
 }

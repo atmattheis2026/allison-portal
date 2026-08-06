@@ -105,9 +105,20 @@ looks real is worse than an empty footer.
 the Loan section is absent and the page runs two columns. That is data-driven, not a
 special case in code — adding loan steps to the seller template would bring it back.
 
+**Editing is inline, not a separate form.** The admin view is the same Dashboard
+component with `editable`, so the thing she changes is the thing her client sees.
+Inputs are styled invisible until focused (`.inlineEdit`). Don't build a separate
+"edit transaction" form — it would immediately drift from the client view.
+
+**Anything editable must be editable on a phone.** The address exists twice in the
+DOM: once inside the photo (phone) and once beside it (desktop), with CSS hiding
+one. Both are editable. If you add a new editable field, check it isn't living only
+inside `.headline`, which is `display:none` on a phone.
+
 ## Still to do
 
 - Both company logos — she uploads them in Settings › Branding
+- Wiring Settings saves to the database (the screens work, saving needs Supabase)
 - Print stylesheet
 - Team management for her five people
-- New-transaction creation flow
+- Saved lenders, so she picks a repeat lender instead of retyping

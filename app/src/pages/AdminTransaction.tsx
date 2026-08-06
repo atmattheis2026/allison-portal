@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import Dashboard from '../components/Dashboard'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import { DEMO_PAYLOAD, DEMO_SELLER } from '../lib/demoData'
-import type { Milestone, SharedPayload } from '../lib/types'
+import type { Contact, Milestone, SharedPayload, Transaction } from '../lib/types'
 
 /**
  * Allison's editing view. Same Dashboard component as the client page, with
@@ -87,6 +87,48 @@ export default function AdminTransaction() {
         return d
       })
       write('doc_lines', lineId, { text })
+    },
+
+    onPatchTransaction: (values: Partial<Transaction>) => {
+      patch((d) => ({ ...d, transaction: { ...d.transaction, ...values } }))
+      if (!id) return
+      // The lender fields are flat columns on the table, not a json blob.
+      const { lender, ...rest } = values
+      const row: Record<string, unknown> = { ...rest }
+      if (lender) {
+        row.lender_name = lender.name
+        row.lender_company = lender.company
+        row.lender_license = lender.license
+        row.lender_headshot_url = lender.headshot_url
+        row.lender_phone = lender.phone
+        row.lender_email = lender.email
+      }
+      write('transactions', id, row)
+    },
+
+    onPatchContact: (contactId: string, values: Partial<Contact>) => {
+      patch((d) => {
+        const t = d.contacts.find((x) => x.id === contactId)
+        if (t) Object.assign(t, values)
+        return d
+      })
+      write('contacts', contactId, values as Record<string, unknown>)
+    },
+
+    onUploadPhoto: async (file: File) => {
+      // Show it immediately either way; in demo mode that's all that happens.
+      const localUrl = URL.createObjectURL(file)
+      patch((d) => ({ ...d, transaction: { ...d.transaction, photo_url: localUrl } }))
+      if (DEMO_MODE || !supabase || !id) return
+
+      const path = `properties/${id}-${Date.now()}-${file.name}`
+      const { error } = await supabase.storage.from('media')
+        .upload(path, file, { upsert: true })
+      if (error) { console.error('photo upload failed', error); return }
+
+      const { data } = supabase.storage.from('media').getPublicUrl(path)
+      patch((d) => ({ ...d, transaction: { ...d.transaction, photo_url: data.publicUrl } }))
+      write('transactions', id, { photo_url: data.publicUrl })
     },
   }
 

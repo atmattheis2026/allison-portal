@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import { DEMO_PAYLOAD, DEMO_SELLER } from '../lib/demoData'
 import { STATUS_LABEL, type TxStatus } from '../lib/types'
@@ -42,6 +42,8 @@ const DEMO_ROWS: Row[] = [
 export default function AdminList() {
   const [rows, setRows] = useState<Row[] | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+  const nav = useNavigate()
 
   useEffect(() => {
     if (DEMO_MODE || !supabase) { setRows(DEMO_ROWS); return }
@@ -77,9 +79,18 @@ export default function AdminList() {
         <span className="wordmark" style={{ fontSize: 15 }}>Transactions</span>
         <nav className="adminnav">
           <Link className="btn" to="/admin/settings">Settings</Link>
-          <button className="btn primary">New transaction</button>
+          <button className="btn primary" onClick={() => setCreating(true)}>
+            New transaction
+          </button>
         </nav>
       </header>
+
+      {creating && (
+        <NewTransaction
+          onCancel={() => setCreating(false)}
+          onCreated={(newId) => nav(`/admin/t/${newId}`)}
+        />
+      )}
 
       {rows.length === 0 ? (
         <div className="centered">
@@ -120,5 +131,104 @@ export default function AdminList() {
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * Creating a transaction is two questions: the address and whether she's
+ * representing the buyer or the seller. Everything else gets stamped from her
+ * templates by seed_transaction(), and she fills it in on the page itself.
+ *
+ * deal_type is immutable after creation because it decides which checklist got
+ * copied in — switching it later would strand a half-finished list.
+ */
+function NewTransaction({ onCancel, onCreated }: {
+  onCancel: () => void; onCreated: (id: string) => void
+}) {
+  const [address, setAddress] = useState('')
+  const [cityStateZip, setCityStateZip] = useState('')
+  const [dealType, setDealType] = useState<'buy' | 'sell'>('buy')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  async function create(e: React.FormEvent) {
+    e.preventDefault()
+    if (DEMO_MODE || !supabase) {
+      setErr('There’s no database connected yet, so this can’t save a real transaction.')
+      return
+    }
+    setBusy(true); setErr(null)
+
+    const { data: me } = await supabase.from('profiles')
+      .select('team_id').eq('id', (await supabase.auth.getUser()).data.user?.id).single()
+    if (!me?.team_id) { setErr('Couldn’t work out which team you’re on.'); setBusy(false); return }
+
+    const { data: tx, error } = await supabase.from('transactions')
+      .insert({
+        team_id: me.team_id,
+        deal_type: dealType,
+        address_line: address,
+        city_state_zip: cityStateZip,
+      })
+      .select('id').single()
+
+    if (error || !tx) { setErr(error?.message ?? 'Could not create it.'); setBusy(false); return }
+
+    // Stamp the checklist, contacts and doc lines, then work out the rail.
+    await supabase.rpc('seed_transaction', { p_transaction_id: tx.id })
+    await supabase.rpc('apply_rail_steps', { p_transaction_id: tx.id })
+
+    onCreated(tx.id)
+  }
+
+  return (
+    <form className="card setcard newtx" onSubmit={create}>
+      <h2>New transaction</h2>
+      <p className="sethelp">
+        Just the address to start. Everything else you fill in on the page itself.
+      </p>
+
+      <div className="field2">
+        <div className="field">
+          <label>Street address</label>
+          <input value={address} autoFocus required
+                 onChange={(e) => setAddress(e.target.value)}
+                 placeholder="7859 Palmilla Ct" />
+        </div>
+        <div className="field">
+          <label>City, State ZIP</label>
+          <input value={cityStateZip}
+                 onChange={(e) => setCityStateZip(e.target.value)}
+                 placeholder="Reunion, FL 34747" />
+        </div>
+      </div>
+
+      <div className="field">
+        <label>Which side are you on?</label>
+        <div className="tabs">
+          <button type="button" className={`tab${dealType === 'buy' ? ' on' : ''}`}
+                  onClick={() => setDealType('buy')}>
+            Representing the buyer
+          </button>
+          <button type="button" className={`tab${dealType === 'sell' ? ' on' : ''}`}
+                  onClick={() => setDealType('sell')}>
+            It’s my listing
+          </button>
+        </div>
+        <p className="sethelp" style={{ margin: '8px 0 0' }}>
+          This picks which checklist gets used, and it can’t be changed afterwards —
+          so if you get it wrong, delete this one and start again.
+        </p>
+      </div>
+
+      {err && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{err}</p>}
+
+      <div className="savebar">
+        <button className="btn primary" disabled={busy}>
+          {busy ? 'Creating…' : 'Create it'}
+        </button>
+        <button type="button" className="btn" onClick={onCancel}>Cancel</button>
+      </div>
+    </form>
   )
 }

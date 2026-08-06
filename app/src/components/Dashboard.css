@@ -180,6 +180,47 @@
 
 .emptynote { padding: 22px 12px; text-align: center; color: var(--ink-faint); font-size: 13px; line-height: 1.6; }
 
+/* ---------------- inline editing ---------------- */
+/* Inputs are invisible until touched, so the editing view reads as the finished
+   page rather than as a form. */
+.inlineEdit {
+  background: none; border: none; border-radius: 0; padding: 2px 4px; width: 100%;
+  border-bottom: 1px solid transparent; font: inherit; color: inherit;
+}
+.inlineEdit:hover { border-bottom-color: var(--line); }
+.inlineEdit:focus { border-bottom-color: var(--gold-soft); background: var(--panel-2); }
+.inlineEdit::placeholder { color: var(--ink-faint); opacity: .5; font-style: italic; }
+
+input.inlineEdit.address  { font-family: var(--serif); font-size: 32px; line-height: 1.1; margin: 0 0 2px -4px; }
+input.inlineEdit.cityline { font-family: var(--serif); font-size: 17px; color: var(--gold); margin-left: -4px; }
+input.inlineEdit.name { font-size: 12.5px; }
+input.inlineEdit.lic  { font-size: 10px; color: var(--ink-faint); }
+input.inlineEdit.v    { font-size: 13.5px; text-align: right; }
+
+.photoSwap {
+  position: absolute; left: 10px; top: 10px; z-index: 3; cursor: pointer;
+  background: rgba(10,13,19,.82); border: 1px solid var(--line);
+  border-radius: 999px; padding: 6px 13px; font-size: 11px; color: var(--ink-dim);
+}
+.photoSwap:hover { border-color: var(--gold-soft); color: var(--gold-bright); }
+
+.statusEdit { display: flex; flex-direction: column; gap: 7px; align-items: flex-start; }
+.statusEdit .pill select {
+  background: none; border: none; padding: 0; width: auto;
+  color: var(--gold-bright); font-size: 12.5px;
+}
+.statusEdit .pill select option { background: var(--panel); color: var(--ink); }
+input.inlineEdit.statusNote { font-size: 12px; color: var(--ink-dim); max-width: 320px; }
+
+.closingInput { width: auto; padding: 4px 8px; font-size: 12px; margin-top: 6px; }
+
+.crowEdit { border-bottom: 1px solid var(--line-soft); }
+.crowEdit:last-child { border-bottom: none; }
+.crowEdit .crow { border-bottom: none; }
+.crowMore { display: grid; gap: 8px; padding: 0 8px 12px 8px; }
+.crowMore .inlineEdit { border-bottom-color: var(--line); font-size: 12.5px; }
+.tapicon.on { border-color: var(--gold-soft); color: var(--gold-bright); }
+
 /* ---------------- compliance footer ---------------- */
 .disclaimers {
   margin: 28px 18px 0; padding-top: 18px;
@@ -214,6 +255,9 @@
   .headline { display: block; }
   .countdownPhone { display: none; }
   .countdownDesk { display: block; }
+
+  input.inlineEdit.address  { font-size: 52px; margin-bottom: 4px; }
+  input.inlineEdit.cityline { font-size: 23px; margin-bottom: 12px; }
 
   .headline .address { font-size: 52px; margin-bottom: 6px; }
   .headline .cityline { font-size: 23px; margin-bottom: 16px; }
