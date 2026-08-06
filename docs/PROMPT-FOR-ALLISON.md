@@ -3,10 +3,11 @@
 Send her the block below. She opens Claude Code and pastes the whole thing as her
 first message.
 
-**Before sending:** replace `<REPO URL>` with the real clone URL. If the repo is
-private she can't clone it without authenticating, which is a wall for her — make it
-public for setup (there are no keys or client data in it; `.env.local` is gitignored)
-and flip it private later once she's signed in to GitHub.
+Ready to send as-is. The repo is live at
+**https://github.com/dixxxvhb/allison-portal**, public so she can clone it in one
+command with no GitHub login. Nothing sensitive is in it — no keys, no client data,
+`.env.local` is gitignored. Flip it private once she has a GitHub account, and
+transfer ownership to her when she does.
 
 ---
 
@@ -24,7 +25,7 @@ Here's what needs to happen:
 
 1. Figure out what's already on my Mac and what's missing. I most likely have nothing set up.
 2. I need git and Node. Install whatever's missing. If installing needs my password or needs me to click through an installer window, walk me through it one step at a time.
-3. Download the project from here: <REPO URL>
+3. Download the project from here: https://github.com/dixxxvhb/allison-portal
    Put it somewhere sensible in my Documents folder.
 4. Install what the project needs, then start it.
 5. Open it in my browser so I can actually see it, and tell me what I'm looking at.
