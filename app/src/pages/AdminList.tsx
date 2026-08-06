@@ -45,18 +45,31 @@ export default function AdminList() {
   const [creating, setCreating] = useState(false)
   const nav = useNavigate()
 
+  const [needsSetup, setNeedsSetup] = useState(false)
+
   useEffect(() => {
     if (DEMO_MODE || !supabase) { setRows(DEMO_ROWS); return }
-    supabase
-      .from('transactions')
-      .select('id,address_line,city_state_zip,photo_url,status,deal_type,closing_date,share_token')
-      .is('archived_at', null)
-      .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
-        if (error) console.error(error)
-        setRows((data as Row[]) ?? [])
-      })
-  }, [])
+
+    async function load() {
+      const { data: auth } = await supabase!.auth.getUser()
+      if (!auth.user) { nav('/login'); return }
+
+      // A brand-new project has a signed-in user with no workspace yet. Say so
+      // plainly instead of showing an empty list that looks like a bug.
+      const { data: me } = await supabase!.from('profiles')
+        .select('team_id').eq('id', auth.user.id).maybeSingle()
+      if (!me?.team_id) { setNeedsSetup(true); setRows([]); return }
+
+      const { data, error } = await supabase!
+        .from('transactions')
+        .select('id,address_line,city_state_zip,photo_url,status,deal_type,closing_date,share_token')
+        .is('archived_at', null)
+        .order('created_at', { ascending: false })
+      if (error) console.error(error)
+      setRows((data as Row[]) ?? [])
+    }
+    load()
+  }, [nav])
 
   function copyLink(token: string) {
     const url = `${window.location.origin}/t/${token}`
@@ -66,6 +79,8 @@ export default function AdminList() {
   }
 
   if (!rows) return <div className="centered"><div className="spinner" /></div>
+
+  if (needsSetup) return <FirstRun onDone={() => window.location.reload()} />
 
   return (
     <div className="admin">
@@ -130,6 +145,68 @@ export default function AdminList() {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * Shown once, the first time anyone signs in to a fresh database. Creates the
+ * team, both brands, and every checklist template in one call.
+ */
+function FirstRun({ onDone }: { onDone: () => void }) {
+  const [company, setCompany] = useState('')
+  const [yourName, setYourName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  async function go(e: React.FormEvent) {
+    e.preventDefault()
+    if (!supabase) return
+    setBusy(true); setErr(null)
+    const { error } = await supabase.rpc('claim_workspace', {
+      p_team_name: company, p_your_name: yourName,
+    })
+    if (error) { setErr(error.message); setBusy(false); return }
+    onDone()
+  }
+
+  return (
+    <div className="admin">
+      <form className="card setcard" style={{ maxWidth: 560, margin: '48px auto' }}
+            onSubmit={go}>
+        <h2>One-time setup</h2>
+        <p className="sethelp">
+          This is the first time anyone’s signed in, so let’s get your workspace
+          started. Two questions and you’re done — your checklists get set up
+          automatically.
+        </p>
+
+        <div className="field">
+          <label>Your real estate company name</label>
+          <input value={company} required autoFocus
+                 onChange={(e) => setCompany(e.target.value)}
+                 placeholder="Mattheis & Co." />
+          <p className="sethelp" style={{ margin: '6px 0 0' }}>
+            This shows at the top of every page. You can change it later, and add
+            your logo, in Settings.
+          </p>
+        </div>
+
+        <div className="field">
+          <label>Your name</label>
+          <input value={yourName} required
+                 onChange={(e) => setYourName(e.target.value)}
+                 placeholder="Allison Mattheis" />
+        </div>
+
+        {err && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{err}</p>}
+
+        <div className="savebar">
+          <button className="btn primary" disabled={busy}>
+            {busy ? 'Setting up…' : 'Set up my workspace'}
+          </button>
+        </div>
+      </form>
     </div>
   )
 }
