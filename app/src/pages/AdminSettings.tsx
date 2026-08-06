@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
-import type { BrandKind, DealType, Side } from '../lib/types'
+import { TEAM_MEMBERS } from '../lib/demoData'
+import { ROLE_LABEL, type BrandKind, type DealType, type Side, type TeamMember, type TeamRole } from '../lib/types'
 import './Admin.css'
 
 /**
@@ -15,7 +16,7 @@ import './Admin.css'
  * has to send someone.
  */
 export default function AdminSettings() {
-  const [tab, setTab] = useState<'branding' | 'checklists'>('branding')
+  const [tab, setTab] = useState<'branding' | 'checklists' | 'team'>('branding')
 
   return (
     <div className="admin">
@@ -39,9 +40,12 @@ export default function AdminSettings() {
         <button className={`tab${tab === 'checklists' ? ' on' : ''}`} onClick={() => setTab('checklists')}>
           Checklists
         </button>
+        <button className={`tab${tab === 'team' ? ' on' : ''}`} onClick={() => setTab('team')}>
+          Team
+        </button>
       </div>
 
-      {tab === 'branding' ? <Branding /> : <Checklists />}
+      {tab === 'branding' ? <Branding /> : tab === 'checklists' ? <Checklists /> : <Team />}
     </div>
   )
 }
@@ -350,6 +354,164 @@ function Checklists() {
         <div className="savebar">
           <button className="btn" onClick={add}>+ Add a step</button>
           <button className="btn primary" disabled={DEMO_MODE}>Save checklist</button>
+          {DEMO_MODE && (
+            <span className="muted" style={{ fontSize: 12 }}>
+              Saving needs the database connected.
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ============================================================ team */
+
+let nextTeamId = 1000
+
+function newMember(sort_order: number): TeamMember {
+  return {
+    id: `new-${nextTeamId++}`, full_name: '', role: 'realtor',
+    license_number: null, headshot_url: null, phone: null, email: null,
+    sees_all_transactions: false, sort_order,
+  }
+}
+
+/**
+ * Her roster, with the per-person switch she asked for: "Sees every transaction"
+ * on means an office-manager type who can see the whole book. Off means they only
+ * see deals they're assigned to on that deal's page — see AdminTransaction.
+ */
+function Team() {
+  const [members, setMembers] = useState<TeamMember[]>(DEMO_MODE ? TEAM_MEMBERS : [])
+  const [removedIds, setRemovedIds] = useState<string[]>([])
+  const [busy, setBusy] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    if (DEMO_MODE || !supabase) return
+    supabase.from('team_members').select('*').order('sort_order')
+      .then(({ data }) => setMembers((data as TeamMember[]) ?? []))
+  }, [])
+
+  const update = (id: string, patch: Partial<TeamMember>) =>
+    setMembers(members.map((m) => (m.id === id ? { ...m, ...patch } : m)))
+
+  const remove = (id: string) => {
+    setMembers(members.filter((m) => m.id !== id))
+    if (!id.startsWith('new-')) setRemovedIds([...removedIds, id])
+  }
+
+  const add = () =>
+    setMembers([...members, newMember((members.at(-1)?.sort_order ?? 0) + 10)])
+
+  async function uploadHeadshot(id: string, file: File) {
+    const localUrl = URL.createObjectURL(file)
+    update(id, { headshot_url: localUrl })
+    if (DEMO_MODE || !supabase) return
+    const path = `team/${id}-${Date.now()}-${file.name}`
+    const { error } = await supabase.storage.from('media').upload(path, file, { upsert: true })
+    if (error) { console.error('headshot upload failed', error); return }
+    const { data } = supabase.storage.from('media').getPublicUrl(path)
+    update(id, { headshot_url: data.publicUrl })
+  }
+
+  async function save() {
+    if (DEMO_MODE || !supabase) return
+    setBusy(true)
+
+    const { data: auth } = await supabase.auth.getUser()
+    const { data: me } = await supabase.from('profiles')
+      .select('team_id').eq('id', auth.user?.id).single()
+    const teamId = me?.team_id
+    if (!teamId) { setBusy(false); return }
+
+    for (const id of removedIds) {
+      await supabase.from('team_members').delete().eq('id', id)
+    }
+    setRemovedIds([])
+
+    for (const m of members) {
+      if (!m.full_name.trim()) continue
+      const row = {
+        team_id: teamId, full_name: m.full_name, role: m.role,
+        license_number: m.license_number, headshot_url: m.headshot_url,
+        phone: m.phone, email: m.email,
+        sees_all_transactions: m.sees_all_transactions, sort_order: m.sort_order,
+      }
+      if (m.id.startsWith('new-')) {
+        const { data } = await supabase.from('team_members').insert(row).select('id').single()
+        if (data) update(m.id, { id: data.id })
+      } else {
+        await supabase.from('team_members').update(row).eq('id', m.id)
+      }
+    }
+
+    setBusy(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 1800)
+  }
+
+  return (
+    <div className="settings">
+      <div className="card setcard">
+        <h2>Team</h2>
+        <p className="sethelp">
+          Everyone who works your transactions. Turn on <strong>Sees every transaction</strong>{' '}
+          for people who should have the whole book — an office manager, or you.
+          Leave it off for agents and loan officers, and pick which of their deals
+          they're on from each transaction's page.
+        </p>
+
+        {members.map((m) => (
+          <div className="tmplrow" key={m.id} style={{ alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <label style={{ cursor: 'pointer', flex: 'none' }} title="Click to add a headshot">
+              <input type="file" accept="image/*" style={{ display: 'none' }}
+                     onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadHeadshot(m.id, f) }} />
+              {m.headshot_url
+                ? <img src={m.headshot_url} alt="" style={{
+                    width: 32, height: 32, borderRadius: '50%', objectFit: 'cover',
+                    border: '1px solid var(--gold-soft)',
+                  }} />
+                : <span style={{
+                    width: 32, height: 32, borderRadius: '50%', display: 'grid', placeItems: 'center',
+                    border: '1px dashed var(--line)', fontSize: 10, color: 'var(--ink-faint)',
+                  }}>+</span>}
+            </label>
+            <input
+              type="text" value={m.full_name} placeholder="Full name"
+              style={{ minWidth: 160 }}
+              onChange={(e) => update(m.id, { full_name: e.target.value })}
+            />
+            <select
+              value={m.role}
+              onChange={(e) => update(m.id, { role: e.target.value as TeamRole })}
+              style={{
+                background: 'none', border: '1px solid var(--line)', borderRadius: 999,
+                padding: '5px 10px', fontSize: 12, color: 'var(--ink-dim)',
+                flex: 'none', width: 'auto',
+              }}
+            >
+              {(Object.keys(ROLE_LABEL) as TeamRole[]).map((r) => (
+                <option key={r} value={r}>{ROLE_LABEL[r]}</option>
+              ))}
+            </select>
+            <button
+              className={`datetoggle${m.sees_all_transactions ? ' on' : ''}`}
+              title="Sees every transaction on the team, not just their own"
+              onClick={() => update(m.id, { sees_all_transactions: !m.sees_all_transactions })}
+            >
+              {m.sees_all_transactions ? 'Sees every transaction' : 'Sees only assigned'}
+            </button>
+            <button className="del" onClick={() => remove(m.id)} title="Remove from team">×</button>
+          </div>
+        ))}
+
+        <div className="savebar">
+          <button className="btn" onClick={add}>+ Add a team member</button>
+          <button className="btn primary" disabled={DEMO_MODE || busy} onClick={save}>
+            {busy ? 'Saving…' : saved ? 'Saved' : 'Save team'}
+          </button>
           {DEMO_MODE && (
             <span className="muted" style={{ fontSize: 12 }}>
               Saving needs the database connected.

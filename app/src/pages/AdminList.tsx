@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
-import { DEMO_PAYLOAD, DEMO_SELLER } from '../lib/demoData'
-import { STATUS_LABEL, type TxStatus } from '../lib/types'
+import { DEMO_PAYLOAD, DEMO_SELLER, TEAM_MEMBERS, TRANSACTION_ASSIGNEES } from '../lib/demoData'
+import { STATUS_LABEL, type TeamMember, type TxStatus } from '../lib/types'
 import './Admin.css'
 
 interface Row {
@@ -46,9 +46,16 @@ export default function AdminList() {
   const nav = useNavigate()
 
   const [needsSetup, setNeedsSetup] = useState(false)
+  const [roster, setRoster] = useState<TeamMember[]>([])
+  const [assignedByTx, setAssignedByTx] = useState<Record<string, string[]>>({})
 
   useEffect(() => {
-    if (DEMO_MODE || !supabase) { setRows(DEMO_ROWS); return }
+    if (DEMO_MODE || !supabase) {
+      setRows(DEMO_ROWS)
+      setRoster(TEAM_MEMBERS)
+      setAssignedByTx(TRANSACTION_ASSIGNEES)
+      return
+    }
 
     async function load() {
       const { data: auth } = await supabase!.auth.getUser()
@@ -67,6 +74,19 @@ export default function AdminList() {
         .order('created_at', { ascending: false })
       if (error) console.error(error)
       setRows((data as Row[]) ?? [])
+
+      // RLS already limits which transaction rows come back to whoever's
+      // signed in, so this is just for the little "who's on it" chips per
+      // row — not a second layer of access control.
+      const { data: members } = await supabase!.from('team_members').select('*').order('sort_order')
+      setRoster((members as TeamMember[]) ?? [])
+      const { data: assignments } = await supabase!
+        .from('transaction_assignees').select('transaction_id,team_member_id')
+      const grouped: Record<string, string[]> = {}
+      for (const a of assignments ?? []) {
+        (grouped[a.transaction_id] ??= []).push(a.team_member_id)
+      }
+      setAssignedByTx(grouped)
     }
     load()
   }, [nav])
@@ -138,6 +158,11 @@ export default function AdminList() {
                   </div>
                 </div>
               </Link>
+              <AssignedChips
+                names={roster
+                  .filter((m) => assignedByTx[r.id]?.includes(m.id))
+                  .map((m) => m.full_name)}
+              />
               <button className="btn" onClick={() => copyLink(r.share_token)}>
                 {copied === r.share_token ? 'Copied' : 'Copy client link'}
               </button>
@@ -145,6 +170,27 @@ export default function AdminList() {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+/** Small initials, one per person assigned to this deal — set from the transaction's own page. */
+function AssignedChips({ names }: { names: string[] }) {
+  if (names.length === 0) return null
+  return (
+    <div style={{ display: 'flex', gap: 4, flex: 'none' }} title={names.join(', ')}>
+      {names.map((name) => {
+        const initials = name.split(/\s+/).filter(Boolean).slice(0, 2)
+          .map((w) => w[0]?.toUpperCase()).join('')
+        return (
+          <div key={name} style={{
+            width: 26, height: 26, borderRadius: '50%', flex: 'none',
+            border: '1px solid var(--gold-soft)', background: 'var(--panel-2)',
+            display: 'grid', placeItems: 'center',
+            fontFamily: 'var(--serif)', fontSize: 11, color: 'var(--gold)',
+          }}>{initials || '·'}</div>
+        )
+      })}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import type {
   SharedPayload, Milestone, Side, Brand, BrandKind, DocGroup, Contact,
-  Transaction, TxStatus,
+  Transaction, TxStatus, TeamMember, Note,
 } from '../lib/types'
 import { STATUS_LABEL } from '../lib/types'
 import './Dashboard.css'
@@ -59,6 +59,10 @@ export interface DashboardHandlers {
   onPatchTransaction?: (values: Partial<Transaction>) => void
   onPatchContact?: (id: string, values: Partial<Contact>) => void
   onUploadPhoto?: (file: File) => void
+  /** Picking a realtor from the roster, and giving the loan officer a headshot. */
+  onChangeRealtor?: (memberId: string | null) => void
+  onUploadLenderPhoto?: (file: File) => void
+  onAddNote?: (side: Side, body: string) => void
 }
 
 interface Props extends DashboardHandlers {
@@ -67,15 +71,18 @@ interface Props extends DashboardHandlers {
   /** Right-hand note in the brand bar. */
   viewNote?: string
   headerExtra?: ReactNode
+  /** Her team roster, for picking a realtor. Admin-only — not part of the
+   *  client payload, so this is undefined on the client-facing page. */
+  roster?: TeamMember[]
 }
 
 /* ------------------------------------------------------------------ main */
 
 export default function Dashboard({
   data, editable = false, viewNote = 'Transaction Portal · Client View',
-  headerExtra, ...h
+  headerExtra, roster, ...h
 }: Props) {
-  const { transaction: tx, realtor, brands, milestones, doc_lines, contacts } = data
+  const { transaction: tx, realtor, brands, milestones, doc_lines, contacts, notes } = data
 
   const reBrand = brands.real_estate
   const lendBrand = brands.lending
@@ -114,8 +121,11 @@ export default function Dashboard({
                        onPatch={h.onPatchTransaction} />
           </div>
         )}
-        <TeamCards realtor={realtor} lender={tx.lender}
-                   editable={editable} onPatch={h.onPatchTransaction} />
+        <TeamCards realtor={realtor} lender={tx.lender} roster={roster}
+                   realtorMemberId={tx.realtor_member_id}
+                   editable={editable} onPatch={h.onPatchTransaction}
+                   onChangeRealtor={h.onChangeRealtor}
+                   onUploadLenderPhoto={h.onUploadLenderPhoto} />
       </div>
 
       {railSteps.length > 0 && <Rail steps={railSteps} currentIdx={currentIdx} />}
@@ -134,6 +144,12 @@ export default function Dashboard({
               <Countdown date={tx.closing_date} editable={editable}
                          onPatch={h.onPatchTransaction} />
             </div>
+          )}
+          <NotesBoard title="Real Estate Updates" side="real_estate" notes={notes}
+                      editable={editable} onAdd={h.onAddNote} />
+          {hasLoan && (
+            <NotesBoard title="Loan Updates" side="loan" notes={notes} lending
+                        editable={editable} onAdd={h.onAddNote} />
           )}
           <ContactsSection contacts={contacts} editable={editable}
                            onPatch={h.onPatchContact} />
@@ -342,16 +358,48 @@ function Countdown({ date, editable, onPatch }: {
   )
 }
 
-function TeamCards({ realtor, lender, editable, onPatch }: {
+function TeamCards({
+  realtor, lender, roster, realtorMemberId, editable, onPatch, onChangeRealtor, onUploadLenderPhoto,
+}: {
   realtor: SharedPayload['realtor']; lender: Transaction['lender']
-  editable?: boolean; onPatch?: (v: Partial<Transaction>) => void
+  roster?: TeamMember[]; realtorMemberId?: string | null; editable?: boolean
+  onPatch?: (v: Partial<Transaction>) => void
+  onChangeRealtor?: (memberId: string | null) => void
+  onUploadLenderPhoto?: (file: File) => void
 }) {
   const hasLender = Boolean(lender?.name)
   if (!realtor && !hasLender && !editable) return null
 
   return (
     <div className="team">
-      {realtor && (
+      {/* Realtor is picked from her roster (Settings › Team), not typed per deal —
+          that's what makes the headshot and license follow her automatically
+          everywhere she's the realtor, instead of retyping it every transaction. */}
+      {editable ? (
+        <div className="person">
+          <Avatar src={realtor?.headshot_url ?? null} name={realtor?.full_name || ''} />
+          <div className="who">
+            <div className="role">Realtor</div>
+            <select
+              className="name"
+              style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', padding: 0 }}
+              value={realtorMemberId ?? ''}
+              onChange={(e) => onChangeRealtor?.(e.target.value || null)}
+            >
+              <option value="">Choose a realtor…</option>
+              {roster?.map((m) => (
+                <option key={m.id} value={m.id}>{m.full_name || 'Unnamed'}</option>
+              ))}
+            </select>
+            {realtor?.license_number && <div className="lic">{realtor.license_number}</div>}
+            {!roster?.length && (
+              <div className="lic" style={{ opacity: .7 }}>
+                Add people in Settings › Team first
+              </div>
+            )}
+          </div>
+        </div>
+      ) : realtor && (
         <div className="person">
           <Avatar src={realtor.headshot_url} name={realtor.full_name} />
           <div className="who">
@@ -366,7 +414,14 @@ function TeamCards({ realtor, lender, editable, onPatch }: {
           use a different one, so it's typed per deal rather than picked. */}
       {editable ? (
         <div className="person lend">
-          <Avatar src={lender.headshot_url} name={lender.name || ''} />
+          <label className="avatarSwap">
+            <Avatar src={lender.headshot_url} name={lender.name || ''} />
+            <input type="file" accept="image/*" style={{ display: 'none' }}
+                   onChange={(e) => {
+                     const f = e.target.files?.[0]
+                     if (f) onUploadLenderPhoto?.(f)
+                   }} />
+          </label>
           <div className="who">
             <div className="role">Loan Officer</div>
             <EditableText className="name" value={lender.name ?? ''}
@@ -605,6 +660,72 @@ function FillLines({ lines, editable, onToggle, onChange }: {
       ))}
     </>
   )
+}
+
+/**
+ * A dated log, one per side. Entries are never edited or deleted once posted —
+ * that's what makes it a history instead of a note that can quietly change.
+ * Clients see it read-only; only the admin view can post.
+ */
+function NotesBoard({ title, side, notes, lending, editable, onAdd }: {
+  title: string; side: Side; notes: Note[]; lending?: boolean
+  editable?: boolean; onAdd?: (side: Side, body: string) => void
+}) {
+  const [draft, setDraft] = useState('')
+  const items = notes.filter((n) => n.side === side)
+  if (items.length === 0 && !editable) return null
+
+  function post() {
+    const body = draft.trim()
+    if (!body) return
+    onAdd?.(side, body)
+    setDraft('')
+  }
+
+  return (
+    <div className={`card notesboard${lending ? ' lending' : ''}`}>
+      <h3 className="eyebrow">{title}</h3>
+
+      {items.length === 0 ? (
+        <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 0' }}>
+          No updates posted yet.
+        </p>
+      ) : (
+        <div className="notelist">
+          {items.map((n) => (
+            <div className="note" key={n.id}>
+              <div className="notemeta">
+                {n.author_name && <span className="noteauthor">{n.author_name}</span>}
+                <span className="notewhen">{fmtNoteWhen(n.created_at)}</span>
+              </div>
+              <p className="notebody">{n.body}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {editable && (
+        <div className="noteadd">
+          <textarea
+            rows={2} value={draft} placeholder="Post an update…"
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) post()
+            }}
+          />
+          <button type="button" className="btn" onClick={post} disabled={!draft.trim()}>
+            Post
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function fmtNoteWhen(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+  })
 }
 
 function ContactsSection({ contacts, editable, onPatch }: {

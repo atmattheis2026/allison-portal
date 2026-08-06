@@ -1,5 +1,6 @@
 export type DealType = 'buy' | 'sell'
 export type Side = 'real_estate' | 'loan'
+export type TeamRole = 'realtor' | 'loan_officer' | 'admin'
 export type BrandKind = 'real_estate' | 'lending'
 export type DocGroup = 'documentation' | 'conditions'
 export type ContactGroup = 'people' | 'utilities'
@@ -33,6 +34,31 @@ export interface Person {
   headshot_url: string | null
   phone: string | null
   email: string | null
+}
+
+/**
+ * Someone on Allison's team.
+ *
+ * `sees_all_transactions` is the per-person access switch: an office manager
+ * gets true and sees the whole book, an agent gets false and sees only the
+ * deals they're assigned to. It is set in Settings › Team.
+ */
+export interface TeamMember {
+  id: string
+  full_name: string
+  role: TeamRole
+  license_number: string | null
+  headshot_url: string | null
+  phone: string | null
+  email: string | null
+  sees_all_transactions: boolean
+  sort_order: number
+}
+
+export const ROLE_LABEL: Record<TeamRole, string> = {
+  realtor: 'Agent',
+  loan_officer: 'Loan officer',
+  admin: 'Office manager',
 }
 
 export interface Lender {
@@ -86,6 +112,18 @@ export interface Transaction {
   status_note: string | null
   closing_date: string | null
   lender: Lender
+  /** Which roster member is shown as "Realtor." Picked in Settings › Team roster. */
+  realtor_member_id: string | null
+}
+
+/** A dated entry on a transaction's message board — one log per side, never
+ *  overwritten, so it reads back as a history rather than a single note. */
+export interface Note {
+  id: string
+  side: Side
+  author_name: string | null
+  body: string
+  created_at: string
 }
 
 /** Exactly what get_shared_transaction() returns. */
@@ -96,4 +134,5 @@ export interface SharedPayload {
   milestones: Milestone[]
   doc_lines: DocLine[]
   contacts: Contact[]
+  notes: Note[]
 }

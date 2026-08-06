@@ -1,4 +1,4 @@
-import type { SharedPayload, Milestone, DocLine, Contact } from './types'
+import type { SharedPayload, Milestone, DocLine, Contact, TeamMember } from './types'
 
 /**
  * Sample transaction used when no Supabase credentials are present.
@@ -146,6 +146,7 @@ export const DEMO_PAYLOAD: SharedPayload = {
     status: 'on_track',
     status_note: null,
     closing_date: closingDate(9),
+    realtor_member_id: 'tm-allison',
     lender: {
       name: 'Jane Mitchell',
       company: 'Alpine Bank',
@@ -193,6 +194,18 @@ export const DEMO_PAYLOAD: SharedPayload = {
   milestones,
   doc_lines,
   contacts,
+  notes: [
+    {
+      id: 'note-1', side: 'real_estate', author_name: 'Allison Mattheis',
+      body: 'Appraisal is scheduled — I’ll post the results as soon as they come in.',
+      created_at: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+    },
+    {
+      id: 'note-2', side: 'loan', author_name: 'Jane Mitchell',
+      body: 'Docs are in underwriting. Should have a decision by end of week.',
+      created_at: new Date(Date.now() - 1 * 86_400_000).toISOString(),
+    },
+  ],
 }
 
 /* ------------------------------------------------------- seller sample */
@@ -245,10 +258,53 @@ export const DEMO_SELLER: SharedPayload = {
   })),
   doc_lines: [],
   contacts: contacts.filter((c) => c.role_label !== 'Loan Officer'),
+  // No loan side on a listing, so no loan-side notes either.
+  notes: [{
+    id: 'note-sell-1', side: 'real_estate', author_name: 'Allison Mattheis',
+    body: 'Open house this Sunday 1–3pm — will report back on turnout.',
+    created_at: new Date(Date.now() - 3 * 86_400_000).toISOString(),
+  }],
 }
 
 /** Both samples, keyed by the token in the URL. */
 export const DEMO_BY_TOKEN: Record<string, SharedPayload> = {
   demo: DEMO_PAYLOAD,
   'demo-sell': DEMO_SELLER,
+}
+
+/* ------------------------------------------------------- team & assignment */
+
+/**
+ * Her roster. `sees_all_transactions: true` is the office-manager switch —
+ * everyone else only sees deals they're assigned to (see below).
+ */
+export const TEAM_MEMBERS: TeamMember[] = [
+  {
+    id: 'tm-allison', full_name: 'Allison Mattheis', role: 'admin',
+    license_number: 'SL 3512908',
+    headshot_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&q=70',
+    phone: '+12536539021', email: null, sees_all_transactions: true, sort_order: 10,
+  },
+  {
+    id: 'tm-marcus', full_name: 'Marcus Webb', role: 'realtor',
+    license_number: 'SL 3612411', headshot_url: null,
+    phone: '+14075550199', email: null, sees_all_transactions: false, sort_order: 20,
+  },
+  {
+    id: 'tm-priya', full_name: 'Priya Nair', role: 'realtor',
+    license_number: 'SL 3688820', headshot_url: null,
+    phone: '+14075550233', email: null, sees_all_transactions: false, sort_order: 30,
+  },
+  {
+    id: 'tm-jane', full_name: 'Jane Mitchell', role: 'loan_officer',
+    license_number: 'NMLS 1184402',
+    headshot_url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&q=70',
+    phone: '+14075550142', email: null, sees_all_transactions: false, sort_order: 40,
+  },
+]
+
+/** Which roster people are on each demo transaction. Admin-only — never sent to clients. */
+export const TRANSACTION_ASSIGNEES: Record<string, string[]> = {
+  'demo-tx': ['tm-allison', 'tm-jane'],
+  'demo-sell': ['tm-allison', 'tm-priya'],
 }
