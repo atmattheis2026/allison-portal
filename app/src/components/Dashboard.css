@@ -103,15 +103,19 @@
 
 .hsteps { display: none; }
 
+/* Phone: the address lives over the photo, and the desktop headline block is
+   redundant. Both are always in the DOM; CSS picks. */
+.headline { display: none; }
+.countdownDesk { display: none; }
+
 /* ---------------- sections ---------------- */
 .sections { display: block; }
 .sec { margin: 14px 18px 0; overflow: hidden; }
-.sec > summary, .sec > .sechdr {
-  list-style: none; cursor: pointer; padding: 16px 18px;
+.sec > .sechdr {
+  width: 100%; cursor: pointer; padding: 16px 18px;
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  -webkit-tap-highlight-color: transparent;
+  -webkit-tap-highlight-color: transparent; text-align: left;
 }
-.sec > summary::-webkit-details-marker { display: none; }
 .sec .sechead { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .sec .sectitle { font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
                  color: var(--gold); font-weight: 500; }
@@ -124,8 +128,9 @@
 .secright { display: flex; align-items: center; gap: 11px; }
 .count { font-size: 11.5px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
 .chev { color: var(--ink-faint); font-size: 10px; transition: transform .2s; }
-.sec[open] .chev { transform: rotate(180deg); }
+.sechdr[aria-expanded="true"] .chev { transform: rotate(180deg); }
 .secbody { padding: 2px 10px 14px; border-top: 1px solid var(--line-soft); }
+.secbody[data-open="false"] { display: none; }
 
 /* checklist — 44px tap targets */
 .chk { display: flex; align-items: center; gap: 12px; padding: 11px 8px;
@@ -193,6 +198,10 @@
   .hero .heroText { display: none; }
   .hero.noPhoto { height: 180px; padding: 0; display: grid; place-items: center; }
 
+  .headline { display: block; }
+  .countdownPhone { display: none; }
+  .countdownDesk { display: block; }
+
   .headline .address { font-size: 52px; margin-bottom: 6px; }
   .headline .cityline { font-size: 23px; margin-bottom: 16px; }
   .statusrow { padding: 0; }
@@ -204,7 +213,7 @@
   .person .name { font-size: 14px; }
   .person .lic { font-size: 11px; }
 
-  /* rail goes horizontal */
+  /* rail goes horizontal — both markups are in the DOM, CSS picks one */
   .rail { margin: 0 0 22px; padding: 30px 34px 24px; }
   .rail h3 { display: none; }
   .vsteps { display: none; }
@@ -231,6 +240,14 @@
   .sections { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; align-items: start; }
   .sections.twocol { grid-template-columns: 1fr 1fr; }
   .sec { margin: 0; }
+
+  /* A section must never be collapsed on a wide screen, whatever state it was
+     left in on a phone. This is the reason Section isn't a <details>: a closed
+     <details> can't be forced open from CSS, so the content would be stranded. */
+  .sec > .sechdr { cursor: default; pointer-events: none; }
+  .sec .chev { display: none; }
+  .secbody[data-open="false"] { display: block; }
+
   .countdown { margin: 0 0 20px; display: block; text-align: center; padding: 26px 24px 22px; }
   .countdown .num { font-size: 86px; }
   .countdown .unit { font-size: 26px; }

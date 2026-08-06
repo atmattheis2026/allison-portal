@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import type {
   SharedPayload, Milestone, Side, Brand, DocGroup, Contact,
 } from '../lib/types'
@@ -7,17 +7,17 @@ import './Dashboard.css'
 
 /* ------------------------------------------------------------------ helpers */
 
-export function useIsDesktop(breakpoint = 900) {
-  const [is, setIs] = useState(
-    () => typeof window !== 'undefined' && window.innerWidth >= breakpoint,
-  )
-  useEffect(() => {
-    const mq = window.matchMedia(`(min-width: ${breakpoint}px)`)
-    const on = () => setIs(mq.matches)
-    mq.addEventListener('change', on)
-    return () => mq.removeEventListener('change', on)
-  }, [breakpoint])
-  return is
+/**
+ * Read once, for choosing a section's INITIAL open state only.
+ *
+ * Deliberately not reactive. Layout switching is done entirely in CSS — see the
+ * note on Rail and Section below. An earlier version drove the layout from a
+ * matchMedia hook, and a stale value meant the progress rail rendered its phone
+ * markup while CSS was hiding phone markup, so the rail vanished completely.
+ * Anything that can go stale must not decide whether an element exists.
+ */
+function isWideNow(breakpoint = 900) {
+  return typeof window !== 'undefined' && window.innerWidth >= breakpoint
 }
 
 /** Dates are stored as plain YYYY-MM-DD. Parse them as local, never UTC —
@@ -70,7 +70,6 @@ export default function Dashboard({
   data, editable = false, viewNote = 'Transaction Portal · Client View',
   headerExtra, ...h
 }: Props) {
-  const isDesktop = useIsDesktop()
   const { transaction: tx, realtor, brands, milestones, doc_lines, contacts } = data
 
   const reBrand = brands.real_estate
@@ -93,41 +92,40 @@ export default function Dashboard({
     <div className="dash" style={styleVars}>
       <BrandBar brand={reBrand} viewNote={viewNote} extra={headerExtra} />
 
-      {isDesktop ? (
-        <div className="topgrid">
-          <Hero tx={tx} showText={false} />
-          <div className="headline">
-            <h1 className="address">{tx.address_line || 'Untitled property'}</h1>
-            <div className="cityline">{tx.city_state_zip}</div>
-            <div className="statusrow"><StatusPill tx={tx} /></div>
-          </div>
-          <TeamCards realtor={realtor} lender={tx.lender} />
-        </div>
-      ) : (
-        <>
-          <Hero tx={tx} showText />
+      {/* One markup for both sizes. `topgrid` is a plain stack on phones and a
+          three-up row at 900px, so nothing here depends on a JS width value. */}
+      <div className="topgrid">
+        <Hero tx={tx} />
+        <div className="headline">
+          <h1 className="address">{tx.address_line || 'Untitled property'}</h1>
+          <div className="cityline">{tx.city_state_zip}</div>
           <div className="statusrow"><StatusPill tx={tx} /></div>
-          {tx.closing_date && <Countdown date={tx.closing_date} inline />}
-          <TeamCards realtor={realtor} lender={tx.lender} />
-        </>
-      )}
+        </div>
+        {tx.closing_date && (
+          <div className="countdownPhone">
+            <Countdown date={tx.closing_date} />
+          </div>
+        )}
+        <TeamCards realtor={realtor} lender={tx.lender} />
+      </div>
 
-      {railSteps.length > 0 && (
-        <Rail steps={railSteps} currentIdx={currentIdx} isDesktop={isDesktop} />
-      )}
+      {railSteps.length > 0 && <Rail steps={railSteps} currentIdx={currentIdx} />}
 
       <div className={`sections${hasLoan ? '' : ' twocol'}`}>
         <div className="col">
           <ChecklistSection
             title="Real Estate" side="real_estate" milestones={milestones}
-            docLines={[]} editable={editable} isDesktop={isDesktop}
-            defaultOpen {...h}
+            docLines={[]} editable={editable} defaultOpen {...h}
           />
         </div>
 
         <div className="col">
-          {isDesktop && tx.closing_date && <Countdown date={tx.closing_date} />}
-          <ContactsSection contacts={contacts} isDesktop={isDesktop} />
+          {tx.closing_date && (
+            <div className="countdownDesk">
+              <Countdown date={tx.closing_date} />
+            </div>
+          )}
+          <ContactsSection contacts={contacts} />
         </div>
 
         {hasLoan && (
@@ -135,7 +133,7 @@ export default function Dashboard({
             <ChecklistSection
               title="Loan" side="loan" milestones={milestones}
               docLines={doc_lines} lending brand={lendBrand}
-              editable={editable} isDesktop={isDesktop} {...h}
+              editable={editable} {...h}
             />
           </div>
         )}
@@ -161,28 +159,16 @@ function BrandBar({ brand, viewNote, extra }: {
   )
 }
 
-function Hero({ tx, showText }: { tx: SharedPayload['transaction']; showText: boolean }) {
-  if (!tx.photo_url) {
-    return (
-      <div className="hero noPhoto">
-        {showText && (
-          <div className="heroText">
-            <h1 className="address">{tx.address_line || 'Untitled property'}</h1>
-            <div className="cityline">{tx.city_state_zip}</div>
-          </div>
-        )}
-      </div>
-    )
-  }
+/** The overlaid address is for the phone layout; CSS hides it at desktop, where
+ *  the address sits beside the photo instead. */
+function Hero({ tx }: { tx: SharedPayload['transaction'] }) {
   return (
-    <div className="hero">
-      <img src={tx.photo_url} alt={tx.address_line} />
-      {showText && (
-        <div className="heroText">
-          <h1 className="address">{tx.address_line || 'Untitled property'}</h1>
-          <div className="cityline">{tx.city_state_zip}</div>
-        </div>
-      )}
+    <div className={`hero${tx.photo_url ? '' : ' noPhoto'}`}>
+      {tx.photo_url && <img src={tx.photo_url} alt={tx.address_line} />}
+      <div className="heroText">
+        <h1 className="address">{tx.address_line || 'Untitled property'}</h1>
+        <div className="cityline">{tx.city_state_zip}</div>
+      </div>
     </div>
   )
 }
@@ -197,20 +183,20 @@ function StatusPill({ tx }: { tx: SharedPayload['transaction'] }) {
   )
 }
 
-function Countdown({ date, inline }: { date: string; inline?: boolean }) {
+function Countdown({ date }: { date: string }) {
   const days = daysUntil(date)
   const past = days < 0
-  const label = past ? 'Closed' : days === 0 ? 'Today' : days === 1 ? 'day away' : 'days away'
 
   return (
     <div className="countdown">
       <div className="num">{past ? '✓' : days}</div>
       <div className="rt">
         <div className="lab">Closing day</div>
-        <div className="unit">{past ? 'Closed' : label}</div>
+        <div className="unit">
+          {past ? 'Closed' : days === 0 ? 'Today!' : days === 1 ? 'day away' : 'days away'}
+        </div>
         <div className="when">{fmtLong(date)}</div>
       </div>
-      {!inline && null}
     </div>
   )
 }
@@ -258,34 +244,22 @@ function Avatar({ src, name }: { src: string | null; name: string }) {
   )
 }
 
-function Rail({ steps, currentIdx, isDesktop }: {
-  steps: Milestone[]; currentIdx: number; isDesktop: boolean
-}) {
+/**
+ * Both orientations are rendered and CSS shows exactly one. Costs a dozen extra
+ * DOM nodes and makes it impossible for a resize to leave the rail invisible.
+ */
+function Rail({ steps, currentIdx }: { steps: Milestone[]; currentIdx: number }) {
   const pct = steps.length < 2 ? 0 : (currentIdx / (steps.length - 1)) * 100
-
-  if (isDesktop) {
-    return (
-      <div className="rail card">
-        <div className="hsteps">
-          <div className="track"><div className="fill2" style={{ width: `${pct}%` }} /></div>
-          {steps.map((s, i) => (
-            <div key={s.id} className={`hstep${s.is_complete ? ' done' : i === currentIdx ? ' current' : ''}`}>
-              <div className="node">{s.is_complete ? '✓' : i + 1}</div>
-              <div className="lbl">{s.rail_label || s.label}</div>
-              <div className="dt">{fmtShort(s.date_value)}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
+  const cls = (s: Milestone, i: number) =>
+    s.is_complete ? ' done' : i === currentIdx ? ' current' : ''
 
   return (
     <div className="rail card">
       <h3 className="eyebrow">Where we are</h3>
+
       <div className="vsteps">
         {steps.map((s, i) => (
-          <div key={s.id} className={`vstep${s.is_complete ? ' done' : i === currentIdx ? ' current' : ''}`}>
+          <div key={s.id} className={`vstep${cls(s, i)}`}>
             <div className="spine" />
             <div className="node">{s.is_complete ? '✓' : i + 1}</div>
             <div>
@@ -295,50 +269,60 @@ function Rail({ steps, currentIdx, isDesktop }: {
           </div>
         ))}
       </div>
+
+      <div className="hsteps" aria-hidden="true">
+        <div className="track"><div className="fill2" style={{ width: `${pct}%` }} /></div>
+        {steps.map((s, i) => (
+          <div key={s.id} className={`hstep${cls(s, i)}`}>
+            <div className="node">{s.is_complete ? '✓' : i + 1}</div>
+            <div className="lbl">{s.rail_label || s.label}</div>
+            <div className="dt">{fmtShort(s.date_value)}</div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
 
-/** Collapsible on phone, always-open panel on desktop. */
-function Section({ title, brandMark, count, lending, defaultOpen, isDesktop, children }: {
+/**
+ * Collapsible on a phone, always open at desktop.
+ *
+ * Deliberately NOT a <details>. A closed <details> hides its content through the
+ * element's own slot behaviour, which a media query cannot override — so at
+ * desktop, where the chevron is hidden, a section left collapsed on a phone
+ * became unreachable. A plain div plus a data attribute is something CSS can
+ * actually win against.
+ */
+function Section({ title, brandMark, count, lending, defaultOpen, children }: {
   title: string; brandMark?: ReactNode; count?: string; lending?: boolean
-  defaultOpen?: boolean; isDesktop: boolean; children: ReactNode
+  defaultOpen?: boolean; children: ReactNode
 }) {
-  const head = (
-    <>
-      <div className="sechead">
-        <span className="sectitle">{title}</span>
-        {brandMark && <span className="lendmark">{brandMark}</span>}
-      </div>
-      <div className="secright">
-        {count && <span className="count">{count}</span>}
-        {!isDesktop && <span className="chev">▼</span>}
-      </div>
-    </>
-  )
+  const [open, setOpen] = useState(() => Boolean(defaultOpen) || isWideNow())
 
-  if (isDesktop) {
-    return (
-      <div className={`sec card${lending ? ' lending' : ''}`}>
-        <div className="sechdr">{head}</div>
-        <div className="secbody">{children}</div>
-      </div>
-    )
-  }
   return (
-    <details className={`sec card${lending ? ' lending' : ''}`} open={defaultOpen}>
-      <summary>{head}</summary>
-      <div className="secbody">{children}</div>
-    </details>
+    <section className={`sec card${lending ? ' lending' : ''}`}>
+      <button type="button" className="sechdr" onClick={() => setOpen((o) => !o)}
+              aria-expanded={open}>
+        <span className="sechead">
+          <span className="sectitle">{title}</span>
+          {brandMark && <span className="lendmark">{brandMark}</span>}
+        </span>
+        <span className="secright">
+          {count && <span className="count">{count}</span>}
+          <span className="chev">▼</span>
+        </span>
+      </button>
+      <div className="secbody" data-open={open ? 'true' : 'false'}>{children}</div>
+    </section>
   )
 }
 
 function ChecklistSection({
-  title, side, milestones, docLines, lending, brand, editable, isDesktop, defaultOpen,
+  title, side, milestones, docLines, lending, brand, editable, defaultOpen,
   onToggleMilestone, onChangeMilestoneDate, onToggleDocLine, onChangeDocLine,
 }: {
   title: string; side: Side; milestones: Milestone[]; docLines: SharedPayload['doc_lines']
-  lending?: boolean; brand?: Brand; editable: boolean; isDesktop: boolean; defaultOpen?: boolean
+  lending?: boolean; brand?: Brand; editable: boolean; defaultOpen?: boolean
 } & DashboardHandlers) {
   const items = milestones.filter((m) => m.side === side).sort((a, b) => a.sort_order - b.sort_order)
   const done = items.filter((m) => m.is_complete).length
@@ -356,7 +340,7 @@ function ChecklistSection({
   if (items.length === 0) {
     return (
       <Section title={title} count="" lending={lending} brandMark={mark}
-               defaultOpen={defaultOpen} isDesktop={isDesktop}>
+               defaultOpen={defaultOpen}>
         <div className="emptynote">
           No checklist yet for this type of transaction.<br />
           Add the steps in <strong>Settings › Checklists</strong>.
@@ -367,7 +351,7 @@ function ChecklistSection({
 
   return (
     <Section title={title} count={`${done} / ${items.length}`} lending={lending}
-             brandMark={mark} defaultOpen={defaultOpen} isDesktop={isDesktop}>
+             brandMark={mark} defaultOpen={defaultOpen}>
       {items.map((m) => (
         <div key={m.id}>
           <ChecklistRow
@@ -460,12 +444,12 @@ function FillLines({ lines, editable, onToggle, onChange }: {
   )
 }
 
-function ContactsSection({ contacts, isDesktop }: { contacts: Contact[]; isDesktop: boolean }) {
+function ContactsSection({ contacts }: { contacts: Contact[] }) {
   const people = contacts.filter((c) => c.group_key === 'people').sort((a, b) => a.sort_order - b.sort_order)
   const utils = contacts.filter((c) => c.group_key === 'utilities').sort((a, b) => a.sort_order - b.sort_order)
 
   return (
-    <Section title="Contacts" count={String(contacts.length)} isDesktop={isDesktop}>
+    <Section title="Contacts" count={String(contacts.length)} defaultOpen>
       {people.map((c) => <ContactRow key={c.id} c={c} />)}
       {utils.length > 0 && <div className="glabel">Utility Companies</div>}
       {utils.map((c) => <ContactRow key={c.id} c={c} />)}
