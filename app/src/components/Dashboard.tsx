@@ -59,14 +59,13 @@ export interface DashboardHandlers {
   onPatchTransaction?: (values: Partial<Transaction>) => void
   onPatchContact?: (id: string, values: Partial<Contact>) => void
   onUploadPhoto?: (file: File) => void
-  /** Picking a realtor from the roster, and giving the loan officer a headshot. */
+  /** Picking the realtor and loan officer from her roster — same pattern for both. */
   onChangeRealtor?: (memberId: string | null) => void
-  onUploadLenderPhoto?: (file: File) => void
-  /** Quick-filling the loan officer card from a roster member instead of retyping. */
   onPickLender?: (memberId: string) => void
   onAddNote?: (side: Side, body: string) => void
   onPickSavedContact?: (contactId: string, savedId: string) => void
   onSaveContact?: (contact: Contact) => void
+  onUploadContactPhoto?: (contactId: string, file: File) => void
 }
 
 interface Props extends DashboardHandlers {
@@ -93,7 +92,12 @@ export default function Dashboard({
 
   const reBrand = brands.real_estate
   const lendBrand = brands.lending
-  const hasLoan = tx.deal_type === 'buy' && milestones.some((m) => m.side === 'loan')
+  // A loan-only deal (a refinance, or any loan she's helping with where she
+  // isn't the agent) has no real estate side at all — just the loan checklist.
+  const isLoanOnly = tx.deal_type === 'loan'
+  const hasLoan = (tx.deal_type === 'buy' || isLoanOnly) && milestones.some((m) => m.side === 'loan')
+  const showRealEstateCol = !isLoanOnly
+  const threeCol = showRealEstateCol && hasLoan
 
   // Brand colors drive the CSS variables, so a color change in Settings
   // repaints the whole page with no code change.
@@ -102,7 +106,7 @@ export default function Dashboard({
   if (lendBrand?.accent_hex) styleVars['--lend'] = lendBrand.accent_hex
 
   const railSteps = milestones
-    .filter((m) => m.side === 'real_estate' && m.is_rail_step)
+    .filter((m) => m.side === (isLoanOnly ? 'loan' : 'real_estate') && m.is_rail_step)
     .sort((a, b) => a.sort_order - b.sort_order)
   const firstOpen = railSteps.findIndex((s) => !s.is_complete)
   const currentIdx = firstOpen === -1 ? railSteps.length : firstOpen
@@ -129,22 +133,25 @@ export default function Dashboard({
           </div>
         )}
         <TeamCards realtor={realtor} lender={tx.lender} roster={roster}
-                   realtorMemberId={tx.realtor_member_id}
+                   realtorMemberId={tx.realtor_member_id} lenderMemberId={tx.lender_member_id}
+                   hideRealtor={isLoanOnly}
+                   realtorTitle={tx.realtor_title} lenderTitle={tx.lender_title}
                    editable={editable} onPatch={h.onPatchTransaction}
                    onChangeRealtor={h.onChangeRealtor}
-                   onUploadLenderPhoto={h.onUploadLenderPhoto}
                    onPickLender={h.onPickLender} />
       </div>
 
       {railSteps.length > 0 && <Rail steps={railSteps} currentIdx={currentIdx} />}
 
-      <div className={`sections${hasLoan ? '' : ' twocol'}`}>
-        <div className="col">
-          <ChecklistSection
-            title="Real Estate" side="real_estate" milestones={milestones}
-            docLines={[]} editable={editable} defaultOpen {...h}
-          />
-        </div>
+      <div className={`sections${threeCol ? '' : ' twocol'}`}>
+        {showRealEstateCol && (
+          <div className="col">
+            <ChecklistSection
+              title="Real Estate" side="real_estate" milestones={milestones}
+              docLines={[]} editable={editable} defaultOpen {...h}
+            />
+          </div>
+        )}
 
         <div className="col">
           {(tx.closing_date || editable) && (
@@ -153,8 +160,10 @@ export default function Dashboard({
                          onPatch={h.onPatchTransaction} />
             </div>
           )}
-          <NotesBoard title="Real Estate Updates" side="real_estate" notes={notes}
-                      editable={editable} onAdd={h.onAddNote} />
+          {showRealEstateCol && (
+            <NotesBoard title="Real Estate Updates" side="real_estate" notes={notes}
+                        editable={editable} onAdd={h.onAddNote} />
+          )}
           {hasLoan && (
             <NotesBoard title="Loan Updates" side="loan" notes={notes} lending
                         editable={editable} onAdd={h.onAddNote} />
@@ -163,7 +172,8 @@ export default function Dashboard({
                            savedContacts={savedContacts}
                            onPatch={h.onPatchContact}
                            onPickSaved={h.onPickSavedContact}
-                           onSaveContact={h.onSaveContact} />
+                           onSaveContact={h.onSaveContact}
+                           onUploadContactPhoto={h.onUploadContactPhoto} />
         </div>
 
         {hasLoan && (
@@ -370,32 +380,46 @@ function Countdown({ date, editable, onPatch }: {
 }
 
 function TeamCards({
-  realtor, lender, roster, realtorMemberId, editable, onPatch, onChangeRealtor,
-  onUploadLenderPhoto, onPickLender,
+  realtor, lender, roster, realtorMemberId, lenderMemberId, hideRealtor, realtorTitle, lenderTitle,
+  editable, onPatch, onChangeRealtor, onPickLender,
 }: {
   realtor: SharedPayload['realtor']; lender: Transaction['lender']
-  roster?: TeamMember[]; realtorMemberId?: string | null; editable?: boolean
+  roster?: TeamMember[]; realtorMemberId?: string | null; lenderMemberId?: string | null
+  hideRealtor?: boolean
+  realtorTitle?: Transaction['realtor_title']; lenderTitle?: Transaction['lender_title']
+  editable?: boolean
   onPatch?: (v: Partial<Transaction>) => void
   onChangeRealtor?: (memberId: string | null) => void
-  onUploadLenderPhoto?: (file: File) => void
   onPickLender?: (memberId: string) => void
 }) {
+  const realtorLabel = realtorTitle === 'broker_associate' ? 'Broker Associate' : 'Realtor'
+  const lenderLabel = lenderTitle === 'mortgage_broker' ? 'Mortgage Broker' : 'Loan Officer'
   const hasLender = Boolean(lender?.name)
   const agents = roster?.filter((m) => m.roles.includes('realtor')) ?? []
   const loanPeople = roster?.filter((m) =>
     m.roles.includes('loan_officer') || m.roles.includes('mortgage_broker')) ?? []
-  if (!realtor && !hasLender && !editable) return null
+  if (hideRealtor && !hasLender && !editable) return null
+  if (!hideRealtor && !realtor && !hasLender && !editable) return null
 
   return (
     <div className="team">
       {/* Realtor is picked from her roster (Settings › Team), not typed per deal —
           that's what makes the headshot and license follow her automatically
-          everywhere she's the realtor, instead of retyping it every transaction. */}
-      {editable ? (
+          everywhere she's the realtor, instead of retyping it every transaction.
+          Hidden entirely on loan-only deals, which have no agent at all. */}
+      {!hideRealtor && (editable ? (
         <div className="person">
           <Avatar src={realtor?.headshot_url ?? null} name={realtor?.full_name || ''} />
           <div className="who">
-            <div className="role">Realtor</div>
+            <button
+              type="button" className="role" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'block', textAlign: 'left' }}
+              title="Click to switch between Realtor and Broker Associate"
+              onClick={() => onPatch?.({
+                realtor_title: realtorTitle === 'broker_associate' ? 'realtor' : 'broker_associate',
+              })}
+            >
+              {realtorLabel} ⇄
+            </button>
             <select
               className="name"
               style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', padding: 0 }}
@@ -419,59 +443,53 @@ function TeamCards({
         <div className="person">
           <Avatar src={realtor.headshot_url} name={realtor.full_name} />
           <div className="who">
-            <div className="role">Realtor</div>
+            <div className="role">{realtorLabel}</div>
             <div className="name">{realtor.full_name}</div>
             {realtor.license_number && <div className="lic">{realtor.license_number}</div>}
           </div>
         </div>
-      )}
+      ))}
 
-      {/* Lender lives on the transaction, not the team — her five agents may each
-          use a different one, so it's typed per deal rather than picked. */}
+      {/* Loan officer is picked from her roster, same as Realtor — her loan
+          people are her own team, not outside lenders, so this never needs
+          retyping either. */}
       {editable ? (
         <div className="person lend">
-          <label className="avatarSwap">
-            <Avatar src={lender.headshot_url} name={lender.name || ''} />
-            <input type="file" accept="image/*" style={{ display: 'none' }}
-                   onChange={(e) => {
-                     const f = e.target.files?.[0]
-                     if (f) onUploadLenderPhoto?.(f)
-                   }} />
-          </label>
+          <Avatar src={lender.headshot_url} name={lender.name || ''} />
           <div className="who">
-            <div className="role">Loan Officer</div>
-            {loanPeople.length > 0 && (
-              <select
-                style={{
-                  background: 'none', border: '1px solid var(--lend-soft)', borderRadius: 999,
-                  padding: '2px 8px', fontSize: 10, color: 'var(--lend-bright)', marginBottom: 3,
-                }}
-                value=""
-                onChange={(e) => { if (e.target.value) onPickLender?.(e.target.value) }}
-              >
-                <option value="">Fill from your team…</option>
-                {loanPeople.map((m) => (
-                  <option key={m.id} value={m.id}>{m.full_name || 'Unnamed'}</option>
-                ))}
-              </select>
+            <button
+              type="button" className="role" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'block', textAlign: 'left' }}
+              title="Click to switch between Loan Officer and Mortgage Broker"
+              onClick={() => onPatch?.({
+                lender_title: lenderTitle === 'mortgage_broker' ? 'loan_officer' : 'mortgage_broker',
+              })}
+            >
+              {lenderLabel} ⇄
+            </button>
+            <select
+              className="name"
+              style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', padding: 0 }}
+              value={lenderMemberId ?? ''}
+              onChange={(e) => { if (e.target.value) onPickLender?.(e.target.value) }}
+            >
+              <option value="">Choose from your team…</option>
+              {loanPeople.map((m) => (
+                <option key={m.id} value={m.id}>{m.full_name || 'Unnamed'}</option>
+              ))}
+            </select>
+            {lender.license && <div className="lic">{lender.license}</div>}
+            {!loanPeople.length && (
+              <div className="lic" style={{ opacity: .7 }}>
+                Tag people "Loan officer" in Settings › Team first
+              </div>
             )}
-            <EditableText className="name" value={lender.name ?? ''}
-                          placeholder="Loan officer name"
-                          onCommit={(v) => onPatch?.({
-                            lender: { ...lender, name: v || null },
-                          })} />
-            <EditableText className="lic" value={lender.license ?? ''}
-                          placeholder="NMLS #"
-                          onCommit={(v) => onPatch?.({
-                            lender: { ...lender, license: v || null },
-                          })} />
           </div>
         </div>
       ) : hasLender && (
         <div className="person lend">
           <Avatar src={lender.headshot_url} name={lender.name || ''} />
           <div className="who">
-            <div className="role">Loan Officer</div>
+            <div className="role">{lenderLabel}</div>
             <div className="name">{lender.name}</div>
             {lender.license && <div className="lic">{lender.license}</div>}
           </div>
@@ -759,11 +777,14 @@ function fmtNoteWhen(iso: string): string {
   })
 }
 
-function ContactsSection({ contacts, editable, savedContacts, onPatch, onPickSaved, onSaveContact }: {
+function ContactsSection({
+  contacts, editable, savedContacts, onPatch, onPickSaved, onSaveContact, onUploadContactPhoto,
+}: {
   contacts: Contact[]; editable?: boolean; savedContacts?: SavedContact[]
   onPatch?: (id: string, v: Partial<Contact>) => void
   onPickSaved?: (contactId: string, savedId: string) => void
   onSaveContact?: (contact: Contact) => void
+  onUploadContactPhoto?: (contactId: string, file: File) => void
 }) {
   const by = (g: string) => contacts.filter((c) => c.group_key === g)
     .sort((a, b) => a.sort_order - b.sort_order)
@@ -782,29 +803,38 @@ function ContactsSection({ contacts, editable, savedContacts, onPatch, onPickSav
              defaultOpen>
       {shown(people).map((c) => (
         <ContactRow key={c.id} c={c} editable={editable} onPatch={onPatch}
-                    saved={savedFor(c)} onPickSaved={onPickSaved} onSaveContact={onSaveContact} />
+                    saved={savedFor(c)} onPickSaved={onPickSaved} onSaveContact={onSaveContact}
+                    onUploadContactPhoto={onUploadContactPhoto} />
       ))}
       {shown(utils).length > 0 && <div className="glabel">Utility Companies</div>}
       {shown(utils).map((c) => (
         <ContactRow key={c.id} c={c} editable={editable} onPatch={onPatch}
-                    saved={savedFor(c)} onPickSaved={onPickSaved} onSaveContact={onSaveContact} />
+                    saved={savedFor(c)} onPickSaved={onPickSaved} onSaveContact={onSaveContact}
+                    onUploadContactPhoto={onUploadContactPhoto} />
       ))}
     </Section>
   )
 }
 
-function ContactRow({ c, editable, onPatch, saved, onPickSaved, onSaveContact }: {
+function ContactRow({ c, editable, onPatch, saved, onPickSaved, onSaveContact, onUploadContactPhoto }: {
   c: Contact; editable?: boolean; onPatch?: (id: string, v: Partial<Contact>) => void
   saved?: SavedContact[]
   onPickSaved?: (contactId: string, savedId: string) => void
   onSaveContact?: (contact: Contact) => void
+  onUploadContactPhoto?: (contactId: string, file: File) => void
 }) {
   const [open, setOpen] = useState(false)
 
   if (!editable) {
     return (
       <div className="crow">
-        <span className="k">{c.role_label}</span>
+        <span className="k" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {c.photo_url && <img src={c.photo_url} alt="" style={{
+            width: 22, height: 22, borderRadius: '50%', objectFit: 'cover', flex: 'none',
+            border: '1px solid var(--line)',
+          }} />}
+          {c.role_label}
+        </span>
         <div className="rt">
           <div>
             <span className="v">{c.name}</span>
@@ -849,6 +879,14 @@ function ContactRow({ c, editable, onPatch, saved, onPickSaved, onSaveContact }:
                         onCommit={(v) => onPatch?.(c.id, { email: v || null })} />
           <EditableText value={c.note ?? ''} placeholder="Address (optional)"
                         onCommit={(v) => onPatch?.(c.id, { note: v || null })} />
+          <label className="btn" style={{ fontSize: 11, alignSelf: 'flex-start', cursor: 'pointer' }}>
+            <input type="file" accept="image/*" style={{ display: 'none' }}
+                   onChange={(e) => {
+                     const f = e.target.files?.[0]
+                     if (f) onUploadContactPhoto?.(c.id, f)
+                   }} />
+            {c.photo_url ? 'Change photo/logo' : 'Add a photo/logo'}
+          </label>
           {c.name?.trim() && (
             <button type="button" className="btn" style={{ fontSize: 11, alignSelf: 'flex-start' }}
                     onClick={() => onSaveContact?.(c)}>

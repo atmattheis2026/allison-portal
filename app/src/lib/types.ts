@@ -1,4 +1,4 @@
-export type DealType = 'buy' | 'sell'
+export type DealType = 'buy' | 'sell' | 'loan'
 export type Side = 'real_estate' | 'loan'
 export type TeamRole =
   | 'realtor' | 'loan_officer' | 'admin' | 'transaction_coordinator' | 'mortgage_broker'
@@ -79,6 +79,7 @@ export interface SavedContact {
   name: string
   phone: string | null
   email: string | null
+  photo_url: string | null
   sort_order: number
 }
 
@@ -120,6 +121,7 @@ export interface Contact {
   phone: string | null
   email: string | null
   note: string | null
+  photo_url: string | null
   sort_order: number
 }
 
@@ -135,6 +137,14 @@ export interface Transaction {
   lender: Lender
   /** Which roster member is shown as "Realtor." Picked in Settings › Team roster. */
   realtor_member_id: string | null
+  /** The title shown on the agent's card — some of her people go by "Broker
+   *  Associate" instead, and it can vary by transaction, not just by person. */
+  realtor_title: 'realtor' | 'broker_associate'
+  /** Same idea for the loan side: "Loan Officer" or "Mortgage Broker." */
+  lender_title: 'loan_officer' | 'mortgage_broker'
+  /** Which roster member is shown as the lender — same pattern as Realtor.
+   *  Null on older transactions where a lender was typed in by hand. */
+  lender_member_id: string | null
 }
 
 /** A dated entry on a transaction's message board — one log per side, never

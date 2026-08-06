@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import { DEMO_PAYLOAD, DEMO_SELLER, TEAM_MEMBERS, TRANSACTION_ASSIGNEES } from '../lib/demoData'
-import { STATUS_LABEL, type TeamMember, type TxStatus } from '../lib/types'
+import { STATUS_LABEL, type DealType, type TeamMember, type TxStatus } from '../lib/types'
 import './Admin.css'
 
 interface Row {
@@ -11,7 +11,7 @@ interface Row {
   city_state_zip: string
   photo_url: string | null
   status: TxStatus
-  deal_type: 'buy' | 'sell'
+  deal_type: DealType
   closing_date: string | null
   share_token: string
 }
@@ -151,7 +151,7 @@ export default function AdminList() {
                   <div className="txcity">{r.city_state_zip}</div>
                   <div className="txmeta">
                     <span className={`tag${r.deal_type === 'sell' ? ' sell' : ''}`}>
-                      {r.deal_type === 'sell' ? 'Listing' : 'Buyer'}
+                      {r.deal_type === 'sell' ? 'Listing' : r.deal_type === 'loan' ? 'Loan only' : 'Buyer'}
                     </span>
                     <span className="muted">{STATUS_LABEL[r.status]}</span>
                     {r.closing_date && <span className="muted">· Closes {r.closing_date}</span>}
@@ -270,7 +270,7 @@ function NewTransaction({ onCancel, onCreated }: {
 }) {
   const [address, setAddress] = useState('')
   const [cityStateZip, setCityStateZip] = useState('')
-  const [dealType, setDealType] = useState<'buy' | 'sell'>('buy')
+  const [dealType, setDealType] = useState<DealType>('buy')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -336,6 +336,10 @@ function NewTransaction({ onCancel, onCreated }: {
           <button type="button" className={`tab${dealType === 'sell' ? ' on' : ''}`}
                   onClick={() => setDealType('sell')}>
             It’s my listing
+          </button>
+          <button type="button" className={`tab${dealType === 'loan' ? ' on' : ''}`}
+                  onClick={() => setDealType('loan')}>
+            Loan only — no real estate side
           </button>
         </div>
         <p className="sethelp" style={{ margin: '8px 0 0' }}>

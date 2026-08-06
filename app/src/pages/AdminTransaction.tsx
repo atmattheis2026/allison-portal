@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Dashboard from '../components/Dashboard'
 import { DEMO_MODE, supabase } from '../lib/supabase'
-import { DEMO_PAYLOAD, DEMO_SELLER, SAVED_CONTACTS, TEAM_MEMBERS, TRANSACTION_ASSIGNEES } from '../lib/demoData'
+import { DEMO_BY_TOKEN, DEMO_PAYLOAD, SAVED_CONTACTS, TEAM_MEMBERS, TRANSACTION_ASSIGNEES } from '../lib/demoData'
 import { ROLE_LABEL, type Contact, type Milestone, type SavedContact, type SharedPayload, type Side, type TeamMember, type Transaction } from '../lib/types'
 import './Admin.css'
 
@@ -28,9 +28,9 @@ export default function AdminTransaction() {
 
   useEffect(() => {
     if (DEMO_MODE || !supabase) {
-      const sell = id === 'demo-sell'
-      setData(structuredClone(sell ? DEMO_SELLER : DEMO_PAYLOAD))
-      setToken(sell ? 'demo-sell' : 'demo')
+      const payload = DEMO_BY_TOKEN[id ?? 'demo'] ?? DEMO_PAYLOAD
+      setData(structuredClone(payload))
+      setToken(id === 'demo-sell' || id === 'demo-loan' ? id : 'demo')
       setRoster(TEAM_MEMBERS)
       setAssignedIds(new Set(TRANSACTION_ASSIGNEES[id ?? ''] ?? []))
       setSavedContacts(SAVED_CONTACTS)
@@ -126,18 +126,7 @@ export default function AdminTransaction() {
     onPatchTransaction: (values: Partial<Transaction>) => {
       patch((d) => ({ ...d, transaction: { ...d.transaction, ...values } }))
       if (!id) return
-      // The lender fields are flat columns on the table, not a json blob.
-      const { lender, ...rest } = values
-      const row: Record<string, unknown> = { ...rest }
-      if (lender) {
-        row.lender_name = lender.name
-        row.lender_company = lender.company
-        row.lender_license = lender.license
-        row.lender_headshot_url = lender.headshot_url
-        row.lender_phone = lender.phone
-        row.lender_email = lender.email
-      }
-      write('transactions', id, row)
+      write('transactions', id, values as Record<string, unknown>)
     },
 
     onPatchContact: (contactId: string, values: Partial<Contact>) => {
@@ -179,25 +168,6 @@ export default function AdminTransaction() {
       write('transactions', id, { realtor_member_id: memberId })
     },
 
-    onUploadLenderPhoto: async (file: File) => {
-      const localUrl = URL.createObjectURL(file)
-      patch((d) => ({
-        ...d, transaction: { ...d.transaction, lender: { ...d.transaction.lender, headshot_url: localUrl } },
-      }))
-      if (DEMO_MODE || !supabase || !id) return
-
-      const path = `lenders/${id}-${Date.now()}-${file.name}`
-      const { error } = await supabase.storage.from('media')
-        .upload(path, file, { upsert: true })
-      if (error) { console.error('lender photo upload failed', error); return }
-
-      const { data } = supabase.storage.from('media').getPublicUrl(path)
-      patch((d) => ({
-        ...d, transaction: { ...d.transaction, lender: { ...d.transaction.lender, headshot_url: data.publicUrl } },
-      }))
-      write('transactions', id, { lender_headshot_url: data.publicUrl })
-    },
-
     onAddNote: async (side: Side, body: string) => {
       if (DEMO_MODE || !supabase || !id) {
         patch((d) => ({
@@ -233,13 +203,11 @@ export default function AdminTransaction() {
         headshot_url: member.headshot_url, phone: member.phone, email: member.email,
         is_in_house: true,
       }
-      patch((d) => ({ ...d, transaction: { ...d.transaction, lender } }))
+      patch((d) => ({
+        ...d, transaction: { ...d.transaction, lender, lender_member_id: memberId },
+      }))
       if (!id) return
-      write('transactions', id, {
-        lender_name: lender.name, lender_company: lender.company, lender_license: lender.license,
-        lender_headshot_url: lender.headshot_url, lender_phone: lender.phone,
-        lender_email: lender.email, lender_is_in_house: lender.is_in_house,
-      })
+      write('transactions', id, { lender_member_id: memberId })
     },
 
     onPickSavedContact: (contactId: string, savedId: string) => {
@@ -247,17 +215,20 @@ export default function AdminTransaction() {
       if (!s) return
       patch((d) => {
         const t = d.contacts.find((x) => x.id === contactId)
-        if (t) { t.name = s.name; t.phone = s.phone; t.email = s.email }
+        if (t) { t.name = s.name; t.phone = s.phone; t.email = s.email; t.photo_url = s.photo_url }
         return d
       })
-      write('contacts', contactId, { name: s.name, phone: s.phone, email: s.email })
+      write('contacts', contactId, {
+        name: s.name, phone: s.phone, email: s.email, photo_url: s.photo_url,
+      })
     },
 
     onSaveContact: async (contact: Contact) => {
       if (!contact.name?.trim()) return
       const row = {
         group_key: contact.group_key, role_label: contact.role_label,
-        name: contact.name, phone: contact.phone, email: contact.email, sort_order: 0,
+        name: contact.name, phone: contact.phone, email: contact.email,
+        photo_url: contact.photo_url, sort_order: 0,
       }
       if (DEMO_MODE || !supabase) {
         setSavedContacts((cur) => [...cur, { id: `local-${Date.now()}`, ...row }])
@@ -270,6 +241,28 @@ export default function AdminTransaction() {
       const { data: saved } = await supabase.from('saved_contacts')
         .insert({ team_id: me.team_id, ...row }).select('*').single()
       if (saved) setSavedContacts((cur) => [...cur, saved as SavedContact])
+    },
+
+    onUploadContactPhoto: async (contactId: string, file: File) => {
+      const localUrl = URL.createObjectURL(file)
+      patch((d) => {
+        const t = d.contacts.find((x) => x.id === contactId)
+        if (t) t.photo_url = localUrl
+        return d
+      })
+      if (DEMO_MODE || !supabase) return
+
+      const path = `contacts/${contactId}-${Date.now()}-${file.name}`
+      const { error } = await supabase.storage.from('media').upload(path, file, { upsert: true })
+      if (error) { console.error('contact photo upload failed', error); return }
+
+      const { data } = supabase.storage.from('media').getPublicUrl(path)
+      patch((d) => {
+        const t = d.contacts.find((x) => x.id === contactId)
+        if (t) t.photo_url = data.publicUrl
+        return d
+      })
+      write('contacts', contactId, { photo_url: data.publicUrl })
     },
   }
 

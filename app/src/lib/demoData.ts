@@ -115,6 +115,7 @@ const contacts: Contact[] = [
     phone,
     email: null,
     note: null,
+    photo_url: null,
     sort_order: (i + 1) * 10,
   })),
   ...utils.map(([role_label, name, phone], i) => ({
@@ -125,6 +126,7 @@ const contacts: Contact[] = [
     phone,
     email: null,
     note: null,
+    photo_url: null,
     sort_order: (i + 1) * 10,
   })),
 ]
@@ -148,6 +150,9 @@ export const DEMO_PAYLOAD: SharedPayload = {
     status_note: null,
     closing_date: closingDate(9),
     realtor_member_id: 'tm-allison',
+    realtor_title: 'realtor',
+    lender_title: 'loan_officer',
+    lender_member_id: 'tm-jane',
     lender: {
       name: 'Jane Mitchell',
       company: 'Alpine Bank',
@@ -267,10 +272,56 @@ export const DEMO_SELLER: SharedPayload = {
   }],
 }
 
-/** Both samples, keyed by the token in the URL. */
+/* --------------------------------------------------------- loan-only sample */
+
+const LOAN_ONLY_RAIL: Record<string, string> = {
+  'Application complete': 'Application',
+  'Submitted to underwriting': 'Underwriting',
+  'Clear to close': 'Clear to close',
+  'Closing disclosure signed': 'Docs signed',
+  'Closing!': 'Funded',
+}
+
+/** A refinance, or any loan she's helping with where she isn't the agent —
+ *  no real estate side at all. */
+export const DEMO_LOAN: SharedPayload = {
+  ...DEMO_PAYLOAD,
+  transaction: {
+    ...DEMO_PAYLOAD.transaction,
+    id: 'demo-loan',
+    deal_type: 'loan',
+    address_line: '18 Driftwood Ln',
+    city_state_zip: 'Windermere, FL 34786',
+    photo_url: null,
+    realtor_member_id: null,
+    closing_date: closingDate(18),
+  },
+  realtor: null,
+  milestones: LOAN.map(([label, has_date, is_complete, date_value], i) => ({
+    id: `loan-${i}`,
+    side: 'loan' as const,
+    label,
+    has_date,
+    date_value,
+    is_complete,
+    sort_order: (i + 1) * 10,
+    is_rail_step: label in LOAN_ONLY_RAIL,
+    rail_label: LOAN_ONLY_RAIL[label] ?? null,
+  })),
+  doc_lines,
+  contacts: contacts.filter((c) => !['Realtor', 'Sellers', 'Transaction Coordinator'].includes(c.role_label)),
+  notes: [{
+    id: 'note-loan-1', side: 'loan', author_name: 'Jane Mitchell',
+    body: 'Appraisal ordered — should have it back within the week.',
+    created_at: new Date(Date.now() - 86_400_000).toISOString(),
+  }],
+}
+
+/** All three samples, keyed by the token in the URL. */
 export const DEMO_BY_TOKEN: Record<string, SharedPayload> = {
   demo: DEMO_PAYLOAD,
   'demo-sell': DEMO_SELLER,
+  'demo-loan': DEMO_LOAN,
 }
 
 /* ------------------------------------------------------- team & assignment */
@@ -312,8 +363,8 @@ export const TRANSACTION_ASSIGNEES: Record<string, string[]> = {
 
 /** Saved vendors — the premade options for contacts other than team members. */
 export const SAVED_CONTACTS: SavedContact[] = [
-  { id: 'sc-1', group_key: 'people', role_label: 'Title Company', name: 'Summit Title & Escrow', phone: '+14075550177', email: null, sort_order: 10 },
-  { id: 'sc-2', group_key: 'people', role_label: 'Homeowners Insurance', name: 'Reunion Coastal Insurance', phone: '+14075550188', email: null, sort_order: 10 },
-  { id: 'sc-3', group_key: 'utilities', role_label: 'Power', name: 'Duke Energy', phone: '+18007002443', email: null, sort_order: 10 },
-  { id: 'sc-4', group_key: 'utilities', role_label: 'Water', name: 'Toho Water', phone: '+14079442000', email: null, sort_order: 10 },
+  { id: 'sc-1', group_key: 'people', role_label: 'Title Company', name: 'Summit Title & Escrow', phone: '+14075550177', email: null, photo_url: null, sort_order: 10 },
+  { id: 'sc-2', group_key: 'people', role_label: 'Homeowners Insurance', name: 'Reunion Coastal Insurance', phone: '+14075550188', email: null, photo_url: null, sort_order: 10 },
+  { id: 'sc-3', group_key: 'utilities', role_label: 'Power', name: 'Duke Energy', phone: '+18007002443', email: null, photo_url: null, sort_order: 10 },
+  { id: 'sc-4', group_key: 'utilities', role_label: 'Water', name: 'Toho Water', phone: '+14079442000', email: null, photo_url: null, sort_order: 10 },
 ]
