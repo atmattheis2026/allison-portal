@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Transaction Portal — mobile mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0D13; --panel:#0E131B; --panel-2:#121822;
+    --line:#1E2733; --line-soft:#182029;
+    --gold:#C9A44C; --gold-soft:#8A7233; --gold-bright:#E3C77E;
+    /* lending company gets its own accent slot — placeholder until her logo arrives */
+    --lend:#7F9CB8; --lend-soft:#3C5064; --lend-bright:#A8C3DB;
+    --ink:#EDE7DA; --ink-dim:#9AA3AF; --ink-faint:#5E6874;
+    --serif:'Cormorant Garamond',Georgia,serif;
+    --sans:'Inter',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;-webkit-font-smoothing:antialiased;padding-bottom:40px}
+
+  /* brand bar — real estate company owns this */
+  .brandbar{display:flex;align-items:center;justify-content:center;gap:10px;
+    padding:15px 18px;border-bottom:1px solid var(--line-soft)}
+  .wordmark{font-family:var(--serif);font-size:15px;letter-spacing:.3em;color:var(--gold);text-transform:uppercase}
+
+  /* hero photo full bleed */
+  .hero{position:relative;height:210px;overflow:hidden}
+  .hero img{width:100%;height:100%;object-fit:cover;display:block}
+  .hero::after{content:'';position:absolute;inset:0;background:linear-gradient(transparent 18%,rgba(10,13,19,.45) 48%,rgba(10,13,19,.88) 76%,var(--bg))}
+  .heroText{position:absolute;left:18px;right:18px;bottom:12px;z-index:2}
+  .address{font-family:var(--serif);font-size:32px;line-height:1.05;margin:0}
+  .cityline{font-family:var(--serif);font-size:17px;color:var(--gold);margin-top:1px}
+
+  .statusrow{padding:12px 18px 0}
+  .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--gold-soft);border-radius:999px;
+    padding:6px 14px 6px 9px;color:var(--gold-bright);font-size:12.5px}
+  .pill .dot{width:16px;height:16px;border-radius:50%;background:var(--gold);color:#0A0D13;display:grid;place-items:center;font-size:9px;font-weight:700}
+
+  /* countdown — immediately visible, no scroll */
+  .countdown{margin:14px 18px 0;background:linear-gradient(165deg,#141A25,#0C1017);
+    border:1px solid var(--gold-soft);border-radius:14px;padding:18px 20px;
+    display:flex;align-items:center;gap:20px}
+  .countdown .num{font-family:var(--serif);font-size:66px;line-height:.9;font-weight:300}
+  .countdown .rt .lab{font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);margin-bottom:3px}
+  .countdown .rt .unit{font-family:var(--serif);font-size:23px;color:var(--gold-bright);line-height:1.1}
+  .countdown .rt .when{font-size:12px;color:var(--ink-faint);margin-top:5px}
+
+  /* team */
+  .team{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:14px 18px 0}
+  .person{display:flex;gap:9px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:9px 10px}
+  .avatar{width:38px;height:38px;border-radius:50%;object-fit:cover;flex:none;border:1px solid var(--gold-soft)}
+  .person.lend .avatar{border-color:var(--lend-soft)}
+  .person .role{font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:2px}
+  .person.lend .role{color:var(--lend-bright)}
+  .person .name{font-size:12.5px;line-height:1.15}
+  .person .lic{font-size:10px;color:var(--ink-faint);margin-top:1px;font-variant-numeric:tabular-nums}
+
+  /* vertical rail */
+  .rail{margin:18px 18px 0;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 18px 6px}
+  .rail h3{margin:0 0 14px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);font-weight:500}
+  .vstep{display:flex;gap:14px;position:relative;padding-bottom:16px}
+  .vstep:last-child{padding-bottom:4px}
+  .vstep .spine{position:absolute;left:13px;top:26px;bottom:0;width:1.5px;background:var(--line)}
+  .vstep.done .spine{background:var(--gold)}
+  .vstep:last-child .spine{display:none}
+  .vstep .node{width:27px;height:27px;border-radius:50%;flex:none;display:grid;place-items:center;
+    font-size:11px;font-weight:600;background:var(--bg);border:1.5px solid var(--line);color:var(--ink-faint);z-index:2}
+  .vstep.done .node{background:var(--gold);border-color:var(--gold);color:#0A0D13}
+  .vstep.current .node{border-color:var(--gold);color:var(--gold-bright);box-shadow:0 0 0 4px rgba(201,164,76,.10)}
+  .vstep .lbl{font-size:14px;color:var(--ink-dim);line-height:1.35}
+  .vstep.done .lbl,.vstep.current .lbl{color:var(--ink)}
+  .vstep.current .lbl{color:var(--gold-bright)}
+  .vstep .dt{font-size:11.5px;color:var(--ink-faint);font-variant-numeric:tabular-nums;margin-top:1px}
+  .vstep.current .dt{color:var(--gold)}
+
+  /* collapsible sections */
+  details.sec{margin:14px 18px 0;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  details.sec > summary{list-style:none;cursor:pointer;padding:16px 18px;display:flex;align-items:center;
+    justify-content:space-between;gap:10px;-webkit-tap-highlight-color:transparent}
+  details.sec > summary::-webkit-details-marker{display:none}
+  .sechead{display:flex;align-items:center;gap:10px}
+  .sectitle{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);font-weight:500}
+  details.lending .sectitle{color:var(--lend-bright)}
+  .lendmark{font-family:var(--serif);font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--lend);border-left:1px solid var(--lend-soft);padding-left:10px;margin-left:2px}
+  .secright{display:flex;align-items:center;gap:11px}
+  .count{font-size:11.5px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+  .chev{color:var(--ink-faint);font-size:11px;transition:.2s}
+  details[open] .chev{transform:rotate(180deg)}
+  .secbody{padding:2px 10px 14px;border-top:1px solid var(--line-soft)}
+
+  /* checklist — 44px tap targets */
+  .chk{display:flex;align-items:center;gap:12px;padding:11px 8px;border-radius:8px;min-height:44px}
+  .box{width:19px;height:19px;border-radius:5px;border:1.5px solid var(--line);flex:none;display:grid;place-items:center;font-size:11px;color:transparent}
+  .chk.done .box{background:var(--gold);border-color:var(--gold);color:#0A0D13}
+  details.lending .chk.done .box{background:var(--lend);border-color:var(--lend);color:#0A0D13}
+  .chk .txt{flex:1;font-size:14px;color:var(--ink-dim);line-height:1.3}
+  .chk.done .txt{color:var(--ink)}
+  .chk .date{font-size:11.5px;color:var(--gold);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .chk .date.empty{color:var(--ink-faint);opacity:.45}
+  .divider{height:1px;background:var(--line-soft);margin:7px 8px}
+
+  .fill{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 34px;min-height:38px}
+  .fill .tick{font-size:11px;color:var(--lend);width:11px}
+  .fill .line{flex:1;border-bottom:1px solid var(--line);padding-bottom:3px;font-size:13px;color:var(--ink-dim)}
+  .fill .line.empty{min-height:18px}
+
+  /* contacts — tappable */
+  .crow{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:11px 8px;border-bottom:1px solid var(--line-soft);min-height:44px}
+  .crow:last-child{border-bottom:none}
+  .crow .k{font-size:12.5px;color:var(--ink-faint);white-space:nowrap}
+  .crow .rt{display:flex;align-items:center;gap:12px;text-align:right}
+  .crow .v{font-size:13.5px;color:var(--ink)}
+  .crow .v.blank{color:var(--ink-faint);opacity:.45;font-style:italic}
+  .tapicon{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);
+    display:grid;place-items:center;font-size:13px;color:var(--gold);flex:none;text-decoration:none}
+  .glabel{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:16px 8px 6px}
+</style>
+</head>
+<body>
+
+<div class="brandbar"><span class="wordmark">Mattheis &amp; Co.</span></div>
+
+<div class="hero">
+  <img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=900&q=70" alt="">
+  <div class="heroText">
+    <h1 class="address">7859 Palmilla Ct</h1>
+    <div class="cityline">Reunion, FL 34747</div>
+  </div>
+</div>
+
+<div class="statusrow"><span class="pill"><span class="dot">✓</span> Under contract — on track</span></div>
+
+<div class="countdown">
+  <div class="num">9</div>
+  <div class="rt">
+    <div class="lab">Closing day</div>
+    <div class="unit">days away</div>
+    <div class="when">Saturday, July 26</div>
+  </div>
+</div>
+
+<div class="team">
+  <div class="person">
+    <img class="avatar" src="https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&q=70" alt="">
+    <div><div class="role">Realtor</div><div class="name">Allison Mattheis</div><div class="lic">SL 3512908</div></div>
+  </div>
+  <div class="person lend">
+    <img class="avatar" src="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&q=70" alt="">
+    <div><div class="role">Loan Officer</div><div class="name">Jane Mitchell</div><div class="lic">NMLS 1184402</div></div>
+  </div>
+</div>
+
+<div class="rail">
+  <h3>Where we are</h3>
+  <div class="vstep done"><div class="spine"></div><div class="node">✓</div><div><div class="lbl">Contract</div><div class="dt">Jun 02</div></div></div>
+  <div class="vstep done"><div class="spine"></div><div class="node">✓</div><div><div class="lbl">Inspection</div><div class="dt">Jun 12</div></div></div>
+  <div class="vstep done"><div class="spine"></div><div class="node">✓</div><div><div class="lbl">Appraisal</div><div class="dt">Jun 30</div></div></div>
+  <div class="vstep current"><div class="spine"></div><div class="node">4</div><div><div class="lbl">Clear to close</div><div class="dt">Jul 21</div></div></div>
+  <div class="vstep"><div class="spine"></div><div class="node">5</div><div><div class="lbl">Signing</div><div class="dt">Jul 26</div></div></div>
+  <div class="vstep"><div class="spine"></div><div class="node">6</div><div><div class="lbl">Funded</div><div class="dt">Jul 26</div></div></div>
+</div>
+
+<!-- REAL ESTATE — open by default -->
+<details class="sec" open>
+  <summary>
+    <div class="sechead"><span class="sectitle">Real Estate</span></div>
+    <div class="secright"><span class="count">7 / 14</span><span class="chev">▼</span></div>
+  </summary>
+  <div class="secbody">
+    <div class="chk done"><div class="box">✓</div><div class="txt">Contract day</div><div class="date">Jun 02</div></div>
+    <div class="chk done"><div class="box">✓</div><div class="txt">Earnest deposit</div><div class="date">Jun 05</div></div>
+    <div class="chk done"><div class="box">✓</div><div class="txt">Inspection date</div><div class="date">Jun 12</div></div>
+    <div class="chk done"><div class="box">✓</div><div class="txt">Inspection report &amp; negotiations due</div><div class="date">Jun 17</div></div>
+    <div class="chk done"><div class="box">✓</div><div class="txt">Appraisal date</div><div class="date">Jun 30</div></div>
+    <div class="chk done"><div class="box">✓</div><div class="txt">Appraisal due</div><div class="date">Jul 07</div></div>
+    <div class="chk done"><div class="box">✓</div><div class="txt">Estoppel complete</div><div class="date"></div></div>
+    <div class="divider"></div>
+    <div class="chk"><div class="box">✓</div><div class="txt">Survey date</div><div class="date empty">— —</div></div>
+    <div class="chk"><div class="box">✓</div><div class="txt">Survey complete</div><div class="date"></div></div>
+    <div class="chk"><div class="box">✓</div><div class="txt">Clear to close</div><div class="date"></div></div>
+    <div class="chk"><div class="box">✓</div><div class="txt">Signing date</div><div class="date empty">— —</div></div>
+    <div class="chk"><div class="box">✓</div><div class="txt">Final wire sent</div><div class="date"></div></div>
+    <div class="chk"><div class="box">✓</div><div class="txt">Final walk through</div><div class="date"></div></div>
+    <div class="chk"><div class="box">✓</div><div class="txt">Funded!!</div><div class="date"></div></div>
+  </div>
+</details>
+
+<!-- CONTACTS -->
+<details class="sec">
+  <summary>
+    <div class="sechead"><span class="sectitle">Contacts</span></div>
+    <div class="secright"><span class="count">14</span><span class="chev">▼</span></div>
+  </summary>
+  <div class="secbody">
+    <div class="crow"><span class="k">Buyers</span><div class="rt"><span class="v">M. &amp; C. Ellison</span><a class="tapicon" href="tel:+14075550118">✆</a></div></div>
+    <div class="crow"><span class="k">Sellers</span><div class="rt"><span class="v">R. Delgado</span></div></div>
+    <div class="crow"><span class="k">Realtor</span><div class="rt"><span class="v">Allison Mattheis</span><a class="tapicon" href="tel:+12536539021">✆</a></div></div>
+    <div class="crow"><span class="k">Loan Officer</span><div class="rt"><span class="v">Jane Mitchell</span><a class="tapicon" href="tel:+14075550142">✆</a></div></div>
+    <div class="crow"><span class="k">Lender</span><div class="rt"><span class="v">Alpine Bank</span></div></div>
+    <div class="crow"><span class="k">Title Company</span><div class="rt"><span class="v">Summit Title &amp; Escrow</span><a class="tapicon" href="tel:+14075550177">✆</a></div></div>
+    <div class="crow"><span class="k">Inspector</span><div class="rt"><span class="v blank">not set</span></div></div>
+    <div class="crow"><span class="k">Homeowners Ins.</span><div class="rt"><span class="v blank">not set</span></div></div>
+    <div class="glabel">Utility Companies</div>
+    <div class="crow"><span class="k">Power</span><div class="rt"><span class="v">Duke Energy</span><a class="tapicon" href="tel:+18007002443">✆</a></div></div>
+    <div class="crow"><span class="k">Water</span><div class="rt"><span class="v">Toho Water</span><a class="tapicon" href="tel:+14079442000">✆</a></div></div>
+    <div class="crow"><span class="k">Gas</span><div class="rt"><span class="v blank">not set</span></div></div>
+    <div class="crow"><span class="k">Cable</span><div class="rt"><span class="v">Spectrum</span></div></div>
+    <div class="crow"><span class="k">Internet</span><div class="rt"><span class="v">Spectrum</span></div></div>
+    <div class="crow"><span class="k">HOA</span><div class="rt"><span class="v">Reunion East CDD</span></div></div>
+  </div>
+</details>
+
+<!-- LOAN — carries the lending company's branding -->
+<details class="sec lending">
+  <summary>
+    <div class="sechead"><span class="sectitle">Loan</span><span class="lendmark">Lending Co.</span></div>
+    <div class="secright"><span class="count">6 / 15</span><span class="chev">▼</span></div>
+  </summary>
+  <div class="secbody">
+    <div class="chk done"><div class="box">✓</div><div class="txt">Application complete</div><div class="date"></div></div>
+    <div class="chk done"><div class="box">✓</div><div class="txt">Documentation on file</div><div class="date"></div></div>
+      <div class="fill"><span class="tick">✔</span><span class="line">2024 &amp; 2025 W-2s</span></div>
+      <div class="fill"><span class="tick">✔</span><span class="line">Last 2 pay stubs</span></div>
+      <div class="fill"><span class="tick">✔</span><span class="line">Bank statements — 60 days</span></div>
+      <div class="fill"><span class="tick">✔</span><span class="line empty"></span></div>
+      <div class="fill"><span class="tick">✔</span><span class="line empty"></span></div>
+      <div class="fill"><span class="tick">✔</span><span class="line empty"></span></div>
+    <div class="divider"></div>
+    <div class="chk done"><div class="box">✓</div><div class="txt">Preapproval complete</div><div class="date"></div></div>
+    <div class="chk done"><div class="box">✓</div><div class="txt">Initial disclosures complete</div><div class="date"></div></div>
+    <div class="chk done"><div class="box">✓</div><div class="txt">Lock rate</div><div class="date">Jun 20</div></div>
+    <div class="chk done"><div class="box">✓</div><div class="txt">Order appraisal</div><div class="date"></div></div>
+    <div class="chk"><div class="box">✓</div><div class="txt">Order title work</div><div class="date"></div></div>
+    <div class="chk"><div class="box">✓</div><div class="txt">Homeowners insurance set</div><div class="date"></div></div>
+    <div class="chk"><div class="box">✓</div><div class="txt">Submitted to underwriting</div><div class="date"></div></div>
+    <div class="chk"><div class="box">✓</div><div class="txt">Cleared conditions</div><div class="date"></div></div>
+      <div class="fill"><span class="tick">✔</span><span class="line">Letter of explanation — deposit</span></div>
+      <div class="fill"><span class="tick">✔</span><span class="line empty"></span></div>
+      <div class="fill"><span class="tick">✔</span><span class="line empty"></span></div>
+      <div class="fill"><span class="tick">✔</span><span class="line empty"></span></div>
+      <div class="fill"><span class="tick">✔</span><span class="line empty"></span></div>
+    <div class="divider"></div>
+    <div class="chk"><div class="box">✓</div><div class="txt">Final underwriting</div><div class="date"></div></div>
+    <div class="chk"><div class="box">✓</div><div class="txt">Clear to close</div><div class="date"></div></div>
+    <div class="chk"><div class="box">✓</div><div class="txt">Closing disclosure signed</div><div class="date empty">— —</div></div>
+    <div class="chk"><div class="box">✓</div><div class="txt">Balance numbers w/ title &amp; lender</div><div class="date"></div></div>
+    <div class="chk"><div class="box">✓</div><div class="txt">Closing!</div><div class="date empty">— —</div></div>
+  </div>
+</details>
+
+</body>
+</html>

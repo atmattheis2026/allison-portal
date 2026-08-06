@@ -27,21 +27,112 @@ Repo: `~/Code/allison-portal`. Handoff copy goes to her own GitHub.
 
 ---
 
+## Answers from Allison (Aug 5 2026) — these are settled
+
+1. **Two companies, two brandings.** A real estate company and a lending company, each with
+   their own rules. She is sending the new logo plus the existing loans logo.
+2. **Buyers see everything, including the condition lines** — "sometimes the client has
+   tasks to do." No hidden fields in v1.
+3. **She needs a seller version.**
+4. **Five people on her team**, but they may not use her as their lender, so **lender info
+   must be changeable per transaction.**
+5. **Phone is the primary client surface** — "probably the only way they'll follow."
+
+---
+
 ## Access model
 
 Two front doors, one codebase:
 
 - `/t/:shareToken` — **client view.** Unguessable token, read-only, no login. This is what
-  she texts the buyers. Renders the whole dashboard minus anything marked internal.
+  she texts the buyers.
 - `/admin` — **her view.** Magic-link login. Lists all transactions, create/edit/archive,
   toggles, date pickers, photo upload, share-link copy button.
 
-Same `<TransactionDashboard>` component both places, with `editable` and `showInternal`
-props. One layout to maintain, not two.
+Same `<TransactionDashboard>` component both places, with an `editable` prop. One layout.
 
-**Client view hides:** internal notes, the loan column's raw condition lines (buyers don't
-need to see "letter of explanation — deposit"), and anything flagged `internal_only`.
-Confirm this list with Allison — it is a guess, not her instruction.
+**Client view shows everything the admin view shows.** Per her answer #2, there is no
+field-level filtering in v1 — the condition lines are a client to-do list, not internal
+chatter. The share function still exists (it is how anon reads without table access), but
+it returns the full payload. `internal_only` stays in the schema as a flag defaulting to
+false, unused for now, so adding one private note later is a UI change and not a migration.
+
+---
+
+## Mobile is the primary surface, not a phase
+
+Per answer #5, most client views will be on a phone. That inverts the build: the client
+view is **designed mobile-first and desktop second**, and it ships in Phase 3, not Phase 5.
+
+Phone layout:
+- Photo, address, and status stack full-bleed at top.
+- **Countdown sits directly under the address.** It is the one thing a buyer opens the link
+  to check, and on a phone it should require zero scrolling.
+- Progress rail goes **vertical** — a left-hand gold spine with the nodes down it, which
+  reads better on a narrow screen than a squeezed horizontal one.
+- The three columns become three collapsible sections in her stated order: Real Estate,
+  Contacts, Loan. Real Estate opens by default; the other two are tappable.
+- Contacts get real `tel:` and `mailto:` links. A buyer on a phone wanting the inspector's
+  number should tap once, not copy a string.
+
+Desktop keeps the three-column layout from the mock.
+
+---
+
+## Two-company branding
+
+Her two companies are not a cosmetic detail; they map cleanly onto the layout.
+
+```
+brands   id, team_id, kind ('real_estate'|'lending'),
+         name, logo_url, wordmark_text,
+         accent_hex, accent_soft_hex
+```
+
+- The **real estate brand** owns the top brand bar and the page's primary accent.
+- The **lending brand** owns the loan column header (and the loan section header on mobile),
+  with its own logo lockup and, if its rules require, its own accent color.
+
+So the page reads as one document with two signatures, which is what a co-branded
+transaction actually is. Brokerage compliance usually requires the brokerage mark be
+present and not subordinated, so the top bar is the safe home for it.
+
+**Blocked until she sends both logos.** Until then the mock keeps placeholder wordmarks.
+Do not guess at either company's colors — brokerages have written rules and getting it
+wrong is a compliance problem, not a taste problem.
+
+---
+
+## Buyer vs. seller transactions
+
+`transactions.deal_type ('buy'|'sell')`, chosen at creation and immutable after.
+
+Because milestones are rows, this costs almost nothing: `seed_milestones(transaction_id,
+deal_type)` stamps the buyer set or the seller set. Her 14 real estate + 15 loan items are
+the buyer set. **The seller set needs her input** — the seller side has no loan column at
+all in most deals, and gains items like listing agreement, photos/staging, going live,
+showings, offer accepted, seller disclosures. Ask her to send that list the same way she
+sent the first one.
+
+On a `sell` transaction the loan column is simply absent, and the layout goes two-column
+(desktop) or two-section (mobile).
+
+---
+
+## Lender is per-transaction, not per-team
+
+Her team of five may each use a different lender, so the loan officer cannot be a foreign
+key into her team's profiles.
+
+- `transactions.realtor_id` → FK to `profiles`. One of her five, picked from a dropdown.
+- **Lender fields live on the transaction itself**: `lender_name`, `lender_company`,
+  `lender_license`, `lender_headshot_url`, `lender_phone`, `lender_email`, plus an optional
+  `lending_brand_id` when it is her own lending company.
+
+To keep that from being tedious data entry on every deal, add a `saved_lenders` table
+scoped to the team — she picks a lender she has used before and it fills all six fields,
+or types a new one and it is saved for next time. This is the difference between a tool she
+uses and a form she resents.
 
 ---
 
@@ -104,21 +195,22 @@ This is the visual contract; the React build matches it pixel for pixel.
 Project, schema migration, RLS, `seed_milestones`, `get_shared_transaction`, storage bucket.
 Seed one demo transaction (7859 Palmilla Ct) so there's something to look at.
 
-**Phase 3 — client view**
+**Phase 3 — client view, mobile-first**
 `/t/:token` route, port the mock to React components, wire to the share function.
+Build the phone layout first and let desktop be the enhancement, per answer #5.
 Countdown computes from `closing_date`. Progress rail derives from the real estate
-milestones — six named checkpoints, no separate table.
-Ship this first: it's the half she can show a client tomorrow.
+milestones — six named checkpoints, no separate table. `tel:`/`mailto:` on contacts.
+Ship this first: it's the half she can text a client tomorrow.
 
 **Phase 4 — admin**
-Magic-link login, transaction list, create flow, inline editing (checkbox toggle, date
-picker, contact fields, doc lines), photo + headshot upload, "copy client link" button.
-Optimistic updates — she's clicking a lot of checkboxes and shouldn't wait on a round trip.
+Magic-link login, transaction list, create flow (buy or sell), inline editing (checkbox
+toggle, date picker, contact fields, doc lines), photo + headshot upload, saved-lender
+picker, "copy client link" button. Optimistic updates — she's clicking a lot of checkboxes
+and shouldn't wait on a round trip.
 
 **Phase 5 — polish**
-Mobile layout (three columns stack; the rail becomes vertical — she will absolutely open
-this on her phone at a closing table). Print stylesheet, because realtors print things.
-Team management so she can add her team's realtors and lenders.
+Seller milestone set once she sends it. Print stylesheet, because realtors print things.
+Team management for her five people. Brand admin for the two logos.
 
 **Phase 6 — handoff**
 See below.
@@ -146,19 +238,18 @@ The whole point. Deliverables:
 
 ---
 
-## Open questions for Allison
+## Still needed from Allison
 
-1. **Brand.** "Mattheis & Co." is my placeholder in the mock. Real name, and is she under a
-   brokerage whose branding has to appear? Brokerages have rules about this.
-2. **Loan column visibility.** Does the buyer see the loan side at all? It's her lender
-   partner's workflow and some of it is internal. My default hides the raw condition lines
-   but shows the loan milestones — needs her ruling.
-3. **Seller-side transactions.** Her checklist is buyer-shaped. Does she need a seller
-   variant, or is one list fine for now?
-4. **Team size.** "Changeable for my team" — how many people, and do they each need a login
-   or does she manage everything?
-5. **Does the buyer's phone matter?** If she's texting clients links, most will open on a
-   phone. That moves mobile from Phase 5 to Phase 3.
+1. **Both logos** — the new real estate one and the existing loans one. She has committed to
+   sending these. Blocks final brand styling; everything else can proceed.
+2. **Written branding rules for each company**, if they exist. Minimum sizes, clear space,
+   approved colors, whether the mark may sit on a dark background. Her inspo is near-black,
+   and plenty of brokerage kits forbid that or require a reversed logo file.
+3. **The seller checklist**, in the same format she sent the buyer one.
+4. **Her five team members** — names, license numbers, headshots, and which of them need
+   their own login versus her managing it.
+5. **Do all five share one client-facing brand**, or does any of them carry separate
+   branding? Affects whether `brands` is team-scoped or profile-scoped.
 
 ---
 
