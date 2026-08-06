@@ -1,6 +1,8 @@
 export type DealType = 'buy' | 'sell'
 export type Side = 'real_estate' | 'loan'
-export type TeamRole = 'realtor' | 'loan_officer' | 'admin'
+export type TeamRole =
+  | 'realtor' | 'loan_officer' | 'admin' | 'transaction_coordinator' | 'mortgage_broker'
+  | 'broker_associate'
 export type BrandKind = 'real_estate' | 'lending'
 export type DocGroup = 'documentation' | 'conditions'
 export type ContactGroup = 'people' | 'utilities'
@@ -39,14 +41,15 @@ export interface Person {
 /**
  * Someone on Allison's team.
  *
- * `sees_all_transactions` is the per-person access switch: an office manager
- * gets true and sees the whole book, an agent gets false and sees only the
- * deals they're assigned to. It is set in Settings › Team.
+ * `roles` is a list, not one pick — her team has people who are both an agent
+ * and a loan officer. `sees_all_transactions` is the per-person access switch:
+ * an office manager gets true and sees the whole book, an agent gets false and
+ * sees only the deals they're assigned to. Both are set in Settings › Team.
  */
 export interface TeamMember {
   id: string
   full_name: string
-  role: TeamRole
+  roles: TeamRole[]
   license_number: string | null
   headshot_url: string | null
   phone: string | null
@@ -59,6 +62,24 @@ export const ROLE_LABEL: Record<TeamRole, string> = {
   realtor: 'Agent',
   loan_officer: 'Loan officer',
   admin: 'Office manager',
+  transaction_coordinator: 'Transaction coordinator',
+  mortgage_broker: 'Mortgage broker',
+  broker_associate: 'Broker associate',
+}
+
+/**
+ * A vendor she's saved for reuse — title companies, inspectors, insurance,
+ * utility providers. Keyed by role_label so each contact slot has its own
+ * list (saved Title Companies are separate from saved Power companies).
+ */
+export interface SavedContact {
+  id: string
+  group_key: ContactGroup
+  role_label: string
+  name: string
+  phone: string | null
+  email: string | null
+  sort_order: number
 }
 
 export interface Lender {

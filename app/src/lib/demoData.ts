@@ -1,4 +1,4 @@
-import type { SharedPayload, Milestone, DocLine, Contact, TeamMember } from './types'
+import type { SharedPayload, Milestone, DocLine, Contact, TeamMember, SavedContact } from './types'
 
 /**
  * Sample transaction used when no Supabase credentials are present.
@@ -89,6 +89,7 @@ const people: [string, string | null, string | null][] = [
   ['Buyers', 'M. & C. Ellison', '+14075550118'],
   ['Sellers', 'R. Delgado', null],
   ['Realtor', 'Allison Mattheis', '+12536539021'],
+  ['Transaction Coordinator', null, null],
   ['Loan Officer', 'Jane Mitchell', '+14075550142'],
   ['Lender', 'Alpine Bank', null],
   ['Title Company', 'Summit Title & Escrow', '+14075550177'],
@@ -280,23 +281,23 @@ export const DEMO_BY_TOKEN: Record<string, SharedPayload> = {
  */
 export const TEAM_MEMBERS: TeamMember[] = [
   {
-    id: 'tm-allison', full_name: 'Allison Mattheis', role: 'admin',
+    id: 'tm-allison', full_name: 'Allison Mattheis', roles: ['admin', 'realtor'],
     license_number: 'SL 3512908',
     headshot_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&q=70',
     phone: '+12536539021', email: null, sees_all_transactions: true, sort_order: 10,
   },
   {
-    id: 'tm-marcus', full_name: 'Marcus Webb', role: 'realtor',
+    id: 'tm-marcus', full_name: 'Marcus Webb', roles: ['realtor'],
     license_number: 'SL 3612411', headshot_url: null,
     phone: '+14075550199', email: null, sees_all_transactions: false, sort_order: 20,
   },
   {
-    id: 'tm-priya', full_name: 'Priya Nair', role: 'realtor',
+    id: 'tm-priya', full_name: 'Priya Nair', roles: ['realtor', 'loan_officer'],
     license_number: 'SL 3688820', headshot_url: null,
     phone: '+14075550233', email: null, sees_all_transactions: false, sort_order: 30,
   },
   {
-    id: 'tm-jane', full_name: 'Jane Mitchell', role: 'loan_officer',
+    id: 'tm-jane', full_name: 'Jane Mitchell', roles: ['loan_officer', 'mortgage_broker'],
     license_number: 'NMLS 1184402',
     headshot_url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&q=70',
     phone: '+14075550142', email: null, sees_all_transactions: false, sort_order: 40,
@@ -308,3 +309,11 @@ export const TRANSACTION_ASSIGNEES: Record<string, string[]> = {
   'demo-tx': ['tm-allison', 'tm-jane'],
   'demo-sell': ['tm-allison', 'tm-priya'],
 }
+
+/** Saved vendors — the premade options for contacts other than team members. */
+export const SAVED_CONTACTS: SavedContact[] = [
+  { id: 'sc-1', group_key: 'people', role_label: 'Title Company', name: 'Summit Title & Escrow', phone: '+14075550177', email: null, sort_order: 10 },
+  { id: 'sc-2', group_key: 'people', role_label: 'Homeowners Insurance', name: 'Reunion Coastal Insurance', phone: '+14075550188', email: null, sort_order: 10 },
+  { id: 'sc-3', group_key: 'utilities', role_label: 'Power', name: 'Duke Energy', phone: '+18007002443', email: null, sort_order: 10 },
+  { id: 'sc-4', group_key: 'utilities', role_label: 'Water', name: 'Toho Water', phone: '+14079442000', email: null, sort_order: 10 },
+]

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import type {
   SharedPayload, Milestone, Side, Brand, BrandKind, DocGroup, Contact,
-  Transaction, TxStatus, TeamMember, Note,
+  Transaction, TxStatus, TeamMember, Note, SavedContact,
 } from '../lib/types'
 import { STATUS_LABEL } from '../lib/types'
 import './Dashboard.css'
@@ -62,7 +62,11 @@ export interface DashboardHandlers {
   /** Picking a realtor from the roster, and giving the loan officer a headshot. */
   onChangeRealtor?: (memberId: string | null) => void
   onUploadLenderPhoto?: (file: File) => void
+  /** Quick-filling the loan officer card from a roster member instead of retyping. */
+  onPickLender?: (memberId: string) => void
   onAddNote?: (side: Side, body: string) => void
+  onPickSavedContact?: (contactId: string, savedId: string) => void
+  onSaveContact?: (contact: Contact) => void
 }
 
 interface Props extends DashboardHandlers {
@@ -74,13 +78,16 @@ interface Props extends DashboardHandlers {
   /** Her team roster, for picking a realtor. Admin-only — not part of the
    *  client payload, so this is undefined on the client-facing page. */
   roster?: TeamMember[]
+  /** Saved vendors for the Contacts section — title companies, inspectors,
+   *  utilities. Same admin-only story as roster. */
+  savedContacts?: SavedContact[]
 }
 
 /* ------------------------------------------------------------------ main */
 
 export default function Dashboard({
   data, editable = false, viewNote = 'Transaction Portal · Client View',
-  headerExtra, roster, ...h
+  headerExtra, roster, savedContacts, ...h
 }: Props) {
   const { transaction: tx, realtor, brands, milestones, doc_lines, contacts, notes } = data
 
@@ -125,7 +132,8 @@ export default function Dashboard({
                    realtorMemberId={tx.realtor_member_id}
                    editable={editable} onPatch={h.onPatchTransaction}
                    onChangeRealtor={h.onChangeRealtor}
-                   onUploadLenderPhoto={h.onUploadLenderPhoto} />
+                   onUploadLenderPhoto={h.onUploadLenderPhoto}
+                   onPickLender={h.onPickLender} />
       </div>
 
       {railSteps.length > 0 && <Rail steps={railSteps} currentIdx={currentIdx} />}
@@ -152,7 +160,10 @@ export default function Dashboard({
                         editable={editable} onAdd={h.onAddNote} />
           )}
           <ContactsSection contacts={contacts} editable={editable}
-                           onPatch={h.onPatchContact} />
+                           savedContacts={savedContacts}
+                           onPatch={h.onPatchContact}
+                           onPickSaved={h.onPickSavedContact}
+                           onSaveContact={h.onSaveContact} />
         </div>
 
         {hasLoan && (
@@ -359,15 +370,20 @@ function Countdown({ date, editable, onPatch }: {
 }
 
 function TeamCards({
-  realtor, lender, roster, realtorMemberId, editable, onPatch, onChangeRealtor, onUploadLenderPhoto,
+  realtor, lender, roster, realtorMemberId, editable, onPatch, onChangeRealtor,
+  onUploadLenderPhoto, onPickLender,
 }: {
   realtor: SharedPayload['realtor']; lender: Transaction['lender']
   roster?: TeamMember[]; realtorMemberId?: string | null; editable?: boolean
   onPatch?: (v: Partial<Transaction>) => void
   onChangeRealtor?: (memberId: string | null) => void
   onUploadLenderPhoto?: (file: File) => void
+  onPickLender?: (memberId: string) => void
 }) {
   const hasLender = Boolean(lender?.name)
+  const agents = roster?.filter((m) => m.roles.includes('realtor')) ?? []
+  const loanPeople = roster?.filter((m) =>
+    m.roles.includes('loan_officer') || m.roles.includes('mortgage_broker')) ?? []
   if (!realtor && !hasLender && !editable) return null
 
   return (
@@ -387,14 +403,14 @@ function TeamCards({
               onChange={(e) => onChangeRealtor?.(e.target.value || null)}
             >
               <option value="">Choose a realtor…</option>
-              {roster?.map((m) => (
+              {agents.map((m) => (
                 <option key={m.id} value={m.id}>{m.full_name || 'Unnamed'}</option>
               ))}
             </select>
             {realtor?.license_number && <div className="lic">{realtor.license_number}</div>}
-            {!roster?.length && (
+            {!agents.length && (
               <div className="lic" style={{ opacity: .7 }}>
-                Add people in Settings › Team first
+                Tag people "Agent" in Settings › Team first
               </div>
             )}
           </div>
@@ -424,6 +440,21 @@ function TeamCards({
           </label>
           <div className="who">
             <div className="role">Loan Officer</div>
+            {loanPeople.length > 0 && (
+              <select
+                style={{
+                  background: 'none', border: '1px solid var(--lend-soft)', borderRadius: 999,
+                  padding: '2px 8px', fontSize: 10, color: 'var(--lend-bright)', marginBottom: 3,
+                }}
+                value=""
+                onChange={(e) => { if (e.target.value) onPickLender?.(e.target.value) }}
+              >
+                <option value="">Fill from your team…</option>
+                {loanPeople.map((m) => (
+                  <option key={m.id} value={m.id}>{m.full_name || 'Unnamed'}</option>
+                ))}
+              </select>
+            )}
             <EditableText className="name" value={lender.name ?? ''}
                           placeholder="Loan officer name"
                           onCommit={(v) => onPatch?.({
@@ -728,9 +759,11 @@ function fmtNoteWhen(iso: string): string {
   })
 }
 
-function ContactsSection({ contacts, editable, onPatch }: {
-  contacts: Contact[]; editable?: boolean
+function ContactsSection({ contacts, editable, savedContacts, onPatch, onPickSaved, onSaveContact }: {
+  contacts: Contact[]; editable?: boolean; savedContacts?: SavedContact[]
   onPatch?: (id: string, v: Partial<Contact>) => void
+  onPickSaved?: (contactId: string, savedId: string) => void
+  onSaveContact?: (contact: Contact) => void
 }) {
   const by = (g: string) => contacts.filter((c) => c.group_key === g)
     .sort((a, b) => a.sort_order - b.sort_order)
@@ -741,22 +774,30 @@ function ContactsSection({ contacts, editable, onPatch }: {
   const shown = (rows: Contact[]) => editable ? rows : rows.filter((c) => c.name?.trim())
   const filled = contacts.filter((c) => c.name?.trim()).length
 
+  const savedFor = (c: Contact) =>
+    savedContacts?.filter((s) => s.group_key === c.group_key && s.role_label === c.role_label) ?? []
+
   return (
     <Section title="Contacts" count={editable ? `${filled} / ${contacts.length}` : String(filled)}
              defaultOpen>
       {shown(people).map((c) => (
-        <ContactRow key={c.id} c={c} editable={editable} onPatch={onPatch} />
+        <ContactRow key={c.id} c={c} editable={editable} onPatch={onPatch}
+                    saved={savedFor(c)} onPickSaved={onPickSaved} onSaveContact={onSaveContact} />
       ))}
       {shown(utils).length > 0 && <div className="glabel">Utility Companies</div>}
       {shown(utils).map((c) => (
-        <ContactRow key={c.id} c={c} editable={editable} onPatch={onPatch} />
+        <ContactRow key={c.id} c={c} editable={editable} onPatch={onPatch}
+                    saved={savedFor(c)} onPickSaved={onPickSaved} onSaveContact={onSaveContact} />
       ))}
     </Section>
   )
 }
 
-function ContactRow({ c, editable, onPatch }: {
+function ContactRow({ c, editable, onPatch, saved, onPickSaved, onSaveContact }: {
   c: Contact; editable?: boolean; onPatch?: (id: string, v: Partial<Contact>) => void
+  saved?: SavedContact[]
+  onPickSaved?: (contactId: string, savedId: string) => void
+  onSaveContact?: (contact: Contact) => void
 }) {
   const [open, setOpen] = useState(false)
 
@@ -765,7 +806,10 @@ function ContactRow({ c, editable, onPatch }: {
       <div className="crow">
         <span className="k">{c.role_label}</span>
         <div className="rt">
-          <span className="v">{c.name}</span>
+          <div>
+            <span className="v">{c.name}</span>
+            {c.note && <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 1 }}>{c.note}</div>}
+          </div>
           {c.phone && <a className="tapicon" href={telHref(c.phone)}
                          aria-label={`Call ${c.role_label}`}>✆</a>}
           {c.email && <a className="tapicon" href={`mailto:${c.email}`}
@@ -789,10 +833,28 @@ function ContactRow({ c, editable, onPatch }: {
       </div>
       {open && (
         <div className="crowMore">
+          {!!saved?.length && (
+            <select
+              value=""
+              style={{ fontSize: 11.5 }}
+              onChange={(e) => { if (e.target.value) onPickSaved?.(c.id, e.target.value) }}
+            >
+              <option value="">Use a saved {c.role_label}…</option>
+              {saved.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          )}
           <EditableText value={c.phone ?? ''} placeholder="Phone"
                         onCommit={(v) => onPatch?.(c.id, { phone: v || null })} />
           <EditableText value={c.email ?? ''} placeholder="Email"
                         onCommit={(v) => onPatch?.(c.id, { email: v || null })} />
+          <EditableText value={c.note ?? ''} placeholder="Address (optional)"
+                        onCommit={(v) => onPatch?.(c.id, { note: v || null })} />
+          {c.name?.trim() && (
+            <button type="button" className="btn" style={{ fontSize: 11, alignSelf: 'flex-start' }}
+                    onClick={() => onSaveContact?.(c)}>
+              Save "{c.name}" for next time
+            </button>
+          )}
         </div>
       )}
     </div>

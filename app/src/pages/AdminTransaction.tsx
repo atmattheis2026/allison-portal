@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Dashboard from '../components/Dashboard'
 import { DEMO_MODE, supabase } from '../lib/supabase'
-import { DEMO_PAYLOAD, DEMO_SELLER, TEAM_MEMBERS, TRANSACTION_ASSIGNEES } from '../lib/demoData'
-import { ROLE_LABEL, type Contact, type Milestone, type SharedPayload, type Side, type TeamMember, type Transaction } from '../lib/types'
+import { DEMO_PAYLOAD, DEMO_SELLER, SAVED_CONTACTS, TEAM_MEMBERS, TRANSACTION_ASSIGNEES } from '../lib/demoData'
+import { ROLE_LABEL, type Contact, type Milestone, type SavedContact, type SharedPayload, type Side, type TeamMember, type Transaction } from '../lib/types'
 import './Admin.css'
 
 /**
@@ -24,6 +24,7 @@ export default function AdminTransaction() {
   // can see, and never routed through get_shared_transaction.
   const [roster, setRoster] = useState<TeamMember[]>([])
   const [assignedIds, setAssignedIds] = useState<Set<string>>(new Set())
+  const [savedContacts, setSavedContacts] = useState<SavedContact[]>([])
 
   useEffect(() => {
     if (DEMO_MODE || !supabase) {
@@ -32,6 +33,7 @@ export default function AdminTransaction() {
       setToken(sell ? 'demo-sell' : 'demo')
       setRoster(TEAM_MEMBERS)
       setAssignedIds(new Set(TRANSACTION_ASSIGNEES[id ?? ''] ?? []))
+      setSavedContacts(SAVED_CONTACTS)
       return
     }
     // The admin view reads through the same assembling function so both pages
@@ -49,6 +51,8 @@ export default function AdminTransaction() {
     supabase.from('transaction_assignees').select('team_member_id').eq('transaction_id', id)
       .then(({ data: rows }) =>
         setAssignedIds(new Set((rows ?? []).map((r) => r.team_member_id as string))))
+    supabase.from('saved_contacts').select('*').order('sort_order')
+      .then(({ data: rows }) => setSavedContacts((rows as SavedContact[]) ?? []))
   }, [id])
 
   async function toggleAssignee(memberId: string) {
@@ -220,6 +224,53 @@ export default function AdminTransaction() {
         notes: [{ id: row.id, side, author_name: authorName, body, created_at: row.created_at }, ...d.notes],
       }))
     },
+
+    onPickLender: (memberId: string) => {
+      const member = roster.find((m) => m.id === memberId)
+      if (!member) return
+      const lender = {
+        name: member.full_name, company: null, license: member.license_number,
+        headshot_url: member.headshot_url, phone: member.phone, email: member.email,
+        is_in_house: true,
+      }
+      patch((d) => ({ ...d, transaction: { ...d.transaction, lender } }))
+      if (!id) return
+      write('transactions', id, {
+        lender_name: lender.name, lender_company: lender.company, lender_license: lender.license,
+        lender_headshot_url: lender.headshot_url, lender_phone: lender.phone,
+        lender_email: lender.email, lender_is_in_house: lender.is_in_house,
+      })
+    },
+
+    onPickSavedContact: (contactId: string, savedId: string) => {
+      const s = savedContacts.find((x) => x.id === savedId)
+      if (!s) return
+      patch((d) => {
+        const t = d.contacts.find((x) => x.id === contactId)
+        if (t) { t.name = s.name; t.phone = s.phone; t.email = s.email }
+        return d
+      })
+      write('contacts', contactId, { name: s.name, phone: s.phone, email: s.email })
+    },
+
+    onSaveContact: async (contact: Contact) => {
+      if (!contact.name?.trim()) return
+      const row = {
+        group_key: contact.group_key, role_label: contact.role_label,
+        name: contact.name, phone: contact.phone, email: contact.email, sort_order: 0,
+      }
+      if (DEMO_MODE || !supabase) {
+        setSavedContacts((cur) => [...cur, { id: `local-${Date.now()}`, ...row }])
+        return
+      }
+      const { data: auth } = await supabase.auth.getUser()
+      const { data: me } = await supabase.from('profiles')
+        .select('team_id').eq('id', auth.user?.id).single()
+      if (!me?.team_id) return
+      const { data: saved } = await supabase.from('saved_contacts')
+        .insert({ team_id: me.team_id, ...row }).select('*').single()
+      if (saved) setSavedContacts((cur) => [...cur, saved as SavedContact])
+    },
   }
 
   function copyLink() {
@@ -245,6 +296,7 @@ export default function AdminTransaction() {
         data={data}
         editable
         roster={roster}
+        savedContacts={savedContacts}
         headerExtra={
           <span style={{ display: 'flex', gap: 9, alignItems: 'center' }}>
             <Link className="btn" to="/admin">All transactions</Link>
@@ -295,7 +347,8 @@ function AssignedTo({ roster, assignedIds, onToggle }: {
                 cursor: m.sees_all_transactions ? 'default' : 'pointer',
               }}
             >
-              {m.full_name || 'Unnamed'} · {ROLE_LABEL[m.role]}
+              {m.full_name || 'Unnamed'}
+              {m.roles.length > 0 && ` · ${m.roles.map((r) => ROLE_LABEL[r]).join(', ')}`}
             </button>
           )
         })}

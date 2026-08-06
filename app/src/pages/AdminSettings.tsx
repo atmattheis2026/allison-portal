@@ -371,7 +371,7 @@ let nextTeamId = 1000
 
 function newMember(sort_order: number): TeamMember {
   return {
-    id: `new-${nextTeamId++}`, full_name: '', role: 'realtor',
+    id: `new-${nextTeamId++}`, full_name: '', roles: [],
     license_number: null, headshot_url: null, phone: null, email: null,
     sees_all_transactions: false, sort_order,
   }
@@ -434,7 +434,7 @@ function Team() {
     for (const m of members) {
       if (!m.full_name.trim()) continue
       const row = {
-        team_id: teamId, full_name: m.full_name, role: m.role,
+        team_id: teamId, full_name: m.full_name, roles: m.roles,
         license_number: m.license_number, headshot_url: m.headshot_url,
         phone: m.phone, email: m.email,
         sees_all_transactions: m.sees_all_transactions, sort_order: m.sort_order,
@@ -480,30 +480,39 @@ function Team() {
             </label>
             <input
               type="text" value={m.full_name} placeholder="Full name"
-              style={{ minWidth: 160 }}
+              style={{ minWidth: 160, flex: 1 }}
               onChange={(e) => update(m.id, { full_name: e.target.value })}
             />
-            <select
-              value={m.role}
-              onChange={(e) => update(m.id, { role: e.target.value as TeamRole })}
-              style={{
-                background: 'none', border: '1px solid var(--line)', borderRadius: 999,
-                padding: '5px 10px', fontSize: 12, color: 'var(--ink-dim)',
-                flex: 'none', width: 'auto',
-              }}
-            >
-              {(Object.keys(ROLE_LABEL) as TeamRole[]).map((r) => (
-                <option key={r} value={r}>{ROLE_LABEL[r]}</option>
-              ))}
-            </select>
-            <button
-              className={`datetoggle${m.sees_all_transactions ? ' on' : ''}`}
-              title="Sees every transaction on the team, not just their own"
-              onClick={() => update(m.id, { sees_all_transactions: !m.sees_all_transactions })}
-            >
-              {m.sees_all_transactions ? 'Sees every transaction' : 'Sees only assigned'}
-            </button>
+            <input
+              type="text" value={m.license_number ?? ''} placeholder="License / NMLS #"
+              style={{ minWidth: 130, maxWidth: 150, flex: 'none' }}
+              onChange={(e) => update(m.id, { license_number: e.target.value || null })}
+            />
             <button className="del" onClick={() => remove(m.id)} title="Remove from team">×</button>
+            <div style={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+              {(Object.keys(ROLE_LABEL) as TeamRole[]).map((r) => {
+                const on = m.roles.includes(r)
+                return (
+                  <button
+                    key={r}
+                    className={`datetoggle${on ? ' on' : ''}`}
+                    onClick={() => update(m.id, {
+                      roles: on ? m.roles.filter((x) => x !== r) : [...m.roles, r],
+                    })}
+                  >
+                    {ROLE_LABEL[r]}
+                  </button>
+                )
+              })}
+              <button
+                className={`datetoggle${m.sees_all_transactions ? ' on' : ''}`}
+                title="Sees every transaction on the team, not just their own"
+                onClick={() => update(m.id, { sees_all_transactions: !m.sees_all_transactions })}
+                style={{ marginLeft: 'auto' }}
+              >
+                {m.sees_all_transactions ? 'Sees every transaction' : 'Sees only assigned'}
+              </button>
+            </div>
           </div>
         ))}
 
