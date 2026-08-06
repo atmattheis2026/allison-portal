@@ -1,0 +1,98 @@
+.admin { max-width: 1400px; margin: 0 auto; padding: 0 18px 60px; }
+
+.adminbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 18px 0; border-bottom: 1px solid var(--line-soft); margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.adminnav { display: flex; gap: 9px; align-items: center; }
+
+.txlist { display: grid; gap: 12px; }
+.txcard {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: 12px 14px;
+}
+.txmain { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 240px;
+          text-decoration: none; color: inherit; }
+.txthumb {
+  width: 92px; height: 64px; border-radius: var(--r-sm); overflow: hidden; flex: none;
+  background: var(--panel-2); border: 1px solid var(--line);
+  display: grid; place-items: center;
+}
+.txthumb img { width: 100%; height: 100%; object-fit: cover; }
+.txinfo { min-width: 0; }
+.txaddr { font-family: var(--serif); font-size: 22px; line-height: 1.15; }
+.txcity { font-size: 12.5px; color: var(--gold); margin-top: 1px; }
+.txmeta { display: flex; align-items: center; gap: 8px; margin-top: 6px;
+          font-size: 11.5px; flex-wrap: wrap; }
+.tag {
+  border: 1px solid var(--gold-soft); color: var(--gold-bright);
+  border-radius: 999px; padding: 2px 9px; font-size: 10px;
+  letter-spacing: .12em; text-transform: uppercase;
+}
+.tag.sell { border-color: var(--lend-soft); color: var(--lend-bright); }
+
+/* ---- settings ---- */
+.settings { display: grid; gap: 18px; max-width: 780px; }
+.setcard { padding: 20px; }
+.setcard h2 {
+  margin: 0 0 4px; font-size: 11px; letter-spacing: .22em;
+  text-transform: uppercase; color: var(--gold); font-weight: 500;
+}
+.sethelp { font-size: 12.5px; color: var(--ink-faint); line-height: 1.65; margin: 0 0 16px; }
+.field { margin-bottom: 14px; }
+.field > label {
+  display: block; font-size: 11px; color: var(--ink-faint);
+  margin-bottom: 6px; letter-spacing: .04em;
+}
+.field2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 620px) { .field2 { grid-template-columns: 1fr; } }
+
+.checkline { display: flex; align-items: flex-start; gap: 10px; margin: 14px 0 4px; }
+.checkline input { width: auto; margin-top: 2px; }
+.checkline .cl { font-size: 13px; color: var(--ink-dim); line-height: 1.5; }
+
+.swatchrow { display: flex; align-items: center; gap: 10px; }
+.swatchrow input[type=color] { width: 46px; height: 38px; padding: 2px; cursor: pointer; }
+
+.logodrop {
+  border: 1px dashed var(--line); border-radius: var(--r-md);
+  padding: 18px; text-align: center; color: var(--ink-faint); font-size: 12.5px;
+  display: grid; place-items: center; gap: 10px; min-height: 96px; cursor: pointer;
+}
+.logodrop:hover { border-color: var(--gold-soft); }
+.logodrop img { max-height: 46px; max-width: 100%; }
+
+/* ---- checklist editor ---- */
+.tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.tab {
+  border: 1px solid var(--line); border-radius: 999px; padding: 7px 15px;
+  font-size: 12.5px; color: var(--ink-faint);
+}
+.tab.on { border-color: var(--gold-soft); color: var(--gold-bright); background: var(--panel-2); }
+
+.tmplrow {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 0; border-bottom: 1px solid var(--line-soft);
+}
+.tmplrow:last-of-type { border-bottom: none; }
+.tmplrow .grip { color: var(--ink-faint); font-size: 13px; cursor: grab; flex: none; width: 14px; }
+.tmplrow input[type=text] { flex: 1; background: none; border: none;
+                            border-bottom: 1px solid transparent; border-radius: 0; padding: 6px 2px; }
+.tmplrow input[type=text]:hover { border-bottom-color: var(--line); }
+.tmplrow input[type=text]:focus { border-bottom-color: var(--gold-soft); }
+.tmplrow .datetoggle {
+  font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+  border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px;
+  color: var(--ink-faint); flex: none;
+}
+.tmplrow .datetoggle.on { border-color: var(--gold-soft); color: var(--gold-bright); }
+.tmplrow .del { color: var(--ink-faint); font-size: 15px; flex: none; padding: 4px 6px; }
+.tmplrow .del:hover { color: var(--danger); }
+
+.savebar {
+  position: sticky; bottom: 0; margin-top: 20px; padding: 14px 0;
+  background: linear-gradient(transparent, var(--bg) 30%);
+  display: flex; gap: 10px; align-items: center;
+}
