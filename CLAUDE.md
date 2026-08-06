@@ -96,9 +96,17 @@ VITE_SUPABASE_ANON_KEY=...
 
 That file is gitignored and must stay that way. Never commit keys.
 
+**Disclaimers ship empty on purpose.** Each brand has a `disclaimer_text` field shown
+in the page footer. Never pre-fill it with plausible-looking compliance language — her
+brokerage and her lender have to approve the exact wording, and fake legal text that
+looks real is worse than an empty footer.
+
+**Seller transactions have no loan side.** Her listing checklist has no loan steps, so
+the Loan section is absent and the page runs two columns. That is data-driven, not a
+special case in code — adding loan steps to the seller template would bring it back.
+
 ## Still to do
 
-- Seller checklist — she builds it herself in Settings › Checklists
 - Both company logos — she uploads them in Settings › Branding
 - Print stylesheet
 - Team management for her five people

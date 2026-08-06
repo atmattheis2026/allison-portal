@@ -173,6 +173,11 @@ export const DEMO_PAYLOAD: SharedPayload = {
       logo_light_url: null,
       accent_hex: '#C9A44C',
       needs_light_background: false,
+      // Deliberately a labelled placeholder, not sample legal wording. Real
+      // compliance text has to come from her brokerage, and plausible-looking
+      // fake disclaimers are the kind of thing that quietly ships.
+      disclaimer_text:
+        'Your brokerage’s required disclaimer will appear here. Add it in Settings › Branding.',
     },
     lending: {
       name: 'Lending Co.',
@@ -181,9 +186,69 @@ export const DEMO_PAYLOAD: SharedPayload = {
       logo_light_url: null,
       accent_hex: '#7F9CB8',
       needs_light_background: false,
+      disclaimer_text:
+        'Your lender’s required disclaimer will appear here — NMLS numbers, Equal Housing, and anything else they require.',
     },
   },
   milestones,
   doc_lines,
   contacts,
+}
+
+/* ------------------------------------------------------- seller sample */
+
+/** Her listing checklist, texted 2026-08-06. No loan side, so this page runs
+ *  two columns instead of three. */
+const SELLER: [string, boolean, boolean, string | null, string | null][] = [
+  ['Listing agreement', true, true, '2026-07-06', 'Listed'],
+  ['Photos', true, true, '2026-07-09', null],
+  ['MLS go-live', true, true, '2026-07-12', 'Live'],
+  ['Open house', true, true, '2026-07-19', null],
+  ['Contract agreement', true, true, '2026-07-28', 'Under contract'],
+  ['Earnest deposit due', true, true, '2026-07-31', null],
+  ['Earnest deposit received', false, true, null, null],
+  ['Inspection scheduled', true, false, '2026-08-11', null],
+  ['Inspection due', true, false, '2026-08-15', 'Inspection'],
+  ['Estoppel ordered and cleared', false, false, null, null],
+  ['Appraisal scheduled', true, false, null, null],
+  ['Appraisal due', true, false, null, null],
+  ['Buyers clear to close', false, false, null, 'Clear to close'],
+  ['Provide utilities to buyer', false, false, null, null],
+  ['Signing scheduled', true, false, null, null],
+  ['Funded!', false, false, null, 'Sold'],
+]
+
+export const DEMO_SELLER: SharedPayload = {
+  ...DEMO_PAYLOAD,
+  transaction: {
+    ...DEMO_PAYLOAD.transaction,
+    id: 'demo-sell',
+    deal_type: 'sell',
+    address_line: '412 Windermere Way',
+    city_state_zip: 'Windermere, FL 34786',
+    photo_url:
+      'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=1200&q=70',
+    closing_date: closingDate(27),
+    // A listing she took herself, so there's no outside lender on the page.
+    lender: { ...DEMO_PAYLOAD.transaction.lender, name: null, headshot_url: null },
+  },
+  milestones: SELLER.map(([label, has_date, is_complete, date_value, rail], i) => ({
+    id: `sell-${i}`,
+    side: 'real_estate' as const,
+    label,
+    has_date,
+    date_value,
+    is_complete,
+    sort_order: (i + 1) * 10,
+    is_rail_step: rail !== null,
+    rail_label: rail,
+  })),
+  doc_lines: [],
+  contacts: contacts.filter((c) => c.role_label !== 'Loan Officer'),
+}
+
+/** Both samples, keyed by the token in the URL. */
+export const DEMO_BY_TOKEN: Record<string, SharedPayload> = {
+  demo: DEMO_PAYLOAD,
+  'demo-sell': DEMO_SELLER,
 }

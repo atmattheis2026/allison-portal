@@ -22,6 +22,9 @@ export interface Brand {
   logo_light_url: string | null
   accent_hex: string
   needs_light_background: boolean
+  /** Required compliance language for this company, shown in the page footer.
+   *  Ships empty — her brokerage and lender have to approve the wording. */
+  disclaimer_text: string | null
 }
 
 export interface Person {

@@ -55,15 +55,18 @@ interface BrandForm {
   logo_light_url: string | null
   accent_hex: string
   needs_light_background: boolean
+  disclaimer_text: string
 }
 
 const BLANK: BrandForm = {
   name: '', wordmark_text: '', logo_url: null, logo_light_url: null,
-  accent_hex: '#C9A44C', needs_light_background: false,
+  accent_hex: '#C9A44C', needs_light_background: false, disclaimer_text: '',
 }
 
 function Branding() {
-  const [re, setRe] = useState<BrandForm>({ ...BLANK, name: 'Mattheis & Co.', wordmark_text: 'MATTHEIS & CO.' })
+  const [re, setRe] = useState<BrandForm>({
+    ...BLANK, name: 'Mattheis & Co.', wordmark_text: 'MATTHEIS & CO.',
+  })
   const [lend, setLend] = useState<BrandForm>({ ...BLANK, accent_hex: '#7F9CB8' })
 
   return (
@@ -166,6 +169,22 @@ function BrandCard({ kind, title, help, value, onChange }: {
         </span>
       </label>
 
+      <div className="field" style={{ marginTop: 16 }}>
+        <label>Disclaimer for the bottom of the page</label>
+        <textarea
+          rows={4} value={value.disclaimer_text}
+          onChange={(e) => set({ disclaimer_text: e.target.value })}
+          placeholder={kind === 'real_estate'
+            ? 'Paste your brokerage’s required wording here'
+            : 'Paste your lender’s required wording here (NMLS, Equal Housing, etc.)'}
+        />
+        <p className="sethelp" style={{ margin: '8px 0 0' }}>
+          Leave this blank until your {kind === 'real_estate' ? 'brokerage' : 'lender'} has
+          approved the exact wording. Nothing shows at the bottom of the page while
+          it’s empty, which is better than showing something that hasn’t been checked.
+        </p>
+      </div>
+
       <div className="savebar">
         <button className="btn primary" disabled={DEMO_MODE}>Save {title.toLowerCase()}</button>
         {DEMO_MODE && <span className="muted" style={{ fontSize: 12 }}>Saving needs the database connected.</span>}
@@ -216,6 +235,18 @@ const BUYER_LOAN = [
   ['Balance numbers with title & lender', false], ['Closing!', false],
 ] as const
 
+/** Her listing checklist, texted 2026-08-06. Not a mirror of the buyer list —
+ *  it starts before there's a contract and ends at 'Funded!'. */
+const SELLER_RE = [
+  ['Listing agreement', true], ['Photos', true], ['MLS go-live', true],
+  ['Open house', true], ['Contract agreement', true], ['Earnest deposit due', true],
+  ['Earnest deposit received', false], ['Inspection scheduled', true],
+  ['Inspection due', true], ['Estoppel ordered and cleared', false],
+  ['Appraisal scheduled', true], ['Appraisal due', true],
+  ['Buyers clear to close', false], ['Provide utilities to buyer', false],
+  ['Signing scheduled', true], ['Funded!', false],
+] as const
+
 function seedRows(src: readonly (readonly [string, boolean])[]): TemplateRow[] {
   return src.map(([label, has_date], i) => ({
     id: `seed-${i}-${label}`, label, has_date, sort_order: (i + 1) * 10,
@@ -226,12 +257,13 @@ function Checklists() {
   const [dealType, setDealType] = useState<DealType>('buy')
   const [side, setSide] = useState<Side>('real_estate')
 
-  // Buyer lists are seeded from her text. Seller lists start empty on purpose —
-  // only she knows her listing workflow.
+  // Both lists come from her own texts. The seller loan side stays empty because
+  // her listing checklist has no loan steps, which hides the whole Loan section
+  // on listings.
   const [lists, setLists] = useState<Record<string, TemplateRow[]>>({
     'buy:real_estate': seedRows(BUYER_RE),
     'buy:loan': seedRows(BUYER_LOAN),
-    'sell:real_estate': [],
+    'sell:real_estate': seedRows(SELLER_RE),
     'sell:loan': [],
   })
 
@@ -286,19 +318,15 @@ function Checklists() {
 
         {rows.length === 0 ? (
           <div className="emptynote" style={{ padding: '28px 8px' }}>
-            {dealType === 'sell' ? (
+            {dealType === 'sell' && side === 'loan' ? (
               <>
-                Nothing here yet — this is your listing checklist to build.<br />
-                Add the steps you actually walk a seller through: listing agreement,
-                photos, going live, showings, offer accepted, and so on.
-                {side === 'loan' && (
-                  <><br /><br />
-                  <span style={{ color: 'var(--ink-faint)' }}>
-                    Most listings have no loan side at all. Leaving this empty hides
-                    the whole Loan section on seller transactions, which is usually
-                    what you want.
-                  </span></>
-                )}
+                Nothing here, on purpose.<br /><br />
+                <span style={{ color: 'var(--ink-faint)' }}>
+                  Your listing checklist doesn’t have any loan steps, so the Loan
+                  section is hidden entirely on listings and the page runs two
+                  columns instead of three. Add steps here only if you want a loan
+                  section on your seller pages.
+                </span>
               </>
             ) : 'Nothing here yet.'}
           </div>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Dashboard from '../components/Dashboard'
 import { DEMO_MODE, supabase } from '../lib/supabase'
-import { DEMO_PAYLOAD } from '../lib/demoData'
+import { DEMO_PAYLOAD, DEMO_SELLER } from '../lib/demoData'
 import type { Milestone, SharedPayload } from '../lib/types'
 
 /**
@@ -21,8 +21,9 @@ export default function AdminTransaction() {
 
   useEffect(() => {
     if (DEMO_MODE || !supabase) {
-      setData(structuredClone(DEMO_PAYLOAD))
-      setToken('demo')
+      const sell = id === 'demo-sell'
+      setData(structuredClone(sell ? DEMO_SELLER : DEMO_PAYLOAD))
+      setToken(sell ? 'demo-sell' : 'demo')
       return
     }
     // The admin view reads through the same assembling function so both pages

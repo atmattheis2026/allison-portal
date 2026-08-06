@@ -180,6 +180,19 @@
 
 .emptynote { padding: 22px 12px; text-align: center; color: var(--ink-faint); font-size: 13px; line-height: 1.6; }
 
+/* ---------------- compliance footer ---------------- */
+.disclaimers {
+  margin: 28px 18px 0; padding-top: 18px;
+  border-top: 1px solid var(--line-soft);
+  display: grid; gap: 14px;
+}
+.disc p { margin: 0; font-size: 10.5px; line-height: 1.6; color: var(--ink-faint); }
+.discwho {
+  font-size: 9px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--gold-soft); margin-bottom: 5px;
+}
+.disc.lending .discwho { color: var(--lend-soft); }
+
 /* =================== DESKTOP =================== */
 @media (min-width: 900px) {
   .dash { max-width: 1400px; margin: 0 auto; padding: 0 28px 64px; }
@@ -247,6 +260,9 @@
   .sec > .sechdr { cursor: default; pointer-events: none; }
   .sec .chev { display: none; }
   .secbody[data-open="false"] { display: block; }
+
+  .disclaimers { margin: 34px 0 0; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .sections.twocol ~ .disclaimers { grid-template-columns: 1fr; max-width: 720px; }
 
   .countdown { margin: 0 0 20px; display: block; text-align: center; padding: 26px 24px 22px; }
   .countdown .num { font-size: 86px; }

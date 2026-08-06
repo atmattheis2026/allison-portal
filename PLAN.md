@@ -238,18 +238,36 @@ The whole point. Deliverables:
 
 ---
 
+## Second round from Allison (2026-08-06) — also settled
+
+**Seller checklist received**, 16 items, in `003_seller_and_disclaimers.sql`. Notably
+it is not a mirror of the buyer list: it begins before there is a contract (listing
+agreement, photos, MLS go-live, open house) and it includes "provide utilities to
+buyer", which is the seller handing over exactly the utility info the buyer's page
+shows. **No loan steps at all**, which confirms two columns for listings.
+
+Seller rail: Listed → Live → Under contract → Inspection → Clear to close → Sold.
+
+**Disclaimers are a new requirement** — "some disclaimers I need to have checked for
+the bottom of the doc." Each brand carries its own `disclaimer_text` and both render
+in a labelled footer, because brokerage and lender compliance language are separate
+and neither may be presented as the other's. They ship empty and she pastes in the
+approved wording. Do not invent placeholder legal text that could survive to
+production.
+
+She also confirmed she is on a **Mac desktop**.
+
 ## Still needed from Allison
 
-1. **Both logos** — the new real estate one and the existing loans one. She has committed to
-   sending these. Blocks final brand styling; everything else can proceed.
-2. **Written branding rules for each company**, if they exist. Minimum sizes, clear space,
-   approved colors, whether the mark may sit on a dark background. Her inspo is near-black,
-   and plenty of brokerage kits forbid that or require a reversed logo file.
-3. **The seller checklist**, in the same format she sent the buyer one.
-4. **Her five team members** — names, license numbers, headshots, and which of them need
-   their own login versus her managing it.
-5. **Do all five share one client-facing brand**, or does any of them carry separate
-   branding? Affects whether `brands` is team-scoped or profile-scoped.
+1. **The new real estate logo.** She is gathering the lending one now.
+2. **Written branding rules for each company**, if they exist. Minimum sizes, clear
+   space, approved colors, whether the mark may sit on a dark background. Her inspo
+   is near-black, and plenty of brokerage kits forbid that or require a reversed file.
+3. **The approved disclaimer wording** for each company.
+4. **Her five team members** — names, license numbers, headshots, and which of them
+   need their own login versus her managing it.
+5. **Do all five share one client-facing brand**, or does any carry separate branding?
+   Affects whether `brands` is team-scoped or profile-scoped.
 
 ---
 

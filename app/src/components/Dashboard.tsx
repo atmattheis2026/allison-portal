@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import type {
-  SharedPayload, Milestone, Side, Brand, DocGroup, Contact,
+  SharedPayload, Milestone, Side, Brand, BrandKind, DocGroup, Contact,
 } from '../lib/types'
 import { STATUS_LABEL } from '../lib/types'
 import './Dashboard.css'
@@ -138,11 +138,40 @@ export default function Dashboard({
           </div>
         )}
       </div>
+
+      <Disclaimers brands={brands} />
     </div>
   )
 }
 
 /* ------------------------------------------------------------------ pieces */
+
+/**
+ * Compliance footer. Each company carries its own required language — brokerage
+ * identification and Equal Housing on one side, NMLS numbers on the other — so
+ * both render, labelled, rather than being merged into one blob.
+ *
+ * Renders nothing until she fills these in. An empty footer is correct; invented
+ * legal text would not be.
+ */
+function Disclaimers({ brands }: { brands: Partial<Record<BrandKind, Brand>> }) {
+  const entries = (['real_estate', 'lending'] as const)
+    .map((k) => [k, brands[k]] as const)
+    .filter(([, b]) => b?.disclaimer_text?.trim())
+
+  if (entries.length === 0) return null
+
+  return (
+    <footer className="disclaimers">
+      {entries.map(([kind, b]) => (
+        <div className={`disc${kind === 'lending' ? ' lending' : ''}`} key={kind}>
+          {b!.name && <div className="discwho">{b!.name}</div>}
+          <p>{b!.disclaimer_text}</p>
+        </div>
+      ))}
+    </footer>
+  )
+}
 
 function BrandBar({ brand, viewNote, extra }: {
   brand?: Brand; viewNote: string; extra?: ReactNode

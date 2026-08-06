@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
-import { DEMO_PAYLOAD } from '../lib/demoData'
+import { DEMO_PAYLOAD, DEMO_SELLER } from '../lib/demoData'
 import { STATUS_LABEL, type TxStatus } from '../lib/types'
 import './Admin.css'
 
@@ -16,16 +16,28 @@ interface Row {
   share_token: string
 }
 
-const DEMO_ROWS: Row[] = [{
-  id: 'demo-tx',
-  address_line: DEMO_PAYLOAD.transaction.address_line,
-  city_state_zip: DEMO_PAYLOAD.transaction.city_state_zip,
-  photo_url: DEMO_PAYLOAD.transaction.photo_url,
-  status: DEMO_PAYLOAD.transaction.status,
-  deal_type: 'buy',
-  closing_date: DEMO_PAYLOAD.transaction.closing_date,
-  share_token: 'demo',
-}]
+const DEMO_ROWS: Row[] = [
+  {
+    id: 'demo-tx',
+    address_line: DEMO_PAYLOAD.transaction.address_line,
+    city_state_zip: DEMO_PAYLOAD.transaction.city_state_zip,
+    photo_url: DEMO_PAYLOAD.transaction.photo_url,
+    status: DEMO_PAYLOAD.transaction.status,
+    deal_type: 'buy',
+    closing_date: DEMO_PAYLOAD.transaction.closing_date,
+    share_token: 'demo',
+  },
+  {
+    id: 'demo-sell',
+    address_line: DEMO_SELLER.transaction.address_line,
+    city_state_zip: DEMO_SELLER.transaction.city_state_zip,
+    photo_url: DEMO_SELLER.transaction.photo_url,
+    status: DEMO_SELLER.transaction.status,
+    deal_type: 'sell',
+    closing_date: DEMO_SELLER.transaction.closing_date,
+    share_token: 'demo-sell',
+  },
+]
 
 export default function AdminList() {
   const [rows, setRows] = useState<Row[] | null>(null)

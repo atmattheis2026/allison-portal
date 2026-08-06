@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import Dashboard from '../components/Dashboard'
 import { DEMO_MODE, supabase } from '../lib/supabase'
-import { DEMO_PAYLOAD } from '../lib/demoData'
+import { DEMO_BY_TOKEN, DEMO_PAYLOAD } from '../lib/demoData'
 import type { SharedPayload } from '../lib/types'
 
 /**
@@ -22,7 +22,7 @@ export default function ClientView() {
 
     async function load() {
       if (DEMO_MODE || !supabase) {
-        setData(DEMO_PAYLOAD)
+        setData(DEMO_BY_TOKEN[token ?? 'demo'] ?? DEMO_PAYLOAD)
         setState('ok')
         return
       }
