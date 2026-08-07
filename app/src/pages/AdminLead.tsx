@@ -556,10 +556,18 @@ export default function AdminLead() {
               background: 'var(--panel-2)', border: '1px solid var(--line)',
               borderRadius: 'var(--r-md)', padding: '12px 14px', marginBottom: 10,
             }}>
-              <div className="tmplrow" style={{ padding: 0 }}>
+              <div className="tmplrow" style={{ padding: 0, gap: 8 }}>
                 <input type="text" value={h.address_line} placeholder="Address"
+                       style={{
+                         background: 'var(--panel-2)', border: '1px solid var(--line)',
+                         borderRadius: 'var(--r-sm)', padding: '9px 11px',
+                       }}
                        onChange={(e) => patchMaybeHome(h.id, { address_line: e.target.value })} />
                 <input type="text" value={h.url ?? ''} placeholder="Listing link"
+                       style={{
+                         background: 'var(--panel-2)', border: '1px solid var(--line)',
+                         borderRadius: 'var(--r-sm)', padding: '9px 11px',
+                       }}
                        onChange={(e) => patchMaybeHome(h.id, { url: e.target.value })}
                        onBlur={(e) => {
                          if (e.target.value && !h.photo_url) {
@@ -607,12 +615,24 @@ export default function AdminLead() {
               background: 'var(--panel-2)', border: '1px solid var(--line)',
               borderRadius: 'var(--r-md)', padding: '12px 14px', marginBottom: 10,
             }}>
-              <div className="tmplrow" style={{ padding: 0 }}>
+              <div className="tmplrow" style={{ padding: 0, gap: 8 }}>
                 <input type="text" value={h.address_line} placeholder="Address"
+                       style={{
+                         background: 'var(--panel-2)', border: '1px solid var(--line)',
+                         borderRadius: 'var(--r-sm)', padding: '9px 11px',
+                       }}
                        onChange={(e) => patchHome(h.id, { address_line: e.target.value })} />
-                <input type="text" value={h.price ?? ''} placeholder="Price" style={{ flex: 'none', width: 110 }}
+                <input type="text" value={h.price ?? ''} placeholder="Price"
+                       style={{
+                         flex: 'none', width: 110, background: 'var(--panel-2)',
+                         border: '1px solid var(--line)', borderRadius: 'var(--r-sm)', padding: '9px 11px',
+                       }}
                        onChange={(e) => patchHome(h.id, { price: e.target.value })} />
                 <input type="text" value={h.url ?? ''} placeholder="Listing link"
+                       style={{
+                         background: 'var(--panel-2)', border: '1px solid var(--line)',
+                         borderRadius: 'var(--r-sm)', padding: '9px 11px',
+                       }}
                        onChange={(e) => patchHome(h.id, { url: e.target.value })}
                        onBlur={(e) => {
                          if (e.target.value && !h.photo_url) {
