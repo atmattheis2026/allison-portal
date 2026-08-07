@@ -173,3 +173,70 @@ export interface SharedPayload {
   contacts: Contact[]
   notes: Note[]
 }
+
+/**
+ * An active buyer who hasn't found (or gone under contract on) a home yet.
+ * Lighter than a Transaction on purpose — no address, no closing date, no
+ * loan side. `convert_lead_to_transaction()` promotes one into a real
+ * Transaction once they're under contract.
+ */
+export interface Lead {
+  id: string
+  team_id: string
+  share_token: string
+  full_name: string
+  phone: string | null
+  email: string | null
+  realtor_member_id: string | null
+  buyer_broker_signed: boolean
+  buyer_broker_expires: string | null
+  general_notes: string | null
+  converted_transaction_id: string | null
+  created_at: string
+  archived_at: string | null
+}
+
+export interface LeadAppointment {
+  id: string
+  lead_id: string
+  scheduled_at: string | null
+  address_line: string
+  note: string | null
+  sort_order: number
+}
+
+export interface LeadHome {
+  id: string
+  lead_id: string
+  address_line: string
+  city_state_zip: string | null
+  price: string | null
+  url: string | null
+  note: string | null
+  sort_order: number
+}
+
+export interface LeadPriority {
+  id: string
+  lead_id: string
+  text: string
+  sort_order: number
+}
+
+export interface LeadNote {
+  id: string
+  author_name: string | null
+  body: string
+  created_at: string
+}
+
+/** Exactly what get_shared_lead() returns. */
+export interface SharedLeadPayload {
+  lead: { id: string; full_name: string }
+  realtor: Person | null
+  brand: Brand | null
+  appointments: LeadAppointment[]
+  homes: LeadHome[]
+  priorities: LeadPriority[]
+  notes: LeadNote[]
+}

@@ -113,6 +113,7 @@ export default function AdminList() {
       <header className="adminbar">
         <span className="wordmark" style={{ fontSize: 15 }}>Transactions</span>
         <nav className="adminnav">
+          <Link className="btn" to="/admin/leads">Active Buyers</Link>
           <Link className="btn" to="/admin/settings">Settings</Link>
           <button className="btn primary" onClick={() => setCreating(true)}>
             New transaction
