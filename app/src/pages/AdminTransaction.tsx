@@ -230,17 +230,38 @@ export default function AdminTransaction() {
         name: contact.name, phone: contact.phone, email: contact.email,
         photo_url: contact.photo_url, sort_order: 0,
       }
+      // Saving the same name again (after tweaking a phone number, say)
+      // should update that one entry, not pile up duplicates.
+      const matches = (s: SavedContact) =>
+        s.group_key === row.group_key && s.role_label === row.role_label && s.name === row.name
+
       if (DEMO_MODE || !supabase) {
-        setSavedContacts((cur) => [...cur, { id: `local-${Date.now()}`, ...row }])
+        setSavedContacts((cur) => {
+          const existing = cur.find(matches)
+          return existing
+            ? cur.map((s) => (s === existing ? { ...s, ...row } : s))
+            : [...cur, { id: `local-${Date.now()}`, ...row }]
+        })
         return
       }
       const { data: auth } = await supabase.auth.getUser()
       const { data: me } = await supabase.from('profiles')
         .select('team_id').eq('id', auth.user?.id).single()
       if (!me?.team_id) return
-      const { data: saved } = await supabase.from('saved_contacts')
-        .insert({ team_id: me.team_id, ...row }).select('*').single()
-      if (saved) setSavedContacts((cur) => [...cur, saved as SavedContact])
+
+      const { data: existing } = await supabase.from('saved_contacts')
+        .select('id').eq('team_id', me.team_id).eq('group_key', row.group_key)
+        .eq('role_label', row.role_label).eq('name', row.name).maybeSingle()
+
+      if (existing) {
+        const { data: updated } = await supabase.from('saved_contacts')
+          .update(row).eq('id', existing.id).select('*').single()
+        if (updated) setSavedContacts((cur) => cur.map((s) => (s.id === existing.id ? updated as SavedContact : s)))
+      } else {
+        const { data: saved } = await supabase.from('saved_contacts')
+          .insert({ team_id: me.team_id, ...row }).select('*').single()
+        if (saved) setSavedContacts((cur) => [...cur, saved as SavedContact])
+      }
     },
 
     onUploadContactPhoto: async (contactId: string, file: File) => {
