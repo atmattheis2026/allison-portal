@@ -66,6 +66,15 @@ export default function AdminLead() {
     flashSaved()
   }
 
+  // Fires when a listing URL field loses focus and there's no photo yet.
+  // Best-effort — plenty of sites block this, and that's fine, it just means
+  // the photo field stays empty for manual paste like before this existed.
+  async function tryAutoPhoto(url: string, onFound: (photoUrl: string) => void) {
+    if (!supabase || !url.trim()) return
+    const { data } = await supabase.functions.invoke('fetch-link-preview', { body: { url } })
+    if (data?.photo_url) onFound(data.photo_url as string)
+  }
+
   function copyLink() {
     if (!lead) return
     navigator.clipboard.writeText(`${window.location.origin}/l/${lead.share_token}`)
@@ -192,6 +201,7 @@ export default function AdminLead() {
         </span>
         <nav className="adminnav">
           {saveFlash && <span className="muted" style={{ fontSize: 12.5 }}>Saved</span>}
+          <Link className="btn" to="/admin/leads">← Active Buyers</Link>
           <button className="btn" onClick={copyLink}>{copied ? 'Copied' : 'Copy client link'}</button>
           <button className="btn primary" onClick={convert} disabled={converting}>
             {converting ? 'Converting…' : 'Convert to transaction'}
@@ -430,7 +440,12 @@ export default function AdminLead() {
                 <input type="text" value={h.address_line} placeholder="Address"
                        onChange={(e) => patchMaybeHome(h.id, { address_line: e.target.value })} />
                 <input type="text" value={h.url ?? ''} placeholder="Listing link"
-                       onChange={(e) => patchMaybeHome(h.id, { url: e.target.value })} />
+                       onChange={(e) => patchMaybeHome(h.id, { url: e.target.value })}
+                       onBlur={(e) => {
+                         if (e.target.value && !h.photo_url) {
+                           tryAutoPhoto(e.target.value, (photo_url) => patchMaybeHome(h.id, { photo_url }))
+                         }
+                       }} />
                 <button type="button" className="del" onClick={() => removeMaybeHome(h.id)}>✕</button>
               </div>
               <input type="text" value={h.photo_url ?? ''} placeholder="Photo URL (paste from the listing)"
@@ -508,7 +523,12 @@ export default function AdminLead() {
                 <input type="text" value={h.price ?? ''} placeholder="Price" style={{ flex: 'none', width: 110 }}
                        onChange={(e) => patchHome(h.id, { price: e.target.value })} />
                 <input type="text" value={h.url ?? ''} placeholder="Listing link"
-                       onChange={(e) => patchHome(h.id, { url: e.target.value })} />
+                       onChange={(e) => patchHome(h.id, { url: e.target.value })}
+                       onBlur={(e) => {
+                         if (e.target.value && !h.photo_url) {
+                           tryAutoPhoto(e.target.value, (photo_url) => patchHome(h.id, { photo_url }))
+                         }
+                       }} />
                 <button type="button" className="del" onClick={() => removeHome(h.id)}>✕</button>
               </div>
               <input type="text" value={h.photo_url ?? ''} placeholder="Photo URL (paste from the listing)"
