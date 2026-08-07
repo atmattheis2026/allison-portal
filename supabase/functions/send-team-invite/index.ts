@@ -15,6 +15,15 @@ const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const APP_BASE_URL = Deno.env.get('APP_BASE_URL') ?? 'http://localhost:5199'
 
+// Browsers send a CORS preflight (an OPTIONS request with no auth header)
+// before the real POST. Without these headers on every response, the
+// browser blocks the request before our own auth check ever runs.
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Content-Type': 'application/json',
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
@@ -77,16 +86,22 @@ function renderInviteEmail(opts: {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   try {
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader) return new Response(JSON.stringify({ error: 'missing auth' }), { status: 401 })
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'missing auth' }), { status: 401, headers: corsHeaders })
+    }
 
     const asCaller = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     })
     const { data: { user }, error: userErr } = await asCaller.auth.getUser()
     if (userErr || !user) {
-      return new Response(JSON.stringify({ error: 'not signed in' }), { status: 401 })
+      return new Response(JSON.stringify({ error: 'not signed in' }), { status: 401, headers: corsHeaders })
     }
 
     const { team_member_id } = await req.json()
@@ -94,19 +109,19 @@ Deno.serve(async (req) => {
 
     const { data: me } = await admin.from('profiles').select('team_id').eq('id', user.id).single()
     if (!me?.team_id) {
-      return new Response(JSON.stringify({ error: 'you have no team' }), { status: 403 })
+      return new Response(JSON.stringify({ error: 'you have no team' }), { status: 403, headers: corsHeaders })
     }
 
     const { data: member } = await admin.from('team_members')
       .select('id, full_name, email, team_id').eq('id', team_member_id).single()
     if (!member || member.team_id !== me.team_id) {
-      return new Response(JSON.stringify({ error: 'not someone on your team' }), { status: 403 })
+      return new Response(JSON.stringify({ error: 'not someone on your team' }), { status: 403, headers: corsHeaders })
     }
     if (!member.email) {
-      return new Response(JSON.stringify({ error: 'no email on file for this person' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'no email on file for this person' }), { status: 400, headers: corsHeaders })
     }
     if (!RESEND_API_KEY) {
-      return new Response(JSON.stringify({ error: 'email not configured' }), { status: 500 })
+      return new Response(JSON.stringify({ error: 'email not configured' }), { status: 500, headers: corsHeaders })
     }
 
     const { data: team } = await admin.from('teams')
@@ -142,11 +157,11 @@ Deno.serve(async (req) => {
 
     if (!emailRes.ok) {
       const errText = await emailRes.text()
-      return new Response(JSON.stringify({ error: 'send failed', detail: errText }), { status: 500 })
+      return new Response(JSON.stringify({ error: 'send failed', detail: errText }), { status: 500, headers: corsHeaders })
     }
 
-    return new Response(JSON.stringify({ sent: true, to: member.email }), { status: 200 })
+    return new Response(JSON.stringify({ sent: true, to: member.email }), { status: 200, headers: corsHeaders })
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500 })
+    return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: corsHeaders })
   }
 })
