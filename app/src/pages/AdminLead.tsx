@@ -194,14 +194,18 @@ export default function AdminLead() {
   // leaving a copy behind in both lists.
   async function promoteMaybeHome(h: LeadMaybeHome) {
     if (!id || !supabase) return
-    const { data } = await supabase.from('lead_homes')
+    const { data, error } = await supabase.from('lead_homes')
       .insert({
         lead_id: id, address_line: h.address_line, url: h.url,
         photo_url: h.photo_url, note: h.note, private_note: h.private_note, sort_order: homes.length,
         shown_at: new Date().toISOString().slice(0, 10),
       })
       .select('*').single()
-    if (data) setHomes((cur) => [...cur, data as LeadHome])
+    if (error || !data) {
+      alert(`Couldn't move that home to Homes shown: ${error?.message ?? 'unknown error'}`)
+      return
+    }
+    setHomes((cur) => [...cur, data as LeadHome])
     setMaybeHomes((cur) => cur.filter((x) => x.id !== h.id))
     await supabase.from('lead_maybe_homes').delete().eq('id', h.id)
   }
@@ -209,13 +213,17 @@ export default function AdminLead() {
   // request involved) — moves it out of "maybe" and into Appointments.
   async function moveMaybeHomeToAppointment(h: LeadMaybeHome) {
     if (!id || !supabase) return
-    const { data } = await supabase.from('lead_appointments')
+    const { data, error } = await supabase.from('lead_appointments')
       .insert({
         lead_id: id, address_line: h.address_line, url: h.url,
         photo_url: h.photo_url, sort_order: appointments.length,
       })
       .select('*').single()
-    if (data) setAppointments((cur) => [...cur, data as LeadAppointment])
+    if (error || !data) {
+      alert(`Couldn't move that home to Appointments: ${error?.message ?? 'unknown error'}`)
+      return
+    }
+    setAppointments((cur) => [...cur, data as LeadAppointment])
     setMaybeHomes((cur) => cur.filter((x) => x.id !== h.id))
     await supabase.from('lead_maybe_homes').delete().eq('id', h.id)
   }
