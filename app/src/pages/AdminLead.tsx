@@ -164,7 +164,36 @@ export default function AdminLead() {
         </nav>
       </header>
 
-      <div className="settings">
+      <div style={{ display: 'grid', gap: 18, maxWidth: 1040, margin: '0 auto' }}>
+        <div className="card setcard notesboard">
+          <h2>Updates</h2>
+          <p className="sethelp">Posted here shows up on their client page — check this first.</p>
+          {notes.length === 0 ? (
+            <p className="muted" style={{ fontSize: 12.5 }}>No updates posted yet.</p>
+          ) : (
+            <div className="notelist">
+              {notes.map((n) => (
+                <div className="note" key={n.id}>
+                  <div className="notemeta">
+                    {n.author_name && <span className="noteauthor">{n.author_name}</span>}
+                    <span className="notewhen">{new Date(n.created_at).toLocaleDateString('en-US', {
+                      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+                    })}</span>
+                  </div>
+                  <p className="notebody">{n.body}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="noteadd">
+            <textarea rows={2} value={noteDraft} placeholder="Post an update…"
+                      onChange={(e) => setNoteDraft(e.target.value)} />
+            <button type="button" className="btn" onClick={postNote} disabled={!noteDraft.trim()}>Post</button>
+          </div>
+        </div>
+
+        <div className="leadgrid">
+        <div className="leadcol">
         <div className="card setcard">
           <h2>Buyer info</h2>
           <div className="field2">
@@ -355,6 +384,22 @@ export default function AdminLead() {
         </div>
 
         <div className="card setcard">
+          <h2>Wants &amp; needs</h2>
+          <p className="sethelp">In order of importance — top of the list matters most.</p>
+          {priorities.map((p, i) => (
+            <div className="tmplrow" key={p.id}>
+              <span className="muted" style={{ flex: 'none', width: 18 }}>{i + 1}.</span>
+              <input type="text" value={p.text} placeholder="e.g. Under $400k, 3 bedrooms, good schools"
+                     onChange={(e) => patchPriority(p.id, e.target.value)} />
+              <button type="button" className="del" onClick={() => removePriority(p.id)}>✕</button>
+            </div>
+          ))}
+          <div className="savebar"><button className="btn" onClick={addPriority}>+ Add</button></div>
+        </div>
+        </div>
+
+        <div className="leadcol">
+        <div className="card setcard">
           <h2>Appointments</h2>
           <p className="sethelp">Showings and other times you're meeting up.</p>
           {appointments.map((a) => (
@@ -390,19 +435,7 @@ export default function AdminLead() {
           ))}
           <div className="savebar"><button className="btn" onClick={addHome}>+ Add home</button></div>
         </div>
-
-        <div className="card setcard">
-          <h2>Wants &amp; needs</h2>
-          <p className="sethelp">In order of importance — top of the list matters most.</p>
-          {priorities.map((p, i) => (
-            <div className="tmplrow" key={p.id}>
-              <span className="muted" style={{ flex: 'none', width: 18 }}>{i + 1}.</span>
-              <input type="text" value={p.text} placeholder="e.g. Under $400k, 3 bedrooms, good schools"
-                     onChange={(e) => patchPriority(p.id, e.target.value)} />
-              <button type="button" className="del" onClick={() => removePriority(p.id)}>✕</button>
-            </div>
-          ))}
-          <div className="savebar"><button className="btn" onClick={addPriority}>+ Add</button></div>
+        </div>
         </div>
 
         <div className="card setcard">
@@ -430,33 +463,6 @@ export default function AdminLead() {
           <textarea rows={4} value={lead.general_notes ?? ''}
                     onChange={(e) => patchLead({ general_notes: e.target.value })}
                     style={{ width: '100%' }} />
-        </div>
-
-        <div className="card setcard">
-          <h2>Updates</h2>
-          <p className="sethelp">Posted here shows up on their client page.</p>
-          {notes.length === 0 ? (
-            <p className="muted" style={{ fontSize: 12.5 }}>No updates posted yet.</p>
-          ) : (
-            <div className="notelist">
-              {notes.map((n) => (
-                <div className="note" key={n.id}>
-                  <div className="notemeta">
-                    {n.author_name && <span className="noteauthor">{n.author_name}</span>}
-                    <span className="notewhen">{new Date(n.created_at).toLocaleDateString('en-US', {
-                      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-                    })}</span>
-                  </div>
-                  <p className="notebody">{n.body}</p>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="noteadd">
-            <textarea rows={2} value={noteDraft} placeholder="Post an update…"
-                      onChange={(e) => setNoteDraft(e.target.value)} />
-            <button type="button" className="btn" onClick={postNote} disabled={!noteDraft.trim()}>Post</button>
-          </div>
         </div>
       </div>
     </div>

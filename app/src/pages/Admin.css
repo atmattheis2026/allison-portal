@@ -98,3 +98,14 @@
 }
 
 .newtx { margin-bottom: 20px; }
+
+/* Lead detail page: data on the left, schedule/listings on the right, at
+   1.3:1 since the left column carries more fields. Collapses to one column
+   on narrower screens rather than squeezing both. */
+.leadgrid {
+  display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; align-items: start;
+}
+.leadgrid > .leadcol { display: grid; gap: 18px; }
+@media (max-width: 860px) {
+  .leadgrid { grid-template-columns: 1fr; }
+}
