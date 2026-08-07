@@ -94,14 +94,16 @@ export default function AdminLeads() {
           {rows.map((r) => {
             const band = leadTimeframeBand(r)
             return (
-              <div className="txcard" key={r.id}>
+              <div className="txcard" key={r.id}
+                   style={band ? { borderLeft: `5px solid ${TIMEFRAME_BAND_COLOR[band]}` } : undefined}>
                 <Link to={`/admin/leads/${r.id}`} className="txmain">
                   {band && (
                     <span
                       title={TIMEFRAME_BAND_LABEL[band]}
                       style={{
-                        flex: 'none', width: 12, height: 12, borderRadius: '50%',
+                        flex: 'none', width: 18, height: 18, borderRadius: '50%',
                         background: TIMEFRAME_BAND_COLOR[band],
+                        boxShadow: `0 0 0 3px ${TIMEFRAME_BAND_COLOR[band]}33`,
                       }}
                     />
                   )}

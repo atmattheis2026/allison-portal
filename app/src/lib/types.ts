@@ -350,8 +350,12 @@ export type TimeframeBand = 'green' | 'yellow' | 'orange'
 
 // Brighter/more saturated than the app's usual muted gold palette on
 // purpose — this needs to read clearly as a small dot, not blend in.
+// Picked for maximum contrast from each other, not just from the app's own
+// gold accent — yellow and orange are both warm hues and can read as "the
+// same color" at a glance if they're too close in saturation/lightness, so
+// these lean toward opposite ends (bright/light green, deep gold, red-orange).
 export const TIMEFRAME_BAND_COLOR: Record<TimeframeBand, string> = {
-  green: '#22c55e', yellow: '#facc15', orange: '#f97316',
+  green: '#2ecc40', yellow: '#d4a017', orange: '#cc3311',
 }
 export const TIMEFRAME_BAND_LABEL: Record<TimeframeBand, string> = {
   green: 'Ready now / within 3 months',
