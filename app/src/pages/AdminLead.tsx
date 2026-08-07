@@ -388,6 +388,16 @@ export default function AdminLead() {
               <input type="email" value={lead.email ?? ''} onChange={(e) => patchLead({ email: e.target.value })} />
             </div>
           </div>
+          <div className="field2">
+            <div className="field">
+              <label>Second buyer's phone</label>
+              <input value={lead.phone_2 ?? ''} onChange={(e) => patchLead({ phone_2: e.target.value })} />
+            </div>
+            <div className="field">
+              <label>Second buyer's email</label>
+              <input type="email" value={lead.email_2 ?? ''} onChange={(e) => patchLead({ email_2: e.target.value })} />
+            </div>
+          </div>
           <div className="field">
             <label>Timeframe to buy</label>
             <div className="tabs">

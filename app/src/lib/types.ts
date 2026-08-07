@@ -229,6 +229,8 @@ export interface Lead {
   full_name_2: string | null
   phone: string | null
   email: string | null
+  phone_2: string | null
+  email_2: string | null
   /** Uploaded by the client themselves, from their own page. One per name slot. */
   client_photo_url: string | null
   client_photo_url_2: string | null
