@@ -206,6 +206,16 @@ export interface Lead {
   referral_contact_info: string | null
   referral_commission_pct: number | null
   referral_doc_received: boolean
+  preapproval_on_file: boolean
+  budget: string | null
+  communities: string | null
+  likes: string | null
+  dislikes: string | null
+  purchase_type: 'investment' | 'personal' | null
+  funding_type: 'cash' | 'financing' | null
+  has_house_to_sell: boolean
+  why_selling: string | null
+  friends_family_referrals: string | null
   general_notes: string | null
   converted_transaction_id: string | null
   created_at: string
@@ -233,6 +243,13 @@ export interface LeadHome {
 }
 
 export interface LeadPriority {
+  id: string
+  lead_id: string
+  text: string
+  sort_order: number
+}
+
+export interface LeadPersonalNote {
   id: string
   lead_id: string
   text: string

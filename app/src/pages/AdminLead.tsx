@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
-import type { Lead, LeadAppointment, LeadHome, LeadPriority, LeadNote, TeamMember } from '../lib/types'
+import type { Lead, LeadAppointment, LeadHome, LeadPriority, LeadPersonalNote, LeadNote, TeamMember } from '../lib/types'
 import { leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL, REFERRAL_SOURCES } from '../lib/types'
 import './Admin.css'
 
@@ -22,6 +22,7 @@ export default function AdminLead() {
   const [appointments, setAppointments] = useState<LeadAppointment[]>([])
   const [homes, setHomes] = useState<LeadHome[]>([])
   const [priorities, setPriorities] = useState<LeadPriority[]>([])
+  const [personalNotes, setPersonalNotes] = useState<LeadPersonalNote[]>([])
   const [notes, setNotes] = useState<LeadNote[]>([])
   const [copied, setCopied] = useState(false)
   const [converting, setConverting] = useState(false)
@@ -40,6 +41,8 @@ export default function AdminLead() {
       .then(({ data }) => setHomes((data as LeadHome[]) ?? []))
     supabase.from('lead_priorities').select('*').eq('lead_id', id).order('sort_order')
       .then(({ data }) => setPriorities((data as LeadPriority[]) ?? []))
+    supabase.from('lead_personal_notes').select('*').eq('lead_id', id).order('sort_order')
+      .then(({ data }) => setPersonalNotes((data as LeadPersonalNote[]) ?? []))
     supabase.from('lead_notes').select('*').eq('lead_id', id).order('created_at', { ascending: false })
       .then(({ data }) => setNotes((data as LeadNote[]) ?? []))
   }, [id])
@@ -113,6 +116,22 @@ export default function AdminLead() {
   async function removePriority(pId: string) {
     setPriorities((cur) => cur.filter((p) => p.id !== pId))
     if (supabase) await supabase.from('lead_priorities').delete().eq('id', pId)
+  }
+
+  // ---- personal notes ----
+  async function addPersonalNote() {
+    if (!id || !supabase) return
+    const { data } = await supabase.from('lead_personal_notes')
+      .insert({ lead_id: id, sort_order: personalNotes.length }).select('*').single()
+    if (data) setPersonalNotes((cur) => [...cur, data as LeadPersonalNote])
+  }
+  async function patchPersonalNote(pnId: string, text: string) {
+    setPersonalNotes((cur) => cur.map((p) => (p.id === pnId ? { ...p, text } : p)))
+    if (supabase) await supabase.from('lead_personal_notes').update({ text }).eq('id', pnId)
+  }
+  async function removePersonalNote(pnId: string) {
+    setPersonalNotes((cur) => cur.filter((p) => p.id !== pnId))
+    if (supabase) await supabase.from('lead_personal_notes').delete().eq('id', pnId)
   }
 
   // ---- notes ----
@@ -260,6 +279,79 @@ export default function AdminLead() {
         </div>
 
         <div className="card setcard">
+          <h2>Qualification</h2>
+          <p className="sethelp">Just for you — none of this shows to the client.</p>
+          <div className="checkline">
+            <input type="checkbox" checked={lead.preapproval_on_file}
+                   onChange={(e) => patchLead({ preapproval_on_file: e.target.checked })} />
+            <span className="cl">Preapproval on file</span>
+          </div>
+          <div className="field2">
+            <div className="field">
+              <label>Budget</label>
+              <input value={lead.budget ?? ''} placeholder="e.g. $350k–$400k"
+                     onChange={(e) => patchLead({ budget: e.target.value })} />
+            </div>
+            <div className="field">
+              <label>Purchase type</label>
+              <div className="tabs">
+                {(['personal', 'investment'] as const).map((t) => (
+                  <button key={t} type="button" className={`tab${lead.purchase_type === t ? ' on' : ''}`}
+                          onClick={() => patchLead({ purchase_type: t })}>
+                    {t === 'personal' ? 'Personal' : 'Investment'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="field">
+            <label>Cash or financing</label>
+            <div className="tabs">
+              {(['financing', 'cash'] as const).map((t) => (
+                <button key={t} type="button" className={`tab${lead.funding_type === t ? ' on' : ''}`}
+                        onClick={() => patchLead({ funding_type: t })}>
+                  {t === 'financing' ? 'Financing' : 'Cash'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="checkline">
+            <input type="checkbox" checked={lead.has_house_to_sell}
+                   onChange={(e) => patchLead({ has_house_to_sell: e.target.checked })} />
+            <span className="cl">Has a house to sell first</span>
+          </div>
+          {lead.has_house_to_sell && (
+            <div className="field">
+              <label>Why they're selling</label>
+              <input value={lead.why_selling ?? ''}
+                     onChange={(e) => patchLead({ why_selling: e.target.value })} />
+            </div>
+          )}
+        </div>
+
+        <div className="card setcard">
+          <h2>Preferences</h2>
+          <p className="sethelp">Areas and general taste — the ranked list below is for specific must-haves.</p>
+          <div className="field">
+            <label>Communities / areas</label>
+            <input value={lead.communities ?? ''} placeholder="e.g. Reunion, Champions Gate"
+                   onChange={(e) => patchLead({ communities: e.target.value })} />
+          </div>
+          <div className="field2">
+            <div className="field">
+              <label>Likes</label>
+              <textarea rows={2} value={lead.likes ?? ''} style={{ width: '100%' }}
+                        onChange={(e) => patchLead({ likes: e.target.value })} />
+            </div>
+            <div className="field">
+              <label>Dislikes</label>
+              <textarea rows={2} value={lead.dislikes ?? ''} style={{ width: '100%' }}
+                        onChange={(e) => patchLead({ dislikes: e.target.value })} />
+            </div>
+          </div>
+        </div>
+
+        <div className="card setcard">
           <h2>Appointments</h2>
           <p className="sethelp">Showings and other times you're meeting up.</p>
           {appointments.map((a) => (
@@ -308,6 +400,25 @@ export default function AdminLead() {
             </div>
           ))}
           <div className="savebar"><button className="btn" onClick={addPriority}>+ Add</button></div>
+        </div>
+
+        <div className="card setcard">
+          <h2>Personal details</h2>
+          <p className="sethelp">Kids, pets, birthdays, anniversaries, anything worth remembering. Just for you.</p>
+          {personalNotes.map((p) => (
+            <div className="tmplrow" key={p.id}>
+              <input type="text" value={p.text} placeholder="e.g. Two kids — Emma (8), Jake (5)"
+                     onChange={(e) => patchPersonalNote(p.id, e.target.value)} />
+              <button type="button" className="del" onClick={() => removePersonalNote(p.id)}>✕</button>
+            </div>
+          ))}
+          <div className="savebar"><button className="btn" onClick={addPersonalNote}>+ Add</button></div>
+          <div className="field" style={{ marginTop: 14 }}>
+            <label>Referrals from friends/family</label>
+            <textarea rows={2} value={lead.friends_family_referrals ?? ''} style={{ width: '100%' }}
+                      placeholder="Anyone they've mentioned who might also buy or sell?"
+                      onChange={(e) => patchLead({ friends_family_referrals: e.target.value })} />
+          </div>
         </div>
 
         <div className="card setcard">
