@@ -69,7 +69,7 @@ export const ROLE_LABEL: Record<TeamRole, string> = {
   broker_associate: 'Broker associate',
   loan_officer: 'Loan officer',
   mortgage_broker: 'Mortgage broker',
-  admin: 'Office manager',
+  admin: 'Database manager',
   transaction_coordinator: 'Transaction coordinator',
 }
 
@@ -174,6 +174,12 @@ export interface SharedPayload {
   notes: Note[]
 }
 
+export type ReferralSource =
+  | 'EPIC provided' | 'Personal Referral' | 'Agent Referral' | 'Lead IO' | 'Realtor.com'
+
+export const REFERRAL_SOURCES: ReferralSource[] =
+  ['EPIC provided', 'Personal Referral', 'Agent Referral', 'Lead IO', 'Realtor.com']
+
 /**
  * An active buyer who hasn't found (or gone under contract on) a home yet.
  * Lighter than a Transaction on purpose — no address, no closing date, no
@@ -193,6 +199,13 @@ export interface Lead {
   timeframe_bucket: '0-3' | '3-6' | '6+' | null
   buyer_broker_signed: boolean
   buyer_broker_expires: string | null
+  referral_source: ReferralSource | null
+  /** Only meaningful when referral_source is 'Agent Referral'. */
+  referral_brokerage_name: string | null
+  referral_brokerage_address: string | null
+  referral_contact_info: string | null
+  referral_commission_pct: number | null
+  referral_doc_received: boolean
   general_notes: string | null
   converted_transaction_id: string | null
   created_at: string

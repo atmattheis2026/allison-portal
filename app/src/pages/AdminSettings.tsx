@@ -387,6 +387,7 @@ function Team() {
   const [removedIds, setRemovedIds] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [inviteCode, setInviteCode] = useState<string | null>(DEMO_MODE ? 'DEMO1234' : null)
   const [copied, setCopied] = useState(false)
   const [inviteStatus, setInviteStatus] = useState<Record<string, 'sending' | 'sent' | 'error'>>({})
@@ -447,6 +448,7 @@ function Team() {
   async function save() {
     if (DEMO_MODE || !supabase) return
     setBusy(true)
+    setSaveError(null)
 
     const { data: auth } = await supabase.auth.getUser()
     const { data: me } = await supabase.from('profiles')
@@ -459,6 +461,13 @@ function Team() {
     }
     setRemovedIds([])
 
+    // Permission changes (sees_all_transactions, the Database Manager role)
+    // are guarded server-side — only the workspace owner can grant those.
+    // Everything else in this same row (name, phone, headshot, etc.) still
+    // saves fine even when one of those two fields gets rejected, so this
+    // collects blocked attempts instead of bailing on the whole save.
+    const blocked: string[] = []
+
     for (const m of members) {
       if (!m.full_name.trim()) continue
       const row = {
@@ -468,16 +477,25 @@ function Team() {
         sees_all_transactions: m.sees_all_transactions, sort_order: m.sort_order,
       }
       if (m.id.startsWith('new-')) {
-        const { data } = await supabase.from('team_members').insert(row).select('id').single()
+        const { data, error } = await supabase.from('team_members').insert(row).select('id').single()
         if (data) update(m.id, { id: data.id })
+        if (error) blocked.push(m.full_name)
       } else {
-        await supabase.from('team_members').update(row).eq('id', m.id)
+        const { error } = await supabase.from('team_members').update(row).eq('id', m.id)
+        if (error) blocked.push(m.full_name)
       }
     }
 
     setBusy(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 1800)
+    if (blocked.length > 0) {
+      setSaveError(
+        `Only the workspace owner can change "Sees every transaction" or the Database Manager role — ` +
+        `that part of the change to ${blocked.join(', ')} didn't save. Everything else did.`
+      )
+    } else {
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1800)
+    }
   }
 
   return (
@@ -608,6 +626,9 @@ function Team() {
             </span>
           )}
         </div>
+        {saveError && (
+          <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 10 }}>{saveError}</p>
+        )}
       </div>
     </div>
   )

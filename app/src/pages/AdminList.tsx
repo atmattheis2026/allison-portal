@@ -48,6 +48,7 @@ export default function AdminList() {
   const [needsSetup, setNeedsSetup] = useState(false)
   const [roster, setRoster] = useState<TeamMember[]>([])
   const [assignedByTx, setAssignedByTx] = useState<Record<string, string[]>>({})
+  const [canSeeRolodex, setCanSeeRolodex] = useState(false)
 
   useEffect(() => {
     if (DEMO_MODE || !supabase) {
@@ -80,6 +81,13 @@ export default function AdminList() {
       // row — not a second layer of access control.
       const { data: members } = await supabase!.from('team_members').select('*').order('sort_order')
       setRoster((members as TeamMember[]) ?? [])
+
+      // The rolodex is meant for whoever already sees the whole book — an
+      // office manager (Database Manager) or anyone with the "sees every
+      // transaction" switch — not a per-agent tool.
+      const mine = (members as TeamMember[] | null)?.find((m) => m.profile_id === auth.user!.id)
+      setCanSeeRolodex(Boolean(mine?.sees_all_transactions || mine?.roles.includes('admin')))
+
       const { data: assignments } = await supabase!
         .from('transaction_assignees').select('transaction_id,team_member_id')
       const grouped: Record<string, string[]> = {}
@@ -114,6 +122,7 @@ export default function AdminList() {
         <span className="wordmark" style={{ fontSize: 15 }}>Transactions</span>
         <nav className="adminnav">
           <Link className="btn" to="/admin/leads">Active Buyers</Link>
+          {canSeeRolodex && <Link className="btn" to="/admin/rolodex">Rolodex</Link>}
           <Link className="btn" to="/admin/settings">Settings</Link>
           <button className="btn primary" onClick={() => setCreating(true)}>
             New transaction

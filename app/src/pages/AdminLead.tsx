@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { Lead, LeadAppointment, LeadHome, LeadPriority, LeadNote, TeamMember } from '../lib/types'
-import { leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL } from '../lib/types'
+import { leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL, REFERRAL_SOURCES } from '../lib/types'
 import './Admin.css'
 
 /** datetime-local wants "YYYY-MM-DDTHH:mm" in local time, not an ISO string. */
@@ -207,6 +207,56 @@ export default function AdminLead() {
             <input type="date" value={lead.buyer_broker_expires ?? ''}
                    onChange={(e) => patchLead({ buyer_broker_expires: e.target.value || null })} />
           </div>
+          <div className="field" style={{ maxWidth: 260 }}>
+            <label>Referral source</label>
+            <select value={lead.referral_source ?? ''}
+                    onChange={(e) => patchLead({ referral_source: (e.target.value || null) as Lead['referral_source'] })}>
+              <option value="">Not set</option>
+              {REFERRAL_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <p className="sethelp" style={{ margin: '6px 0 0' }}>Just for you — this never shows to the client.</p>
+          </div>
+
+          {lead.referral_source === 'Agent Referral' && (
+            <div className="field" style={{
+              background: 'var(--panel-2)', border: '1px solid var(--line)',
+              borderRadius: 'var(--r-md)', padding: '14px 16px', marginTop: 4,
+            }}>
+              <label>Referring brokerage</label>
+              <div className="field2" style={{ marginTop: 8 }}>
+                <div className="field">
+                  <label>Brokerage name</label>
+                  <input value={lead.referral_brokerage_name ?? ''}
+                         onChange={(e) => patchLead({ referral_brokerage_name: e.target.value })} />
+                </div>
+                <div className="field">
+                  <label>Brokerage address</label>
+                  <input value={lead.referral_brokerage_address ?? ''}
+                         onChange={(e) => patchLead({ referral_brokerage_address: e.target.value })} />
+                </div>
+              </div>
+              <div className="field2">
+                <div className="field">
+                  <label>Contact info</label>
+                  <input value={lead.referral_contact_info ?? ''} placeholder="Name, phone, or email"
+                         onChange={(e) => patchLead({ referral_contact_info: e.target.value })} />
+                </div>
+                <div className="field">
+                  <label>Commission %</label>
+                  <input type="number" step="0.01" min="0" max="100"
+                         value={lead.referral_commission_pct ?? ''}
+                         onChange={(e) => patchLead({
+                           referral_commission_pct: e.target.value === '' ? null : Number(e.target.value),
+                         })} />
+                </div>
+              </div>
+              <div className="checkline">
+                <input type="checkbox" checked={lead.referral_doc_received}
+                       onChange={(e) => patchLead({ referral_doc_received: e.target.checked })} />
+                <span className="cl">Referral agreement received</span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="card setcard">
