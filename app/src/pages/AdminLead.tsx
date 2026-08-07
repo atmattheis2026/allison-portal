@@ -13,6 +13,22 @@ function toLocalInput(iso: string | null): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+/** Small square preview so the agent sees at a glance what the client sees,
+ *  without opening the client link to check. */
+function Thumb({ src }: { src: string | null }) {
+  return (
+    <div style={{
+      width: 64, height: 64, borderRadius: 8, flex: 'none', overflow: 'hidden',
+      background: 'var(--panel)', border: `1px ${src ? 'solid' : 'dashed'} var(--line)`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      {src
+        ? <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <span className="muted" style={{ fontSize: 9, textAlign: 'center', lineHeight: 1.2 }}>No photo</span>}
+    </div>
+  )
+}
+
 export default function AdminLead() {
   const { id } = useParams<{ id: string }>()
   const nav = useNavigate()
@@ -30,6 +46,7 @@ export default function AdminLead() {
   const [converting, setConverting] = useState(false)
   const [noteDraft, setNoteDraft] = useState('')
   const [saveFlash, setSaveFlash] = useState(false)
+  const [fetchingId, setFetchingId] = useState<string | null>(null)
 
   // Every field on this page saves the instant it changes — there's no Save
   // button to click. This just gives a brief visible confirmation so that's
@@ -69,17 +86,20 @@ export default function AdminLead() {
     flashSaved()
   }
 
-  // Fires when a listing URL field loses focus and there's no photo yet.
-  // Best-effort — plenty of sites block this, and that's fine, it just means
-  // the photo and address fields stay empty for manual entry like before
-  // this existed. `title` stands in for a typed address on Appointments,
-  // where the link is meant to replace typing one at all.
-  async function tryAutoPreview(url: string, onFound: (v: { photo_url?: string; title?: string }) => void) {
-    if (!supabase || !url.trim()) return
+  // A deliberate button click, not a background blur handler — that was too
+  // easy to miss when it didn't find anything. Best-effort either way:
+  // plenty of sites (Zillow especially) block this, and when that happens
+  // the fields just stay empty for manual entry, with a clear message
+  // instead of silence.
+  async function fetchListingPreview(rowId: string, url: string): Promise<{ photo_url?: string; title?: string } | null> {
+    if (!supabase || !url.trim()) return null
+    setFetchingId(rowId)
     const { data } = await supabase.functions.invoke('fetch-link-preview', { body: { url } })
+    setFetchingId(null)
     if (data?.photo_url || data?.title) {
-      onFound({ photo_url: data.photo_url ?? undefined, title: data.title ?? undefined })
+      return { photo_url: data.photo_url ?? undefined, title: data.title ?? undefined }
     }
+    return null
   }
 
   function copyLink() {
@@ -507,36 +527,38 @@ export default function AdminLead() {
               background: 'var(--panel-2)', border: '1px solid var(--line)',
               borderRadius: 'var(--r-md)', padding: '12px 14px', marginBottom: 10,
             }}>
-              <div className="tmplrow" style={{ padding: 0 }}>
-                <input type="datetime-local" value={toLocalInput(a.scheduled_at)}
-                       onChange={(e) => patchAppointment(a.id, {
-                         scheduled_at: e.target.value ? new Date(e.target.value).toISOString() : null,
-                       })}
-                       style={{ flex: 'none', width: 190 }} />
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Thumb src={a.photo_url} />
+                <div style={{ flex: 1, display: 'grid', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input type="datetime-local" value={toLocalInput(a.scheduled_at)}
+                           onChange={(e) => patchAppointment(a.id, {
+                             scheduled_at: e.target.value ? new Date(e.target.value).toISOString() : null,
+                           })}
+                           style={{ flex: 'none', width: 180 }} />
+                    <input type="text" value={a.address_line} placeholder="Address" style={{ flex: 1 }}
+                           onChange={(e) => patchAppointment(a.id, { address_line: e.target.value })} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input type="text" value={a.url ?? ''} placeholder="Listing link" style={{ flex: 1 }}
+                           onChange={(e) => patchAppointment(a.id, { url: e.target.value })} />
+                    <button type="button" className="btn" style={{ flex: 'none' }}
+                            disabled={!a.url || fetchingId === a.id}
+                            onClick={async () => {
+                              const preview = await fetchListingPreview(a.id, a.url ?? '')
+                              const values: Partial<LeadAppointment> = {}
+                              if (preview?.photo_url) values.photo_url = preview.photo_url
+                              if (preview?.title) values.address_line = preview.title
+                              if (Object.keys(values).length) patchAppointment(a.id, values)
+                              else alert('Couldn’t find a photo or address from that link — enter them below.')
+                            }}>
+                      {fetchingId === a.id ? 'Fetching…' : 'Fetch photo & address'}
+                    </button>
+                  </div>
+                </div>
                 <button type="button" className="del" onClick={() => removeAppointment(a.id)}>✕</button>
               </div>
-              <input type="text" value={a.url ?? ''} placeholder="Listing link (fills in the address below)"
-                     style={{ marginTop: 6, width: '100%' }}
-                     onChange={(e) => patchAppointment(a.id, { url: e.target.value })}
-                     onBlur={(e) => {
-                       if (e.target.value) {
-                         tryAutoPreview(e.target.value, ({ photo_url, title }) => {
-                           const values: Partial<LeadAppointment> = {}
-                           if (photo_url && !a.photo_url) values.photo_url = photo_url
-                           if (title && !a.address_line) values.address_line = title
-                           if (Object.keys(values).length) patchAppointment(a.id, values)
-                         })
-                       }
-                     }} />
-              <input type="text" value={a.address_line} placeholder="Address (fills in automatically from the link)"
-                     style={{ marginTop: 6, width: '100%' }}
-                     onChange={(e) => patchAppointment(a.id, { address_line: e.target.value })} />
-              {a.photo_url && (
-                <img src={a.photo_url} alt="" style={{
-                  width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 6, marginTop: 6,
-                }} />
-              )}
-              <input type="text" value={a.note ?? ''} placeholder="Note" style={{ marginTop: 6, width: '100%' }}
+              <input type="text" value={a.note ?? ''} placeholder="Note" style={{ marginTop: 8, width: '100%' }}
                      onChange={(e) => patchAppointment(a.id, { note: e.target.value })} />
               <div className="checkline" style={{ marginTop: 8, marginBottom: 0 }}>
                 <input type="checkbox" checked={a.completed}
@@ -556,43 +578,38 @@ export default function AdminLead() {
               background: 'var(--panel-2)', border: '1px solid var(--line)',
               borderRadius: 'var(--r-md)', padding: '12px 14px', marginBottom: 10,
             }}>
-              <div className="tmplrow" style={{ padding: 0, gap: 8 }}>
-                <input type="text" value={h.address_line} placeholder="Address"
-                       style={{
-                         background: 'var(--panel-2)', border: '1px solid var(--line)',
-                         borderRadius: 'var(--r-sm)', padding: '9px 11px',
-                       }}
-                       onChange={(e) => patchMaybeHome(h.id, { address_line: e.target.value })} />
-                <input type="text" value={h.url ?? ''} placeholder="Listing link"
-                       style={{
-                         background: 'var(--panel-2)', border: '1px solid var(--line)',
-                         borderRadius: 'var(--r-sm)', padding: '9px 11px',
-                       }}
-                       onChange={(e) => patchMaybeHome(h.id, { url: e.target.value })}
-                       onBlur={(e) => {
-                         if (e.target.value && (!h.photo_url || !h.address_line)) {
-                           tryAutoPreview(e.target.value, ({ photo_url, title }) => {
-                             const values: Partial<LeadMaybeHome> = {}
-                             if (photo_url && !h.photo_url) values.photo_url = photo_url
-                             if (title && !h.address_line) values.address_line = title
-                             if (Object.keys(values).length) patchMaybeHome(h.id, values)
-                           })
-                         }
-                       }} />
-                <button type="button" className="btn" style={{ flex: 'none' }}
-                        onClick={() => promoteMaybeHome(h)}>
-                  Mark as shown →
-                </button>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Thumb src={h.photo_url} />
+                <div style={{ flex: 1, display: 'grid', gap: 6 }}>
+                  <input type="text" value={h.address_line} placeholder="Address"
+                         onChange={(e) => patchMaybeHome(h.id, { address_line: e.target.value })} />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input type="text" value={h.url ?? ''} placeholder="Listing link" style={{ flex: 1 }}
+                           onChange={(e) => patchMaybeHome(h.id, { url: e.target.value })} />
+                    <button type="button" className="btn" style={{ flex: 'none' }}
+                            disabled={!h.url || fetchingId === h.id}
+                            onClick={async () => {
+                              const preview = await fetchListingPreview(h.id, h.url ?? '')
+                              const values: Partial<LeadMaybeHome> = {}
+                              if (preview?.photo_url) values.photo_url = preview.photo_url
+                              if (preview?.title && !h.address_line) values.address_line = preview.title
+                              if (Object.keys(values).length) patchMaybeHome(h.id, values)
+                              else alert('Couldn’t find a photo or address from that link — enter them below.')
+                            }}>
+                      {fetchingId === h.id ? 'Fetching…' : 'Fetch photo & address'}
+                    </button>
+                  </div>
+                </div>
                 <button type="button" className="del" onClick={() => removeMaybeHome(h.id)}>✕</button>
               </div>
-              <input type="text" value={h.photo_url ?? ''} placeholder="Photo URL (paste from the listing)"
-                     style={{ marginTop: 6, width: '100%' }}
-                     onChange={(e) => patchMaybeHome(h.id, { photo_url: e.target.value })} />
-              {h.photo_url && (
-                <img src={h.photo_url} alt="" style={{
-                  width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 6, marginTop: 6,
-                }} />
-              )}
+              <details style={{ marginTop: 8 }}>
+                <summary className="muted" style={{ fontSize: 12, cursor: 'pointer' }}>
+                  Paste a photo URL manually instead
+                </summary>
+                <input type="text" value={h.photo_url ?? ''} placeholder="Photo URL"
+                       style={{ marginTop: 6, width: '100%' }}
+                       onChange={(e) => patchMaybeHome(h.id, { photo_url: e.target.value })} />
+              </details>
               <div className="field2" style={{ marginTop: 8 }}>
                 <div className="field">
                   <label>Notes (client can see)</label>
@@ -604,6 +621,11 @@ export default function AdminLead() {
                   <textarea rows={2} value={h.private_note ?? ''} style={{ width: '100%' }}
                             onChange={(e) => patchMaybeHome(h.id, { private_note: e.target.value })} />
                 </div>
+              </div>
+              <div className="savebar" style={{ padding: '8px 0 0' }}>
+                <button type="button" className="btn" onClick={() => promoteMaybeHome(h)}>
+                  Mark as shown →
+                </button>
               </div>
             </div>
           ))}
@@ -618,51 +640,49 @@ export default function AdminLead() {
               background: 'var(--panel-2)', border: '1px solid var(--line)',
               borderRadius: 'var(--r-md)', padding: '12px 14px', marginBottom: 10,
             }}>
-              <div className="tmplrow" style={{ padding: 0, gap: 8 }}>
-                <input type="text" value={h.address_line} placeholder="Address"
-                       style={{
-                         background: 'var(--panel-2)', border: '1px solid var(--line)',
-                         borderRadius: 'var(--r-sm)', padding: '9px 11px',
-                       }}
-                       onChange={(e) => patchHome(h.id, { address_line: e.target.value })} />
-                <input type="text" value={h.price ?? ''} placeholder="Price"
-                       style={{
-                         flex: 'none', width: 110, background: 'var(--panel-2)',
-                         border: '1px solid var(--line)', borderRadius: 'var(--r-sm)', padding: '9px 11px',
-                       }}
-                       onChange={(e) => patchHome(h.id, { price: e.target.value })} />
-                <input type="text" value={h.url ?? ''} placeholder="Listing link"
-                       style={{
-                         background: 'var(--panel-2)', border: '1px solid var(--line)',
-                         borderRadius: 'var(--r-sm)', padding: '9px 11px',
-                       }}
-                       onChange={(e) => patchHome(h.id, { url: e.target.value })}
-                       onBlur={(e) => {
-                         if (e.target.value && (!h.photo_url || !h.address_line)) {
-                           tryAutoPreview(e.target.value, ({ photo_url, title }) => {
-                             const values: Partial<LeadHome> = {}
-                             if (photo_url && !h.photo_url) values.photo_url = photo_url
-                             if (title && !h.address_line) values.address_line = title
-                             if (Object.keys(values).length) patchHome(h.id, values)
-                           })
-                         }
-                       }} />
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Thumb src={h.photo_url} />
+                <div style={{ flex: 1, display: 'grid', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input type="text" value={h.address_line} placeholder="Address" style={{ flex: 1 }}
+                           onChange={(e) => patchHome(h.id, { address_line: e.target.value })} />
+                    <input type="text" value={h.price ?? ''} placeholder="Price"
+                           style={{ flex: 'none', width: 100 }}
+                           onChange={(e) => patchHome(h.id, { price: e.target.value })} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input type="text" value={h.url ?? ''} placeholder="Listing link" style={{ flex: 1 }}
+                           onChange={(e) => patchHome(h.id, { url: e.target.value })} />
+                    <button type="button" className="btn" style={{ flex: 'none' }}
+                            disabled={!h.url || fetchingId === h.id}
+                            onClick={async () => {
+                              const preview = await fetchListingPreview(h.id, h.url ?? '')
+                              const values: Partial<LeadHome> = {}
+                              if (preview?.photo_url) values.photo_url = preview.photo_url
+                              if (preview?.title && !h.address_line) values.address_line = preview.title
+                              if (Object.keys(values).length) patchHome(h.id, values)
+                              else alert('Couldn’t find a photo or address from that link — enter them below.')
+                            }}>
+                      {fetchingId === h.id ? 'Fetching…' : 'Fetch photo & address'}
+                    </button>
+                  </div>
+                </div>
                 <button type="button" className="del" onClick={() => removeHome(h.id)}>✕</button>
               </div>
+              <details style={{ marginTop: 8 }}>
+                <summary className="muted" style={{ fontSize: 12, cursor: 'pointer' }}>
+                  Paste a photo URL manually instead
+                </summary>
+                <input type="text" value={h.photo_url ?? ''} placeholder="Photo URL"
+                       style={{ marginTop: 6, width: '100%' }}
+                       onChange={(e) => patchHome(h.id, { photo_url: e.target.value })} />
+              </details>
               <div className="savebar" style={{ padding: '8px 0 0' }}>
                 <button type="button" className="btn primary" disabled={converting}
                         onClick={() => convert(h.id)}>
                   Went under contract →
                 </button>
               </div>
-              <input type="text" value={h.photo_url ?? ''} placeholder="Photo URL (paste from the listing)"
-                     style={{ marginTop: 6, width: '100%' }}
-                     onChange={(e) => patchHome(h.id, { photo_url: e.target.value })} />
-              {h.photo_url && (
-                <img src={h.photo_url} alt="" style={{
-                  width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 6, marginTop: 6,
-                }} />
-              )}
               <div className="field2" style={{ marginTop: 8 }}>
                 <div className="field">
                   <label>Notes (client can see)</label>
