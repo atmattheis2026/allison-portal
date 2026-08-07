@@ -72,6 +72,19 @@ export default function AdminTransaction() {
     }
   }
 
+  // Picking someone as the Realtor or Lender on the client-facing side doesn't
+  // by itself grant them visibility into the deal — that's controlled by
+  // transaction_assignees (see migration 005). Without this, a loan officer
+  // picked via onPickLender could be shown to the client but unable to open
+  // the transaction themselves.
+  async function ensureAssignee(memberId: string | null) {
+    if (!memberId || assignedIds.has(memberId)) return
+    setAssignedIds((cur) => new Set(cur).add(memberId))
+    if (DEMO_MODE || !supabase || !id) return
+    await supabase.from('transaction_assignees')
+      .insert({ transaction_id: id, team_member_id: memberId })
+  }
+
   function patch(fn: (d: SharedPayload) => SharedPayload) {
     setData((cur) => (cur ? fn(structuredClone(cur)) : cur))
   }
@@ -166,6 +179,7 @@ export default function AdminTransaction() {
       }))
       if (!id) return
       write('transactions', id, { realtor_member_id: memberId })
+      ensureAssignee(memberId)
     },
 
     onAddNote: async (side: Side, body: string) => {
@@ -208,6 +222,7 @@ export default function AdminTransaction() {
       }))
       if (!id) return
       write('transactions', id, { lender_member_id: memberId })
+      ensureAssignee(memberId)
     },
 
     onPickSavedContact: (contactId: string, savedId: string) => {
