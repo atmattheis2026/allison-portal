@@ -125,9 +125,9 @@ export default function AdminLead() {
       .insert({ lead_id: id, sort_order: personalNotes.length }).select('*').single()
     if (data) setPersonalNotes((cur) => [...cur, data as LeadPersonalNote])
   }
-  async function patchPersonalNote(pnId: string, text: string) {
-    setPersonalNotes((cur) => cur.map((p) => (p.id === pnId ? { ...p, text } : p)))
-    if (supabase) await supabase.from('lead_personal_notes').update({ text }).eq('id', pnId)
+  async function patchPersonalNote(pnId: string, values: Partial<LeadPersonalNote>) {
+    setPersonalNotes((cur) => cur.map((p) => (p.id === pnId ? { ...p, ...values } : p)))
+    if (supabase) await supabase.from('lead_personal_notes').update(values).eq('id', pnId)
   }
   async function removePersonalNote(pnId: string) {
     setPersonalNotes((cur) => cur.filter((p) => p.id !== pnId))
@@ -443,8 +443,10 @@ export default function AdminLead() {
           <p className="sethelp">Kids, pets, birthdays, anniversaries, anything worth remembering. Just for you.</p>
           {personalNotes.map((p) => (
             <div className="tmplrow" key={p.id}>
-              <input type="text" value={p.text} placeholder="e.g. Two kids — Emma (8), Jake (5)"
-                     onChange={(e) => patchPersonalNote(p.id, e.target.value)} />
+              <input type="text" value={p.text} placeholder="e.g. Emma's birthday, Anniversary, Dog's name"
+                     onChange={(e) => patchPersonalNote(p.id, { text: e.target.value })} />
+              <input type="date" value={p.date_value ?? ''} style={{ flex: 'none', width: 155 }}
+                     onChange={(e) => patchPersonalNote(p.id, { date_value: e.target.value || null })} />
               <button type="button" className="del" onClick={() => removePersonalNote(p.id)}>✕</button>
             </div>
           ))}

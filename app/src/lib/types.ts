@@ -259,6 +259,8 @@ export interface LeadPersonalNote {
   id: string
   lead_id: string
   text: string
+  /** Birthdays, anniversaries, etc. Optional — not every line needs a date. */
+  date_value: string | null
   sort_order: number
 }
 
