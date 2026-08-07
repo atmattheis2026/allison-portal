@@ -570,9 +570,12 @@ export default function AdminLead() {
                        }}
                        onChange={(e) => patchMaybeHome(h.id, { url: e.target.value })}
                        onBlur={(e) => {
-                         if (e.target.value && !h.photo_url) {
-                           tryAutoPreview(e.target.value, ({ photo_url }) => {
-                             if (photo_url) patchMaybeHome(h.id, { photo_url })
+                         if (e.target.value && (!h.photo_url || !h.address_line)) {
+                           tryAutoPreview(e.target.value, ({ photo_url, title }) => {
+                             const values: Partial<LeadMaybeHome> = {}
+                             if (photo_url && !h.photo_url) values.photo_url = photo_url
+                             if (title && !h.address_line) values.address_line = title
+                             if (Object.keys(values).length) patchMaybeHome(h.id, values)
                            })
                          }
                        }} />
@@ -635,9 +638,12 @@ export default function AdminLead() {
                        }}
                        onChange={(e) => patchHome(h.id, { url: e.target.value })}
                        onBlur={(e) => {
-                         if (e.target.value && !h.photo_url) {
-                           tryAutoPreview(e.target.value, ({ photo_url }) => {
-                             if (photo_url) patchHome(h.id, { photo_url })
+                         if (e.target.value && (!h.photo_url || !h.address_line)) {
+                           tryAutoPreview(e.target.value, ({ photo_url, title }) => {
+                             const values: Partial<LeadHome> = {}
+                             if (photo_url && !h.photo_url) values.photo_url = photo_url
+                             if (title && !h.address_line) values.address_line = title
+                             if (Object.keys(values).length) patchHome(h.id, values)
                            })
                          }
                        }} />

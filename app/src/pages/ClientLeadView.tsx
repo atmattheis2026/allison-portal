@@ -89,7 +89,10 @@ export default function ClientLeadView() {
         <span className="viewnote">Home Search · {lead.full_name}</span>
       </div>
 
-      <div className="topgrid" style={{ display: 'grid', gap: 16, padding: 16, maxWidth: 720, margin: '0 auto' }}>
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gap: 16, padding: 16, maxWidth: 900, margin: '0 auto', alignItems: 'start',
+      }}>
         {realtor && (
           <div className="card" style={{ padding: 16 }}>
             <div className="team">
