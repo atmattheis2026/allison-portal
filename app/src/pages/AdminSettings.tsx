@@ -376,6 +376,7 @@ function newMember(sort_order: number): TeamMember {
     sees_all_transactions: false, sort_order, profile_id: null,
     realtor_website_1: null, realtor_website_2: null, realtor_website_3: null,
     lender_website_1: null, lender_website_2: null, lender_website_3: null,
+    company_name: null, nmls_number: null,
   }
 }
 
@@ -480,6 +481,7 @@ function Team() {
         realtor_website_3: m.realtor_website_3,
         lender_website_1: m.lender_website_1, lender_website_2: m.lender_website_2,
         lender_website_3: m.lender_website_3,
+        company_name: m.company_name, nmls_number: m.nmls_number,
         sees_all_transactions: m.sees_all_transactions, sort_order: m.sort_order,
       }
       if (m.id.startsWith('new-')) {
@@ -652,6 +654,24 @@ function Team() {
                 )
               })}
             </div>
+            {(m.roles.includes('loan_officer') || m.roles.includes('mortgage_broker')) && (
+              <div style={{
+                width: '100%', display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8, marginLeft: 42,
+                background: 'var(--panel-2)', border: '1px solid var(--line)',
+                borderRadius: 'var(--r-sm)', padding: 10,
+              }}>
+                <input
+                  type="text" value={m.company_name ?? ''} placeholder="Company name"
+                  style={{ minWidth: 200, flex: 1 }}
+                  onChange={(e) => update(m.id, { company_name: e.target.value || null })}
+                />
+                <input
+                  type="text" value={m.nmls_number ?? ''} placeholder="Business NMLS #"
+                  style={{ minWidth: 150, maxWidth: 200, flex: 'none' }}
+                  onChange={(e) => update(m.id, { nmls_number: e.target.value || null })}
+                />
+              </div>
+            )}
           </div>
         ))}
 

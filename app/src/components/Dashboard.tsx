@@ -586,6 +586,8 @@ function TeamCards({
               ))}
             </select>
             {lender.license && <div className="lic">{lender.license}</div>}
+            {lender.company && <div className="lic">{lender.company}</div>}
+            {lender.nmls_number && <div className="lic">NMLS #{lender.nmls_number}</div>}
             {!loanPeople.length && (
               <div className="lic" style={{ opacity: .7 }}>
                 Tag people "Loan officer" in Settings › Team first
@@ -600,6 +602,8 @@ function TeamCards({
             <div className="role">{lenderLabel}</div>
             <div className="name">{lender.name}</div>
             {lender.license && <div className="lic">{lender.license}</div>}
+            {lender.company && <div className="lic">{lender.company}</div>}
+            {lender.nmls_number && <div className="lic">NMLS #{lender.nmls_number}</div>}
             {[lender.website_1, lender.website_2, lender.website_3].filter(Boolean).map((w, i) => (
               <a key={i} href={w!} target="_blank" rel="noreferrer" className="lic" style={{ display: 'block' }}>
                 {w}

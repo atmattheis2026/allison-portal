@@ -74,6 +74,10 @@ export interface TeamMember {
   lender_website_1: string | null
   lender_website_2: string | null
   lender_website_3: string | null
+  /** Only meaningful for loan officers/mortgage brokers — shown wherever
+   *  this person is cast as the lender, same story as the lender websites. */
+  company_name: string | null
+  nmls_number: string | null
 }
 
 // Order here is the display order everywhere these are listed as a set (e.g.
@@ -117,6 +121,7 @@ export interface Lender {
   website_1?: string | null
   website_2?: string | null
   website_3?: string | null
+  nmls_number?: string | null
 }
 
 export interface Milestone {

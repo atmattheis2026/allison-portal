@@ -343,6 +343,7 @@ export const TEAM_MEMBERS: TeamMember[] = [
     phone: '+12536539021', email: null, sees_all_transactions: true, sort_order: 10, profile_id: 'demo-profile',
     realtor_website_1: null, realtor_website_2: null, realtor_website_3: null,
     lender_website_1: null, lender_website_2: null, lender_website_3: null,
+    company_name: null, nmls_number: null,
   },
   {
     id: 'tm-marcus', full_name: 'Marcus Webb', roles: ['realtor'],
@@ -350,6 +351,7 @@ export const TEAM_MEMBERS: TeamMember[] = [
     phone: '+14075550199', email: null, sees_all_transactions: false, sort_order: 20, profile_id: null,
     realtor_website_1: null, realtor_website_2: null, realtor_website_3: null,
     lender_website_1: null, lender_website_2: null, lender_website_3: null,
+    company_name: null, nmls_number: null,
   },
   {
     id: 'tm-priya', full_name: 'Priya Nair', roles: ['realtor', 'loan_officer'],
@@ -357,6 +359,7 @@ export const TEAM_MEMBERS: TeamMember[] = [
     phone: '+14075550233', email: null, sees_all_transactions: false, sort_order: 30, profile_id: null,
     realtor_website_1: null, realtor_website_2: null, realtor_website_3: null,
     lender_website_1: null, lender_website_2: null, lender_website_3: null,
+    company_name: null, nmls_number: null,
   },
   {
     id: 'tm-jane', full_name: 'Jane Mitchell', roles: ['loan_officer', 'mortgage_broker'],
@@ -365,6 +368,7 @@ export const TEAM_MEMBERS: TeamMember[] = [
     phone: '+14075550142', email: null, sees_all_transactions: false, sort_order: 40, profile_id: null,
     realtor_website_1: null, realtor_website_2: null, realtor_website_3: null,
     lender_website_1: null, lender_website_2: null, lender_website_3: null,
+    company_name: null, nmls_number: null,
   },
 ]
 

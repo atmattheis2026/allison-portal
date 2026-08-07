@@ -220,9 +220,11 @@ export default function AdminTransaction() {
       const member = roster.find((m) => m.id === memberId)
       if (!member) return
       const lender = {
-        name: member.full_name, company: null, license: member.license_number,
+        name: member.full_name, company: member.company_name, license: member.license_number,
         headshot_url: member.headshot_url, phone: member.phone, email: member.email,
-        is_in_house: true,
+        is_in_house: true, nmls_number: member.nmls_number,
+        website_1: member.lender_website_1, website_2: member.lender_website_2,
+        website_3: member.lender_website_3,
       }
       patch((d) => ({
         ...d, transaction: { ...d.transaction, lender, lender_member_id: memberId },
