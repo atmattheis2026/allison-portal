@@ -69,6 +69,12 @@ export interface DashboardHandlers {
   onPickSavedContact?: (contactId: string, savedId: string) => void
   onSaveContact?: (contact: Contact) => void
   onUploadContactPhoto?: (contactId: string, file: File) => void
+  /** Agent-only contacts (buyer/seller TC, title closer/processor, and any
+   *  free-typed extras) — never part of the client payload. */
+  onPatchInternalContact?: (id: string, values: Partial<Contact>) => void
+  onAddInternalContact?: () => void
+  onRemoveInternalContact?: (id: string) => void
+  onUploadInternalContactPhoto?: (contactId: string, file: File) => void
 }
 
 interface Props extends DashboardHandlers {
@@ -83,13 +89,18 @@ interface Props extends DashboardHandlers {
   /** Saved vendors for the Contacts section — title companies, inspectors,
    *  utilities. Same admin-only story as roster. */
   savedContacts?: SavedContact[]
+  /** Contacts flagged internal_only — fetched separately since
+   *  get_shared_transaction() excludes them. Same admin-only story as
+   *  roster: undefined on the client-facing page, so the section that
+   *  reads this never renders there. */
+  internalContacts?: Contact[]
 }
 
 /* ------------------------------------------------------------------ main */
 
 export default function Dashboard({
   data, editable = false, viewNote = 'Transaction Portal · Client View',
-  headerExtra, roster, savedContacts, ...h
+  headerExtra, roster, savedContacts, internalContacts, ...h
 }: Props) {
   const { transaction: tx, realtor, brands, milestones, doc_lines, contacts, notes } = data
 
@@ -181,6 +192,13 @@ export default function Dashboard({
                            onPickSaved={h.onPickSavedContact}
                            onSaveContact={h.onSaveContact}
                            onUploadContactPhoto={h.onUploadContactPhoto} />
+          {editable && internalContacts && (
+            <AgentOnlyContactsSection contacts={internalContacts}
+                                      onPatch={h.onPatchInternalContact}
+                                      onAdd={h.onAddInternalContact}
+                                      onRemove={h.onRemoveInternalContact}
+                                      onUploadContactPhoto={h.onUploadInternalContactPhoto} />
+          )}
         </div>
 
         {hasLoan && (
@@ -911,12 +929,62 @@ function ContactsSection({
   )
 }
 
-function ContactRow({ c, editable, onPatch, saved, onPickSaved, onSaveContact, onUploadContactPhoto }: {
+const FIXED_INTERNAL_ROLES = [
+  'Buyer Transaction Coordinator', 'Seller Transaction Coordinator', 'Title Closer', 'Title Processor',
+]
+
+/**
+ * Agent-only contacts — buyer/seller TC, title closer/processor, plus any
+ * free-typed extras. Only ever rendered on the admin side (gated in
+ * Dashboard on editable && internalContacts being passed at all) — the
+ * client link never sees this, since get_shared_transaction() excludes
+ * internal_only rows entirely.
+ */
+function AgentOnlyContactsSection({ contacts, onPatch, onAdd, onRemove, onUploadContactPhoto }: {
+  contacts: Contact[]
+  onPatch?: (id: string, v: Partial<Contact>) => void
+  onAdd?: () => void
+  onRemove?: (id: string) => void
+  onUploadContactPhoto?: (contactId: string, file: File) => void
+}) {
+  const sorted = [...contacts].sort((a, b) => a.sort_order - b.sort_order)
+  const fixed = sorted.filter((c) => FIXED_INTERNAL_ROLES.includes(c.role_label))
+  const extra = sorted.filter((c) => !FIXED_INTERNAL_ROLES.includes(c.role_label))
+
+  return (
+    <Section title="Agent Only Contacts" count={String(contacts.length)}>
+      <p className="sethelp" style={{ margin: '0 0 8px' }}>
+        Not visible to the client — transaction coordinators, title team, anything you need
+        on file but don't want on their page.
+      </p>
+      {fixed.map((c) => (
+        <ContactRow key={c.id} c={c} editable onPatch={onPatch}
+                    onUploadContactPhoto={onUploadContactPhoto} />
+      ))}
+      {extra.length > 0 && <div className="glabel">Additional</div>}
+      {extra.map((c) => (
+        <ContactRow key={c.id} c={c} editable onPatch={onPatch}
+                    onUploadContactPhoto={onUploadContactPhoto}
+                    labelEditable onRemove={onRemove ? () => onRemove(c.id) : undefined} />
+      ))}
+      <div className="savebar"><button type="button" className="btn" onClick={onAdd}>+ Add contact</button></div>
+    </Section>
+  )
+}
+
+function ContactRow({
+  c, editable, onPatch, saved, onPickSaved, onSaveContact, onUploadContactPhoto,
+  labelEditable, onRemove,
+}: {
   c: Contact; editable?: boolean; onPatch?: (id: string, v: Partial<Contact>) => void
   saved?: SavedContact[]
   onPickSaved?: (contactId: string, savedId: string) => void
   onSaveContact?: (contact: Contact) => void
   onUploadContactPhoto?: (contactId: string, file: File) => void
+  /** Free-typed "additional" rows get an editable role and a delete button;
+   *  the fixed roles (Buyer TC, Title Closer, etc.) don't. */
+  labelEditable?: boolean
+  onRemove?: () => void
 }) {
   const [open, setOpen] = useState(false)
 
@@ -947,13 +1015,21 @@ function ContactRow({ c, editable, onPatch, saved, onPickSaved, onSaveContact, o
   return (
     <div className="crowEdit">
       <div className="crow">
-        <span className="k">{c.role_label}</span>
+        {labelEditable ? (
+          <EditableText className="k" value={c.role_label} placeholder="Contact type"
+                        onCommit={(v) => onPatch?.(c.id, { role_label: v || 'Contact' })} />
+        ) : (
+          <span className="k">{c.role_label}</span>
+        )}
         <div className="rt">
           <EditableText className="v" value={c.name ?? ''} placeholder="not set"
                         onCommit={(v) => onPatch?.(c.id, { name: v || null })} />
           <button type="button" className={`tapicon${open ? ' on' : ''}`}
                   onClick={() => setOpen((o) => !o)}
                   title="Phone and email">⋯</button>
+          {onRemove && (
+            <button type="button" className="tapicon" onClick={onRemove} title="Remove">✕</button>
+          )}
         </div>
       </div>
       {open && (

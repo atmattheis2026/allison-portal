@@ -25,6 +25,10 @@ export default function AdminTransaction() {
   const [roster, setRoster] = useState<TeamMember[]>([])
   const [assignedIds, setAssignedIds] = useState<Set<string>>(new Set())
   const [savedContacts, setSavedContacts] = useState<SavedContact[]>([])
+  // Contacts flagged internal_only — excluded from get_shared_transaction(),
+  // so they need their own fetch straight from the table (same admin-only
+  // story as roster/assignedIds above).
+  const [internalContacts, setInternalContacts] = useState<Contact[]>([])
 
   useEffect(() => {
     if (DEMO_MODE || !supabase) {
@@ -34,6 +38,7 @@ export default function AdminTransaction() {
       setRoster(TEAM_MEMBERS)
       setAssignedIds(new Set(TRANSACTION_ASSIGNEES[id ?? ''] ?? []))
       setSavedContacts(SAVED_CONTACTS)
+      setInternalContacts([])
       return
     }
     // The admin view reads through the same assembling function so both pages
@@ -53,6 +58,8 @@ export default function AdminTransaction() {
         setAssignedIds(new Set((rows ?? []).map((r) => r.team_member_id as string))))
     supabase.from('saved_contacts').select('*').order('sort_order')
       .then(({ data: rows }) => setSavedContacts((rows as SavedContact[]) ?? []))
+    supabase.from('contacts').select('*').eq('transaction_id', id).eq('internal_only', true).order('sort_order')
+      .then(({ data: rows }) => setInternalContacts((rows as Contact[]) ?? []))
   }, [id])
 
   async function toggleAssignee(memberId: string) {
@@ -319,6 +326,51 @@ export default function AdminTransaction() {
       })
       write('contacts', contactId, { photo_url: data.publicUrl })
     },
+
+    onPatchInternalContact: (contactId: string, values: Partial<Contact>) => {
+      setInternalContacts((cur) => cur.map((c) => (c.id === contactId ? { ...c, ...values } : c)))
+      write('contacts', contactId, values as Record<string, unknown>)
+    },
+
+    onAddInternalContact: async () => {
+      if (DEMO_MODE || !supabase || !id) {
+        setInternalContacts((cur) => [...cur, {
+          id: `local-${Date.now()}`, group_key: 'people', role_label: 'Contact',
+          name: null, phone: null, email: null, note: null, photo_url: null,
+          sort_order: cur.length,
+        }])
+        return
+      }
+      const { data: row, error } = await supabase.from('contacts')
+        .insert({
+          transaction_id: id, group_key: 'people', role_label: 'Contact',
+          internal_only: true, sort_order: internalContacts.length,
+        })
+        .select('*').single()
+      if (error || !row) { console.error('internal contact insert failed', error); return }
+      setInternalContacts((cur) => [...cur, row as Contact])
+    },
+
+    onRemoveInternalContact: async (contactId: string) => {
+      setInternalContacts((cur) => cur.filter((c) => c.id !== contactId))
+      if (DEMO_MODE || !supabase) return
+      const { error } = await supabase.from('contacts').delete().eq('id', contactId)
+      if (error) console.error('internal contact delete failed', error)
+    },
+
+    onUploadInternalContactPhoto: async (contactId: string, file: File) => {
+      const localUrl = URL.createObjectURL(file)
+      setInternalContacts((cur) => cur.map((c) => (c.id === contactId ? { ...c, photo_url: localUrl } : c)))
+      if (DEMO_MODE || !supabase) return
+
+      const path = `contacts/${contactId}-${Date.now()}-${file.name}`
+      const { error } = await supabase.storage.from('media').upload(path, file, { upsert: true })
+      if (error) { console.error('internal contact photo upload failed', error); return }
+
+      const { data } = supabase.storage.from('media').getPublicUrl(path)
+      setInternalContacts((cur) => cur.map((c) => (c.id === contactId ? { ...c, photo_url: data.publicUrl } : c)))
+      write('contacts', contactId, { photo_url: data.publicUrl })
+    },
   }
 
   function copyLink() {
@@ -345,6 +397,7 @@ export default function AdminTransaction() {
         editable
         roster={roster}
         savedContacts={savedContacts}
+        internalContacts={internalContacts}
         headerExtra={
           <span style={{ display: 'flex', gap: 9, alignItems: 'center' }}>
             <Link className="btn" to="/admin">All transactions</Link>
