@@ -18,6 +18,15 @@ function fmtWhen(iso: string | null): string {
   })
 }
 
+/** shown_at is a plain "YYYY-MM-DD" with no time — parsing it as-is would
+ *  read as UTC midnight and can print as the day before in US timezones. */
+function fmtDate(dateStr: string | null): string {
+  if (!dateStr) return ''
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric',
+  })
+}
+
 /** Downscales in the browser before it ever leaves the device — a phone
  *  photo straight off the camera is easily 5-10MB, and none of that detail
  *  matters for a small avatar. Keeps the upload fast and well under any
@@ -191,9 +200,6 @@ export default function ClientLeadView() {
                       {a.url ? <a href={a.url} target="_blank" rel="noreferrer">{a.address_line}</a> : a.address_line}
                       {a.note ? ` — ${a.note}` : ''}
                     </p>
-                    {a.completed && (
-                      <MakeOfferButton token={token ?? ''} appointmentId={a.id} initiallyRequested={a.offer_requested} />
-                    )}
                   </div>
                 </div>
               ))}
@@ -234,12 +240,14 @@ export default function ClientLeadView() {
                       width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 8, marginBottom: 8,
                     }} />
                   )}
+                  {h.shown_at && <div className="notemeta"><span className="noteauthor">Shown {fmtDate(h.shown_at)}</span></div>}
                   <p className="notebody">
                     {h.url ? <a href={h.url} target="_blank" rel="noreferrer">{h.address_line}</a> : h.address_line}
                     {h.city_state_zip ? `, ${h.city_state_zip}` : ''}
                     {h.price ? ` — ${h.price}` : ''}
                   </p>
                   {h.note && <p className="notebody muted" style={{ fontSize: 12.5 }}>{h.note}</p>}
+                  <MakeOfferButton token={token ?? ''} homeId={h.id} initiallyRequested={h.offer_requested} />
                 </div>
               ))}
             </div>
@@ -308,8 +316,8 @@ function RequestShowingButton({ token, homeId, initiallyRequested }: {
   )
 }
 
-function MakeOfferButton({ token, appointmentId, initiallyRequested }: {
-  token: string; appointmentId: string; initiallyRequested: boolean
+function MakeOfferButton({ token, homeId, initiallyRequested }: {
+  token: string; homeId: string; initiallyRequested: boolean
 }) {
   const [requested, setRequested] = useState(initiallyRequested)
   const [busy, setBusy] = useState(false)
@@ -325,7 +333,7 @@ function MakeOfferButton({ token, appointmentId, initiallyRequested }: {
         if (!supabase) return
         setBusy(true)
         const { error } = await supabase.functions.invoke('request-offer', {
-          body: { token, appointment_id: appointmentId },
+          body: { token, home_id: homeId },
         })
         setBusy(false)
         if (!error) setRequested(true)

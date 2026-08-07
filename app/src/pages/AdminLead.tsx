@@ -150,6 +150,7 @@ export default function AdminLead() {
       .insert({
         lead_id: id, address_line: apt.address_line, url: apt.url,
         photo_url: apt.photo_url, note: apt.note, sort_order: homes.length,
+        shown_at: apt.scheduled_at ? apt.scheduled_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
       })
       .select('*').single()
     if (data) setHomes((cur) => [...cur, data as LeadHome])
@@ -197,6 +198,7 @@ export default function AdminLead() {
       .insert({
         lead_id: id, address_line: h.address_line, url: h.url,
         photo_url: h.photo_url, note: h.note, private_note: h.private_note, sort_order: homes.length,
+        shown_at: new Date().toISOString().slice(0, 10),
       })
       .select('*').single()
     if (data) setHomes((cur) => [...cur, data as LeadHome])
@@ -620,19 +622,6 @@ export default function AdminLead() {
               background: 'var(--panel-2)', border: '1px solid var(--line)',
               borderRadius: 'var(--r-md)', padding: '12px 14px', marginBottom: 10,
             }}>
-              {a.offer_requested && (
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-                  background: 'var(--gold-soft, #3a2f1a)', border: '1px solid var(--gold, #C9A44C)',
-                  borderRadius: 'var(--r-sm)', padding: '8px 10px', marginBottom: 10, fontSize: 13,
-                }}>
-                  <span>🎉 Client wants to make an offer on this one!</span>
-                  <button type="button" className="btn" style={{ flex: 'none' }}
-                          onClick={() => patchAppointment(a.id, { offer_requested: false })}>
-                    Got it
-                  </button>
-                </div>
-              )}
               <div style={{ display: 'flex', gap: 10 }}>
                 <Thumb src={a.photo_url} />
                 <div style={{ flex: 1, display: 'grid', gap: 6 }}>
@@ -768,12 +757,27 @@ export default function AdminLead() {
               background: 'var(--panel-2)', border: '1px solid var(--line)',
               borderRadius: 'var(--r-md)', padding: '12px 14px', marginBottom: 10,
             }}>
+              {h.offer_requested && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                  background: 'var(--gold-soft, #3a2f1a)', border: '1px solid var(--gold, #C9A44C)',
+                  borderRadius: 'var(--r-sm)', padding: '8px 10px', marginBottom: 10, fontSize: 13,
+                }}>
+                  <span>🎉 Client wants to make an offer on this one!</span>
+                  <button type="button" className="btn" style={{ flex: 'none' }}
+                          onClick={() => patchHome(h.id, { offer_requested: false })}>
+                    Got it
+                  </button>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 10 }}>
                 <Thumb src={h.photo_url} />
                 <div style={{ flex: 1, display: 'grid', gap: 6 }}>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input type="text" value={h.address_line} placeholder="Address" style={{ flex: 1 }}
                            onChange={(e) => patchHome(h.id, { address_line: e.target.value })} />
+                    <input type="date" value={h.shown_at ?? ''} style={{ flex: 'none', width: 155 }}
+                           onChange={(e) => patchHome(h.id, { shown_at: e.target.value || null })} />
                     <input type="text" value={h.price ?? ''} placeholder="Price"
                            style={{ flex: 'none', width: 100 }}
                            onChange={(e) => patchHome(h.id, { price: e.target.value })} />

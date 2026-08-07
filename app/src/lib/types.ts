@@ -276,8 +276,6 @@ export interface LeadAppointment {
   note: string | null
   /** Whether the showing actually happened — drives "move to Homes shown". */
   completed: boolean
-  /** Client clicked "Let's make an offer!" on this appointment. */
-  offer_requested: boolean
   sort_order: number
 }
 
@@ -293,6 +291,11 @@ export interface LeadHome {
   note: string | null
   /** Allison's read on the client's reaction — internal only, never part of get_shared_lead(). */
   private_note: string | null
+  /** When this home was actually toured — carried over from the appointment
+   *  it came from, or set directly if added without one. */
+  shown_at: string | null
+  /** Client clicked "Let's make an offer!" on this home. */
+  offer_requested: boolean
   sort_order: number
 }
 

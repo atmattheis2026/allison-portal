@@ -1,6 +1,6 @@
 // Called from the client's own lead page (/l/:token) when they click
-// "Let's make an offer!" on a completed appointment. No session at all —
-// the share token IS the credential, same trust model as request-showing.
+// "Let's make an offer!" on a home in Homes shown. No session at all — the
+// share token IS the credential, same trust model as request-showing.
 // Notifies both the assigned agent and (if set) the assigned lender.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
@@ -26,9 +26,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { token, appointment_id } = await req.json()
-    if (!token || !appointment_id) {
-      return new Response(JSON.stringify({ error: 'missing token or appointment_id' }), { status: 400, headers: corsHeaders })
+    const { token, home_id } = await req.json()
+    if (!token || !home_id) {
+      return new Response(JSON.stringify({ error: 'missing token or home_id' }), { status: 400, headers: corsHeaders })
     }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
@@ -40,19 +40,19 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'this link is not active' }), { status: 404, headers: corsHeaders })
     }
 
-    const { data: apt } = await admin.from('lead_appointments')
-      .select('id, address_line').eq('id', appointment_id).eq('lead_id', lead.id).maybeSingle()
-    if (!apt) {
-      return new Response(JSON.stringify({ error: 'that appointment is not on this list' }), { status: 404, headers: corsHeaders })
+    const { data: home } = await admin.from('lead_homes')
+      .select('id, address_line').eq('id', home_id).eq('lead_id', lead.id).maybeSingle()
+    if (!home) {
+      return new Response(JSON.stringify({ error: 'that home is not on this list' }), { status: 404, headers: corsHeaders })
     }
 
-    await admin.from('lead_appointments')
+    await admin.from('lead_homes')
       .update({ offer_requested: true, offer_requested_at: new Date().toISOString() })
-      .eq('id', appointment_id)
+      .eq('id', home_id)
 
     // Email is a nice-to-have here, not the source of truth — the flag on
-    // the appointment is what the agent actually sees, so a missing key or
-    // a failed send still counts as success for the client.
+    // the home is what the agent actually sees, so a missing key or a
+    // failed send still counts as success for the client.
     if (RESEND_API_KEY) {
       const memberIds = [lead.realtor_member_id, lead.lender_member_id].filter(Boolean) as string[]
       if (memberIds.length) {
@@ -66,12 +66,12 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               from: 'Active Buyers <reminders@epicclosinghub.com>',
               to: [person.email],
-              subject: `${lead.full_name} wants to make an offer on ${apt.address_line || 'a home'}`,
+              subject: `${lead.full_name} wants to make an offer on ${home.address_line || 'a home'}`,
               html: `<p>Hi ${escapeHtml(person.full_name || 'there')},</p>` +
                 `<p><strong>${escapeHtml(lead.full_name)}</strong> just clicked "Let's make an offer!" for ` +
-                `<strong>${escapeHtml(apt.address_line || 'a home on their list')}</strong>.</p>` +
+                `<strong>${escapeHtml(home.address_line || 'a home on their list')}</strong>.</p>` +
                 `<p><a href="${APP_BASE_URL}/admin/leads/${lead.id}">Open their page</a> to follow up.</p>`,
-              text: `${lead.full_name} wants to make an offer on ${apt.address_line || 'a home'}. ` +
+              text: `${lead.full_name} wants to make an offer on ${home.address_line || 'a home'}. ` +
                 `Open their page to follow up: ${APP_BASE_URL}/admin/leads/${lead.id}`,
             }),
           })
