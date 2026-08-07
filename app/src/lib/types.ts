@@ -151,6 +151,14 @@ export interface Transaction {
   /** Which roster member is shown as the lender — same pattern as Realtor.
    *  Null on older transactions where a lender was typed in by hand. */
   lender_member_id: string | null
+  /** "Home info" section — client-visible, sourced from the MLS listing and
+   *  flagged as needing verification (see Dashboard.tsx). Text, not numeric:
+   *  HOA/tax are usually written as "$250/mo" or "$4,200/yr est." */
+  listing_url: string | null
+  hoa_fee: string | null
+  property_tax: string | null
+  school_district: string | null
+  county: string | null
 }
 
 /** A dated entry on a transaction's message board — one log per side, never
@@ -232,7 +240,11 @@ export interface LeadAppointment {
   lead_id: string
   scheduled_at: string | null
   address_line: string
+  url: string | null
+  photo_url: string | null
   note: string | null
+  /** Whether the showing actually happened — drives "move to Homes shown". */
+  completed: boolean
   sort_order: number
 }
 

@@ -63,6 +63,9 @@ export interface DashboardHandlers {
   onChangeRealtor?: (memberId: string | null) => void
   onPickLender?: (memberId: string) => void
   onAddNote?: (side: Side, body: string) => void
+  /** Best-effort auto-fill of HOA/tax/school district/county from a pasted
+   *  listing link. Lives on the parent (needs Supabase access), not here. */
+  onFetchListingPreview?: (url: string) => void
   onPickSavedContact?: (contactId: string, savedId: string) => void
   onSaveContact?: (contact: Contact) => void
   onUploadContactPhoto?: (contactId: string, file: File) => void
@@ -161,6 +164,10 @@ export default function Dashboard({
             </div>
           )}
           {showRealEstateCol && (
+            <HomeInfoSection tx={tx} editable={editable} onPatch={h.onPatchTransaction}
+                             onFetchListingPreview={h.onFetchListingPreview} />
+          )}
+          {showRealEstateCol && (
             <NotesBoard title="Real Estate Updates" side="real_estate" notes={notes}
                         editable={editable} onAdd={h.onAddNote} />
           )}
@@ -218,6 +225,84 @@ function Disclaimers({ brands }: { brands: Partial<Record<BrandKind, Brand>> }) 
         </div>
       ))}
     </footer>
+  )
+}
+
+/**
+ * Listing link + HOA/tax/school district/county. Pasting the link tries to
+ * fill the rest in automatically (see fetch-link-preview) — best-effort,
+ * since this data usually isn't in a simple meta tag the way a photo is.
+ * Whatever doesn't come back gets typed in by hand, same as everything
+ * else on this page.
+ */
+function HomeInfoSection({ tx, editable, onPatch, onFetchListingPreview }: {
+  tx: Transaction; editable: boolean
+  onPatch?: (v: Partial<Transaction>) => void
+  onFetchListingPreview?: (url: string) => void
+}) {
+  const hasAnyFact = tx.hoa_fee || tx.property_tax || tx.school_district || tx.county || tx.listing_url
+  if (!editable && !hasAnyFact) return null
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', background: 'var(--panel-2)', border: '1px solid var(--line)',
+    borderRadius: 6, padding: '8px 10px', font: 'inherit', color: 'inherit',
+  }
+  const labelStyle: React.CSSProperties = {
+    fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-faint, #8a8578)',
+    display: 'block', marginBottom: 4,
+  }
+
+  return (
+    <div className="card" style={{ padding: 16 }}>
+      <h3 className="eyebrow">Home Info</h3>
+      {editable ? (
+        <div style={{ display: 'grid', gap: 10, marginTop: 8 }}>
+          <div>
+            <label style={labelStyle}>Listing link</label>
+            <input style={inputStyle} value={tx.listing_url ?? ''} placeholder="Paste the MLS/Zillow listing link"
+                   onChange={(e) => onPatch?.({ listing_url: e.target.value })}
+                   onBlur={(e) => { if (e.target.value) onFetchListingPreview?.(e.target.value) }} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={labelStyle}>HOA</label>
+              <input style={inputStyle} value={tx.hoa_fee ?? ''} placeholder="e.g. $250/mo"
+                     onChange={(e) => onPatch?.({ hoa_fee: e.target.value })} />
+            </div>
+            <div>
+              <label style={labelStyle}>Property tax</label>
+              <input style={inputStyle} value={tx.property_tax ?? ''} placeholder="e.g. $4,200/yr"
+                     onChange={(e) => onPatch?.({ property_tax: e.target.value })} />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={labelStyle}>School district</label>
+              <input style={inputStyle} value={tx.school_district ?? ''}
+                     onChange={(e) => onPatch?.({ school_district: e.target.value })} />
+            </div>
+            <div>
+              <label style={labelStyle}>County</label>
+              <input style={inputStyle} value={tx.county ?? ''}
+                     onChange={(e) => onPatch?.({ county: e.target.value })} />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 6, marginTop: 8, fontSize: 14 }}>
+          {tx.hoa_fee && <div><strong>HOA:</strong> {tx.hoa_fee}</div>}
+          {tx.property_tax && <div><strong>Property tax:</strong> {tx.property_tax}</div>}
+          {tx.school_district && <div><strong>School district:</strong> {tx.school_district}</div>}
+          {tx.county && <div><strong>County:</strong> {tx.county}</div>}
+          {tx.listing_url && (
+            <div><a href={tx.listing_url} target="_blank" rel="noreferrer">View original listing</a></div>
+          )}
+        </div>
+      )}
+      <p className="muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
+        This information was provided by the MLS listing and needs to be verified for accuracy.
+      </p>
+    </div>
   )
 }
 

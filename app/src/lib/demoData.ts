@@ -153,6 +153,11 @@ export const DEMO_PAYLOAD: SharedPayload = {
     realtor_title: 'realtor',
     lender_title: 'loan_officer',
     lender_member_id: 'tm-jane',
+    listing_url: null,
+    hoa_fee: null,
+    property_tax: null,
+    school_district: null,
+    county: null,
     lender: {
       name: 'Jane Mitchell',
       company: 'Alpine Bank',

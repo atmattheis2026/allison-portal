@@ -1,7 +1,9 @@
-// Called when Allison (or an agent) pastes a listing URL into "Homes shown"
-// or "Homes you may like" and the photo field is still empty. Fetches the
-// page and pulls its Open Graph image — the same preview image a listing
-// site already shows when its link is pasted into iMessage or Facebook.
+// Called when Allison (or an agent) pastes a listing URL into "Homes shown",
+// "Homes you may like", or an Appointment, and the photo/address fields are
+// still empty. Fetches the page and pulls its Open Graph image and title —
+// the same preview a listing site already shows when its link is pasted
+// into iMessage or Facebook. The title stands in for typing the address by
+// hand (it's usually something like "123 Main St - Zillow").
 //
 // Not every site cooperates: some (Zillow especially) block automated
 // requests entirely. That's expected and not an error worth surfacing loudly
@@ -37,6 +39,43 @@ function extractImage(html: string): string | null {
     return html.match(re2)?.[1] ?? null
   }
   return metaTag('og:image') || metaTag('twitter:image')
+}
+
+function extractTitle(html: string): string | null {
+  const og = html.match(/<meta[^>]+(?:property|name)=["']og:title["'][^>]+content=["']([^"']+)["']/i)
+    ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']og:title["']/i)
+  if (og) return og[1]
+  const titleTag = html.match(/<title>([^<]+)<\/title>/i)
+  return titleTag ? titleTag[1].trim() : null
+}
+
+/**
+ * Best-effort only — HOA/tax/school district/county aren't standard meta
+ * tags like og:image, so this just greps the raw page text for common
+ * phrasing. Works on sites that render this info server-side into the HTML;
+ * comes back empty on anything that loads it in via client-side JS after
+ * the page loads (which a plain fetch() never sees), Zillow chief among them.
+ * Whatever comes back empty, the agent fills in by hand — this is a
+ * head start, not a guarantee.
+ */
+function extractHomeFacts(html: string): {
+  hoa_fee: string | null; property_tax: string | null
+  school_district: string | null; county: string | null
+} {
+  const text = html.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ')
+  const money = String.raw`\$[\d,]+(?:\.\d+)?(?:\s*\/\s*(?:mo|month|yr|year))?`
+
+  const hoa = text.match(new RegExp(`HOA[^$]{0,25}(${money})`, 'i'))
+  const tax = text.match(new RegExp(`Property\\s*Tax(?:es)?[^$]{0,25}(${money})`, 'i'))
+  const school = text.match(/School\s*District[:\s]+([A-Za-z0-9.' -]{3,60}?)(?:[.,]|\s{2}|$)/i)
+  const county = text.match(/([A-Z][a-zA-Z]+)\s+County\b/)
+
+  return {
+    hoa_fee: hoa?.[1] ?? null,
+    property_tax: tax?.[1] ?? null,
+    school_district: school?.[1]?.trim() ?? null,
+    county: county ? `${county[1]} County` : null,
+  }
 }
 
 Deno.serve(async (req) => {
@@ -79,10 +118,15 @@ Deno.serve(async (req) => {
 
     const html = await res.text()
     const photoUrl = extractImage(html)
-    return new Response(JSON.stringify({ photo_url: photoUrl }), { status: 200, headers: corsHeaders })
+    const title = extractTitle(html)
+    const facts = extractHomeFacts(html)
+    return new Response(JSON.stringify({ photo_url: photoUrl, title, ...facts }), { status: 200, headers: corsHeaders })
   } catch (e) {
     // Timeouts, blocked requests, malformed URLs — all non-fatal for the
     // caller, which just falls back to manual entry.
-    return new Response(JSON.stringify({ photo_url: null, reason: String(e) }), { status: 200, headers: corsHeaders })
+    return new Response(JSON.stringify({
+      photo_url: null, title: null, hoa_fee: null, property_tax: null,
+      school_district: null, county: null, reason: String(e),
+    }), { status: 200, headers: corsHeaders })
   }
 })

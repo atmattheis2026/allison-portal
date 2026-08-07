@@ -71,11 +71,15 @@ export default function AdminLead() {
 
   // Fires when a listing URL field loses focus and there's no photo yet.
   // Best-effort — plenty of sites block this, and that's fine, it just means
-  // the photo field stays empty for manual paste like before this existed.
-  async function tryAutoPhoto(url: string, onFound: (photoUrl: string) => void) {
+  // the photo and address fields stay empty for manual entry like before
+  // this existed. `title` stands in for a typed address on Appointments,
+  // where the link is meant to replace typing one at all.
+  async function tryAutoPreview(url: string, onFound: (v: { photo_url?: string; title?: string }) => void) {
     if (!supabase || !url.trim()) return
     const { data } = await supabase.functions.invoke('fetch-link-preview', { body: { url } })
-    if (data?.photo_url) onFound(data.photo_url as string)
+    if (data?.photo_url || data?.title) {
+      onFound({ photo_url: data.photo_url ?? undefined, title: data.title ?? undefined })
+    }
   }
 
   function copyLink() {
@@ -85,11 +89,13 @@ export default function AdminLead() {
     setTimeout(() => setCopied(false), 1800)
   }
 
-  async function convert() {
+  async function convert(homeId?: string) {
     if (!id || !supabase || converting) return
     if (!confirm('Convert this buyer to a full transaction? Use this once they’re under contract.')) return
     setConverting(true)
-    const { data: txId, error } = await supabase.rpc('convert_lead_to_transaction', { p_lead_id: id })
+    const { data: txId, error } = await supabase.rpc('convert_lead_to_transaction', {
+      p_lead_id: id, p_home_id: homeId ?? null,
+    })
     setConverting(false)
     if (error || !txId) { alert(error?.message ?? 'Could not convert this lead.'); return }
     nav(`/admin/t/${txId}`)
@@ -110,6 +116,20 @@ export default function AdminLead() {
   async function removeAppointment(aptId: string) {
     setAppointments((cur) => cur.filter((a) => a.id !== aptId))
     if (supabase) await supabase.from('lead_appointments').delete().eq('id', aptId)
+  }
+  // Marking a showing complete copies it straight into Homes shown — the
+  // appointment itself stays put (so the schedule history is intact), this
+  // just stops her from retyping the same address/link/photo a second time.
+  async function completeAppointment(apt: LeadAppointment) {
+    if (!id || !supabase) return
+    await patchAppointment(apt.id, { completed: true })
+    const { data } = await supabase.from('lead_homes')
+      .insert({
+        lead_id: id, address_line: apt.address_line, url: apt.url,
+        photo_url: apt.photo_url, note: apt.note, sort_order: homes.length,
+      })
+      .select('*').single()
+    if (data) setHomes((cur) => [...cur, data as LeadHome])
   }
 
   // ---- homes ----
@@ -144,6 +164,21 @@ export default function AdminLead() {
   async function removeMaybeHome(mhId: string) {
     setMaybeHomes((cur) => cur.filter((h) => h.id !== mhId))
     if (supabase) await supabase.from('lead_maybe_homes').delete().eq('id', mhId)
+  }
+  // Moves a candidate into Homes shown — it's no longer just a maybe once
+  // they've actually seen it, so this removes it from here rather than
+  // leaving a copy behind in both lists.
+  async function promoteMaybeHome(h: LeadMaybeHome) {
+    if (!id || !supabase) return
+    const { data } = await supabase.from('lead_homes')
+      .insert({
+        lead_id: id, address_line: h.address_line, url: h.url,
+        photo_url: h.photo_url, note: h.note, private_note: h.private_note, sort_order: homes.length,
+      })
+      .select('*').single()
+    if (data) setHomes((cur) => [...cur, data as LeadHome])
+    setMaybeHomes((cur) => cur.filter((x) => x.id !== h.id))
+    await supabase.from('lead_maybe_homes').delete().eq('id', h.id)
   }
 
   // ---- priorities ----
@@ -223,7 +258,7 @@ export default function AdminLead() {
           {saveFlash && <span className="muted" style={{ fontSize: 12.5 }}>Saved</span>}
           <Link className="btn" to="/admin/leads">← Active Buyers</Link>
           <button className="btn" onClick={copyLink}>{copied ? 'Copied' : 'Copy client link'}</button>
-          <button className="btn primary" onClick={convert} disabled={converting}>
+          <button className="btn primary" onClick={() => convert()} disabled={converting}>
             {converting ? 'Converting…' : 'Convert to transaction'}
           </button>
         </nav>
@@ -449,6 +484,71 @@ export default function AdminLead() {
         </div>
 
         <div className="card setcard">
+          <h2>Wants &amp; needs</h2>
+          <p className="sethelp">In order of importance — top of the list matters most.</p>
+          {priorities.map((p, i) => (
+            <div className="tmplrow" key={p.id}>
+              <span className="muted" style={{ flex: 'none', width: 18 }}>{i + 1}.</span>
+              <input type="text" value={p.text} placeholder="e.g. Under $400k, 3 bedrooms, good schools"
+                     onChange={(e) => patchPriority(p.id, e.target.value)} />
+              <button type="button" className="del" onClick={() => removePriority(p.id)}>✕</button>
+            </div>
+          ))}
+          <div className="savebar"><button className="btn" onClick={addPriority}>+ Add</button></div>
+        </div>
+        </div>
+
+        <div className="leadcol">
+        <div className="card setcard">
+          <h2>Appointments</h2>
+          <p className="sethelp">Showings and other times you're meeting up.</p>
+          {appointments.map((a) => (
+            <div key={a.id} style={{
+              background: 'var(--panel-2)', border: '1px solid var(--line)',
+              borderRadius: 'var(--r-md)', padding: '12px 14px', marginBottom: 10,
+            }}>
+              <div className="tmplrow" style={{ padding: 0 }}>
+                <input type="datetime-local" value={toLocalInput(a.scheduled_at)}
+                       onChange={(e) => patchAppointment(a.id, {
+                         scheduled_at: e.target.value ? new Date(e.target.value).toISOString() : null,
+                       })}
+                       style={{ flex: 'none', width: 190 }} />
+                <button type="button" className="del" onClick={() => removeAppointment(a.id)}>✕</button>
+              </div>
+              <input type="text" value={a.url ?? ''} placeholder="Listing link (fills in the address below)"
+                     style={{ marginTop: 6, width: '100%' }}
+                     onChange={(e) => patchAppointment(a.id, { url: e.target.value })}
+                     onBlur={(e) => {
+                       if (e.target.value) {
+                         tryAutoPreview(e.target.value, ({ photo_url, title }) => {
+                           const values: Partial<LeadAppointment> = {}
+                           if (photo_url && !a.photo_url) values.photo_url = photo_url
+                           if (title && !a.address_line) values.address_line = title
+                           if (Object.keys(values).length) patchAppointment(a.id, values)
+                         })
+                       }
+                     }} />
+              <input type="text" value={a.address_line} placeholder="Address (fills in automatically from the link)"
+                     style={{ marginTop: 6, width: '100%' }}
+                     onChange={(e) => patchAppointment(a.id, { address_line: e.target.value })} />
+              {a.photo_url && (
+                <img src={a.photo_url} alt="" style={{
+                  width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 6, marginTop: 6,
+                }} />
+              )}
+              <input type="text" value={a.note ?? ''} placeholder="Note" style={{ marginTop: 6, width: '100%' }}
+                     onChange={(e) => patchAppointment(a.id, { note: e.target.value })} />
+              <div className="checkline" style={{ marginTop: 8, marginBottom: 0 }}>
+                <input type="checkbox" checked={a.completed}
+                       onChange={(e) => e.target.checked ? completeAppointment(a) : patchAppointment(a.id, { completed: false })} />
+                <span className="cl">Showing happened — move it to Homes shown</span>
+              </div>
+            </div>
+          ))}
+          <div className="savebar"><button className="btn" onClick={addAppointment}>+ Add appointment</button></div>
+        </div>
+
+        <div className="card setcard">
           <h2>Homes you may like</h2>
           <p className="sethelp">Candidates you're still deciding on — visible to the client, same as Homes shown.</p>
           {maybeHomes.map((h) => (
@@ -463,9 +563,15 @@ export default function AdminLead() {
                        onChange={(e) => patchMaybeHome(h.id, { url: e.target.value })}
                        onBlur={(e) => {
                          if (e.target.value && !h.photo_url) {
-                           tryAutoPhoto(e.target.value, (photo_url) => patchMaybeHome(h.id, { photo_url }))
+                           tryAutoPreview(e.target.value, ({ photo_url }) => {
+                             if (photo_url) patchMaybeHome(h.id, { photo_url })
+                           })
                          }
                        }} />
+                <button type="button" className="btn" style={{ flex: 'none' }}
+                        onClick={() => promoteMaybeHome(h)}>
+                  Mark as shown →
+                </button>
                 <button type="button" className="del" onClick={() => removeMaybeHome(h.id)}>✕</button>
               </div>
               <input type="text" value={h.photo_url ?? ''} placeholder="Photo URL (paste from the listing)"
@@ -494,42 +600,6 @@ export default function AdminLead() {
         </div>
 
         <div className="card setcard">
-          <h2>Wants &amp; needs</h2>
-          <p className="sethelp">In order of importance — top of the list matters most.</p>
-          {priorities.map((p, i) => (
-            <div className="tmplrow" key={p.id}>
-              <span className="muted" style={{ flex: 'none', width: 18 }}>{i + 1}.</span>
-              <input type="text" value={p.text} placeholder="e.g. Under $400k, 3 bedrooms, good schools"
-                     onChange={(e) => patchPriority(p.id, e.target.value)} />
-              <button type="button" className="del" onClick={() => removePriority(p.id)}>✕</button>
-            </div>
-          ))}
-          <div className="savebar"><button className="btn" onClick={addPriority}>+ Add</button></div>
-        </div>
-        </div>
-
-        <div className="leadcol">
-        <div className="card setcard">
-          <h2>Appointments</h2>
-          <p className="sethelp">Showings and other times you're meeting up.</p>
-          {appointments.map((a) => (
-            <div className="tmplrow" key={a.id}>
-              <input type="datetime-local" value={toLocalInput(a.scheduled_at)}
-                     onChange={(e) => patchAppointment(a.id, {
-                       scheduled_at: e.target.value ? new Date(e.target.value).toISOString() : null,
-                     })}
-                     style={{ flex: 'none', width: 190 }} />
-              <input type="text" value={a.address_line} placeholder="Address"
-                     onChange={(e) => patchAppointment(a.id, { address_line: e.target.value })} />
-              <input type="text" value={a.note ?? ''} placeholder="Note"
-                     onChange={(e) => patchAppointment(a.id, { note: e.target.value })} />
-              <button type="button" className="del" onClick={() => removeAppointment(a.id)}>✕</button>
-            </div>
-          ))}
-          <div className="savebar"><button className="btn" onClick={addAppointment}>+ Add appointment</button></div>
-        </div>
-
-        <div className="card setcard">
           <h2>Homes shown</h2>
           <p className="sethelp">The handful of properties you've actually toured together — visible to the client.</p>
           {homes.map((h) => (
@@ -546,10 +616,18 @@ export default function AdminLead() {
                        onChange={(e) => patchHome(h.id, { url: e.target.value })}
                        onBlur={(e) => {
                          if (e.target.value && !h.photo_url) {
-                           tryAutoPhoto(e.target.value, (photo_url) => patchHome(h.id, { photo_url }))
+                           tryAutoPreview(e.target.value, ({ photo_url }) => {
+                             if (photo_url) patchHome(h.id, { photo_url })
+                           })
                          }
                        }} />
                 <button type="button" className="del" onClick={() => removeHome(h.id)}>✕</button>
+              </div>
+              <div className="savebar" style={{ padding: '8px 0 0' }}>
+                <button type="button" className="btn primary" disabled={converting}
+                        onClick={() => convert(h.id)}>
+                  Went under contract →
+                </button>
               </div>
               <input type="text" value={h.photo_url ?? ''} placeholder="Photo URL (paste from the listing)"
                      style={{ marginTop: 6, width: '100%' }}

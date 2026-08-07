@@ -111,9 +111,14 @@ export default function ClientLeadView() {
             <div className="notelist">
               {appointments.map((a) => (
                 <div className="note" key={a.id}>
+                  {a.photo_url && (
+                    <img src={a.photo_url} alt="" style={{
+                      width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 8, marginBottom: 8,
+                    }} />
+                  )}
                   <div className="notemeta"><span className="noteauthor">{fmtWhen(a.scheduled_at)}</span></div>
                   <p className="notebody">
-                    {a.address_line}
+                    {a.url ? <a href={a.url} target="_blank" rel="noreferrer">{a.address_line}</a> : a.address_line}
                     {a.note ? ` — ${a.note}` : ''}
                   </p>
                 </div>
