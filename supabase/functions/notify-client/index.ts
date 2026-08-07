@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: `${brandName} <onboarding@resend.dev>`,
+        from: `${brandName} <updates@epicclosinghub.com>`,
         to: [contact.email],
         subject: `Update on ${tx.address_line}`,
         html: renderEmail({
