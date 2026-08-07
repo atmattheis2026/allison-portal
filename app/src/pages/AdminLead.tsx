@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { Lead, LeadAppointment, LeadHome, LeadMaybeHome, LeadPriority, LeadPersonalNote, LeadReferral, LeadNote, TeamMember } from '../lib/types'
-import { leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL, REFERRAL_SOURCES, BUDGET_RANGES } from '../lib/types'
+import {
+  leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL, REFERRAL_SOURCES, BUDGET_RANGES,
+  parseAddressFromListingUrl,
+} from '../lib/types'
 import './Admin.css'
 
 /** datetime-local wants "YYYY-MM-DDTHH:mm" in local time, not an ISO string. */
@@ -200,6 +203,22 @@ export default function AdminLead() {
     setMaybeHomes((cur) => cur.filter((x) => x.id !== h.id))
     await supabase.from('lead_maybe_homes').delete().eq('id', h.id)
   }
+  // Client asked to see this one (via the "Request a showing" button on
+  // their own page) — this turns that into a real appointment and clears
+  // the request badge. Leaves the candidate in this list too, in case it's
+  // still worth tracking as a maybe.
+  async function scheduleRequestedShowing(h: LeadMaybeHome) {
+    if (!id || !supabase) return
+    const { data } = await supabase.from('lead_appointments')
+      .insert({
+        lead_id: id, address_line: h.address_line, url: h.url,
+        photo_url: h.photo_url, note: h.note, sort_order: appointments.length,
+      })
+      .select('*').single()
+    if (data) setAppointments((cur) => [...cur, data as LeadAppointment])
+    setMaybeHomes((cur) => cur.map((x) => (x.id === h.id ? { ...x, showing_requested: false } : x)))
+    await supabase.from('lead_maybe_homes').update({ showing_requested: false }).eq('id', h.id)
+  }
 
   // ---- priorities ----
   async function addPriority() {
@@ -319,8 +338,35 @@ export default function AdminLead() {
           <div className="field2">
             <div className="field">
               <label>Name</label>
-              <input value={lead.full_name} onChange={(e) => patchLead({ full_name: e.target.value })} />
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <Thumb src={lead.client_photo_url} />
+                <input style={{ flex: 1 }} value={lead.full_name}
+                       onChange={(e) => patchLead({ full_name: e.target.value })} />
+              </div>
+              <label className="cl" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                <input type="checkbox" checked={lead.primary_contact === '1'}
+                       onChange={() => patchLead({ primary_contact: '1' })} />
+                Primary contact
+              </label>
             </div>
+            <div className="field">
+              <label>Second name (optional)</label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <Thumb src={lead.client_photo_url_2} />
+                <input style={{ flex: 1 }} value={lead.full_name_2 ?? ''} placeholder="e.g. spouse or co-buyer"
+                       onChange={(e) => patchLead({ full_name_2: e.target.value || null })} />
+              </div>
+              <label className="cl" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                <input type="checkbox" checked={lead.primary_contact === '2'}
+                       onChange={() => patchLead({ primary_contact: '2' })} />
+                Primary contact
+              </label>
+            </div>
+          </div>
+          <p className="sethelp" style={{ margin: '4px 0 0' }}>
+            Photos are uploaded by the client themselves from their own page.
+          </p>
+          <div className="field2">
             <div className="field">
               <label>Assigned agent</label>
               <select value={lead.realtor_member_id ?? ''}
@@ -545,10 +591,12 @@ export default function AdminLead() {
                     <button type="button" className="btn" style={{ flex: 'none' }}
                             disabled={!a.url || fetchingId === a.id}
                             onClick={async () => {
+                              const parsed = parseAddressFromListingUrl(a.url ?? '')
                               const preview = await fetchListingPreview(a.id, a.url ?? '')
                               const values: Partial<LeadAppointment> = {}
                               if (preview?.photo_url) values.photo_url = preview.photo_url
-                              if (preview?.title) values.address_line = preview.title
+                              const guess = parsed ? `${parsed.street}, ${parsed.cityStateZip}` : preview?.title
+                              if (guess && confirm(`Use this address?\n\n${guess}`)) values.address_line = guess
                               if (Object.keys(values).length) patchAppointment(a.id, values)
                               else alert('Couldn’t find a photo or address from that link — enter them below.')
                             }}>
@@ -578,6 +626,19 @@ export default function AdminLead() {
               background: 'var(--panel-2)', border: '1px solid var(--line)',
               borderRadius: 'var(--r-md)', padding: '12px 14px', marginBottom: 10,
             }}>
+              {h.showing_requested && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                  background: 'var(--gold-soft, #3a2f1a)', border: '1px solid var(--gold, #C9A44C)',
+                  borderRadius: 'var(--r-sm)', padding: '8px 10px', marginBottom: 10, fontSize: 13,
+                }}>
+                  <span>🔔 Client requested a showing</span>
+                  <button type="button" className="btn primary" style={{ flex: 'none' }}
+                          onClick={() => scheduleRequestedShowing(h)}>
+                    Move to Appointments →
+                  </button>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 10 }}>
                 <Thumb src={h.photo_url} />
                 <div style={{ flex: 1, display: 'grid', gap: 6 }}>
@@ -589,10 +650,14 @@ export default function AdminLead() {
                     <button type="button" className="btn" style={{ flex: 'none' }}
                             disabled={!h.url || fetchingId === h.id}
                             onClick={async () => {
+                              const parsed = parseAddressFromListingUrl(h.url ?? '')
                               const preview = await fetchListingPreview(h.id, h.url ?? '')
                               const values: Partial<LeadMaybeHome> = {}
                               if (preview?.photo_url) values.photo_url = preview.photo_url
-                              if (preview?.title && !h.address_line) values.address_line = preview.title
+                              if (!h.address_line) {
+                                const guess = parsed ? `${parsed.street}, ${parsed.cityStateZip}` : preview?.title
+                                if (guess && confirm(`Use this address?\n\n${guess}`)) values.address_line = guess
+                              }
                               if (Object.keys(values).length) patchMaybeHome(h.id, values)
                               else alert('Couldn’t find a photo or address from that link — enter them below.')
                             }}>

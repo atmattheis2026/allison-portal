@@ -18,6 +18,63 @@ function fmtWhen(iso: string | null): string {
   })
 }
 
+/** Downscales in the browser before it ever leaves the device — a phone
+ *  photo straight off the camera is easily 5-10MB, and none of that detail
+ *  matters for a small avatar. Keeps the upload fast and well under any
+ *  request-size limit on the function that receives it. */
+async function resizeImageToBase64(file: File, maxDim = 480, quality = 0.85): Promise<string> {
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const el = new Image()
+    el.onload = () => resolve(el)
+    el.onerror = reject
+    el.src = URL.createObjectURL(file)
+  })
+  const scale = Math.min(1, maxDim / Math.max(img.width, img.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(img.width * scale)
+  canvas.height = Math.round(img.height * scale)
+  canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+  return canvas.toDataURL('image/jpeg', quality).split(',')[1]
+}
+
+function ClientPhotoUpload({ token, slot, name, initialUrl }: {
+  token: string; slot: 1 | 2; name: string; initialUrl: string | null
+}) {
+  const [url, setUrl] = useState(initialUrl)
+  const [busy, setBusy] = useState(false)
+
+  async function handleFile(file: File) {
+    if (!supabase) return
+    setBusy(true)
+    const base64 = await resizeImageToBase64(file)
+    const { data, error } = await supabase.functions.invoke('upload-client-photo', {
+      body: { token, slot, file_base64: base64, content_type: 'image/jpeg' },
+    })
+    setBusy(false)
+    if (!error && data?.url) setUrl(data.url)
+  }
+
+  return (
+    <div className="person">
+      <label style={{ cursor: 'pointer' }}>
+        <input type="file" accept="image/*" style={{ display: 'none' }}
+               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+        <Avatar src={url} name={name} />
+      </label>
+      <div className="who">
+        <div className="name">{name}</div>
+        <label style={{ cursor: 'pointer' }}>
+          <input type="file" accept="image/*" style={{ display: 'none' }}
+                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+          <span className="muted" style={{ fontSize: 12, textDecoration: 'underline' }}>
+            {busy ? 'Uploading…' : url ? 'Change photo' : 'Add your photo'}
+          </span>
+        </label>
+      </div>
+    </div>
+  )
+}
+
 /**
  * The read-only page Allison (or her agents) text to an active buyer:
  * /l/<share token>. Sibling to ClientView.tsx, but for someone who hasn't
@@ -93,6 +150,15 @@ export default function ClientLeadView() {
         display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
         gap: 16, padding: 16, maxWidth: 900, margin: '0 auto', alignItems: 'start',
       }}>
+        <div className="card" style={{ padding: 16 }}>
+          <div className="team">
+            <ClientPhotoUpload token={token ?? ''} slot={1} name={lead.full_name} initialUrl={lead.client_photo_url} />
+            {lead.full_name_2 && (
+              <ClientPhotoUpload token={token ?? ''} slot={2} name={lead.full_name_2} initialUrl={lead.client_photo_url_2} />
+            )}
+          </div>
+        </div>
+
         {realtor && (
           <div className="card" style={{ padding: 16 }}>
             <div className="team">
@@ -145,6 +211,7 @@ export default function ClientLeadView() {
                     {h.url ? <a href={h.url} target="_blank" rel="noreferrer">{h.address_line}</a> : h.address_line}
                   </p>
                   {h.note && <p className="notebody muted" style={{ fontSize: 12.5 }}>{h.note}</p>}
+                  <RequestShowingButton token={token ?? ''} homeId={h.id} initiallyRequested={h.showing_requested} />
                 </div>
               ))}
             </div>
@@ -205,6 +272,34 @@ export default function ClientLeadView() {
         <ReferralForm token={token ?? ''} />
       </div>
     </div>
+  )
+}
+
+function RequestShowingButton({ token, homeId, initiallyRequested }: {
+  token: string; homeId: string; initiallyRequested: boolean
+}) {
+  const [requested, setRequested] = useState(initiallyRequested)
+  const [busy, setBusy] = useState(false)
+
+  if (requested) {
+    return <p className="notebody muted" style={{ fontSize: 12.5, marginTop: 6 }}>Showing requested — we'll be in touch.</p>
+  }
+
+  return (
+    <button
+      type="button" className="btn" style={{ marginTop: 8 }} disabled={busy || !supabase}
+      onClick={async () => {
+        if (!supabase) return
+        setBusy(true)
+        const { error } = await supabase.functions.invoke('request-showing', {
+          body: { token, home_id: homeId },
+        })
+        setBusy(false)
+        if (!error) setRequested(true)
+      }}
+    >
+      {busy ? 'Sending…' : 'Request a showing'}
+    </button>
   )
 }
 

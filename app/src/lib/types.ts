@@ -205,8 +205,15 @@ export interface Lead {
   team_id: string
   share_token: string
   full_name: string
+  /** Second buyer's name — a couple is the common case. Optional. */
+  full_name_2: string | null
   phone: string | null
   email: string | null
+  /** Uploaded by the client themselves, from their own page. One per name slot. */
+  client_photo_url: string | null
+  client_photo_url_2: string | null
+  /** Which of the two names is the main point of contact. Internal only. */
+  primary_contact: '1' | '2'
   realtor_member_id: string | null
   /** Anchored to created_at, not "today" — see migration 020. Recomputed
    *  live on the frontend so the color-coded urgency dot ages on its own. */
@@ -274,6 +281,9 @@ export interface LeadMaybeHome {
   note: string | null
   /** Internal only, never part of get_shared_lead(). */
   private_note: string | null
+  /** Set by the client themselves, from their own page — see request-showing. */
+  showing_requested: boolean
+  showing_requested_at: string | null
   sort_order: number
 }
 
@@ -344,9 +354,58 @@ export function leadTimeframeBand(lead: Pick<Lead, 'created_at' | 'timeframe_buc
   return 'orange'
 }
 
+/**
+ * Real estate listing sites (eXp's agent site template among them) commonly
+ * bake the address straight into the URL slug, e.g.
+ * ".../property/24-A4680585-3990-higel-avenue-sarasota-FL-34242" — street
+ * number, street name, city, state, zip, all right there. Parsing that
+ * needs no network request at all, which matters specifically because these
+ * same sites tend to sit behind Cloudflare's bot challenge — a plain
+ * fetch() never gets past that to read the page itself, but the URL is
+ * already in hand before any fetch would even happen.
+ *
+ * Heuristic: state is the second-to-last hyphen segment (2 letters), zip is
+ * the last (5 digits); an MLS ID segment (a letter followed by 4+ digits,
+ * e.g. "A4680585") marks where the real address starts, skipping whatever
+ * listing-ID segments came before it. The last remaining word is taken as
+ * the city — right for the common single-word-city case, wrong for a
+ * multi-word city (rare enough not to special-case here).
+ */
+export function parseAddressFromListingUrl(url: string): { street: string; cityStateZip: string } | null {
+  let path: string
+  try { path = new URL(url).pathname } catch { return null }
+
+  const slug = path.split('/').filter(Boolean).pop()
+  if (!slug) return null
+
+  const parts = slug.split('-').filter(Boolean)
+  if (parts.length < 4) return null
+
+  const zip = parts[parts.length - 1]
+  const state = parts[parts.length - 2]
+  if (!/^\d{5}$/.test(zip) || !/^[A-Za-z]{2}$/.test(state)) return null
+
+  const rest = parts.slice(0, -2)
+  const mlsIdx = rest.findIndex((p) => /^[A-Za-z]\d{4,}$/.test(p))
+  const addressParts = mlsIdx >= 0 ? rest.slice(mlsIdx + 1) : rest
+  if (addressParts.length < 2) return null
+
+  const city = addressParts[addressParts.length - 1]
+  const streetParts = addressParts.slice(0, -1)
+  const titleCase = (w: string) => (/^\d+$/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1))
+
+  return {
+    street: streetParts.map(titleCase).join(' '),
+    cityStateZip: `${titleCase(city)}, ${state.toUpperCase()} ${zip}`,
+  }
+}
+
 /** Exactly what get_shared_lead() returns. */
 export interface SharedLeadPayload {
-  lead: { id: string; full_name: string }
+  lead: {
+    id: string; full_name: string; full_name_2: string | null
+    client_photo_url: string | null; client_photo_url_2: string | null
+  }
   realtor: Person | null
   brand: Brand | null
   appointments: LeadAppointment[]
