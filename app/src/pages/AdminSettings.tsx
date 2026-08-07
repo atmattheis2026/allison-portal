@@ -532,6 +532,13 @@ function Team() {
               style={{ minWidth: 130, maxWidth: 150, flex: 'none' }}
               onChange={(e) => update(m.id, { license_number: e.target.value || null })}
             />
+            <button
+              className={`datetoggle${m.sees_all_transactions ? ' on' : ''}`}
+              title="Sees every transaction on the team, not just their own"
+              onClick={() => update(m.id, { sees_all_transactions: !m.sees_all_transactions })}
+            >
+              {m.sees_all_transactions ? 'Sees every transaction' : 'Sees only assigned'}
+            </button>
             <button className="del" onClick={() => remove(m.id)} title="Remove from team">×</button>
             <div style={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4, marginLeft: 42 }}>
               <input
@@ -560,14 +567,6 @@ function Team() {
                   </button>
                 )
               })}
-              <button
-                className={`datetoggle${m.sees_all_transactions ? ' on' : ''}`}
-                title="Sees every transaction on the team, not just their own"
-                onClick={() => update(m.id, { sees_all_transactions: !m.sees_all_transactions })}
-                style={{ marginLeft: 'auto' }}
-              >
-                {m.sees_all_transactions ? 'Sees every transaction' : 'Sees only assigned'}
-              </button>
             </div>
           </div>
         ))}

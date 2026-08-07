@@ -58,13 +58,16 @@ export interface TeamMember {
   sort_order: number
 }
 
+// Order here is the display order everywhere these are listed as a set (e.g.
+// the role pills in Settings > Team) — grouped so the two agent-side titles
+// sit together, then the two loan-side titles, then the rest.
 export const ROLE_LABEL: Record<TeamRole, string> = {
   realtor: 'Agent',
+  broker_associate: 'Broker associate',
   loan_officer: 'Loan officer',
+  mortgage_broker: 'Mortgage broker',
   admin: 'Office manager',
   transaction_coordinator: 'Transaction coordinator',
-  mortgage_broker: 'Mortgage broker',
-  broker_associate: 'Broker associate',
 }
 
 /**
