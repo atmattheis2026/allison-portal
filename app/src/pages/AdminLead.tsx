@@ -27,6 +27,15 @@ export default function AdminLead() {
   const [copied, setCopied] = useState(false)
   const [converting, setConverting] = useState(false)
   const [noteDraft, setNoteDraft] = useState('')
+  const [saveFlash, setSaveFlash] = useState(false)
+
+  // Every field on this page saves the instant it changes — there's no Save
+  // button to click. This just gives a brief visible confirmation so that's
+  // obvious, rather than changes happening silently in the background.
+  function flashSaved() {
+    setSaveFlash(true)
+    setTimeout(() => setSaveFlash(false), 1200)
+  }
 
   useEffect(() => {
     if (DEMO_MODE || !supabase || !id) return
@@ -51,6 +60,7 @@ export default function AdminLead() {
     setLead((cur) => (cur ? { ...cur, ...values } : cur))
     if (DEMO_MODE || !supabase || !id) return
     await supabase.from('leads').update(values).eq('id', id)
+    flashSaved()
   }
 
   function copyLink() {
@@ -80,6 +90,7 @@ export default function AdminLead() {
   async function patchAppointment(aptId: string, values: Partial<LeadAppointment>) {
     setAppointments((cur) => cur.map((a) => (a.id === aptId ? { ...a, ...values } : a)))
     if (supabase) await supabase.from('lead_appointments').update(values).eq('id', aptId)
+    flashSaved()
   }
   async function removeAppointment(aptId: string) {
     setAppointments((cur) => cur.filter((a) => a.id !== aptId))
@@ -96,6 +107,7 @@ export default function AdminLead() {
   async function patchHome(homeId: string, values: Partial<LeadHome>) {
     setHomes((cur) => cur.map((h) => (h.id === homeId ? { ...h, ...values } : h)))
     if (supabase) await supabase.from('lead_homes').update(values).eq('id', homeId)
+    flashSaved()
   }
   async function removeHome(homeId: string) {
     setHomes((cur) => cur.filter((h) => h.id !== homeId))
@@ -112,6 +124,7 @@ export default function AdminLead() {
   async function patchPriority(pId: string, text: string) {
     setPriorities((cur) => cur.map((p) => (p.id === pId ? { ...p, text } : p)))
     if (supabase) await supabase.from('lead_priorities').update({ text }).eq('id', pId)
+    flashSaved()
   }
   async function removePriority(pId: string) {
     setPriorities((cur) => cur.filter((p) => p.id !== pId))
@@ -128,6 +141,7 @@ export default function AdminLead() {
   async function patchPersonalNote(pnId: string, values: Partial<LeadPersonalNote>) {
     setPersonalNotes((cur) => cur.map((p) => (p.id === pnId ? { ...p, ...values } : p)))
     if (supabase) await supabase.from('lead_personal_notes').update(values).eq('id', pnId)
+    flashSaved()
   }
   async function removePersonalNote(pnId: string) {
     setPersonalNotes((cur) => cur.filter((p) => p.id !== pnId))
@@ -157,6 +171,7 @@ export default function AdminLead() {
           {' / '}{lead.full_name || 'Unnamed buyer'}
         </span>
         <nav className="adminnav">
+          {saveFlash && <span className="muted" style={{ fontSize: 12.5 }}>Saved</span>}
           <button className="btn" onClick={copyLink}>{copied ? 'Copied' : 'Copy client link'}</button>
           <button className="btn primary" onClick={convert} disabled={converting}>
             {converting ? 'Converting…' : 'Convert to transaction'}
