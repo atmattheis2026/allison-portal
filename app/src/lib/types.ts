@@ -278,8 +278,10 @@ const TIMEFRAME_BUCKET_MONTHS: Record<NonNullable<Lead['timeframe_bucket']>, num
 
 export type TimeframeBand = 'green' | 'yellow' | 'orange'
 
+// Brighter/more saturated than the app's usual muted gold palette on
+// purpose — this needs to read clearly as a small dot, not blend in.
 export const TIMEFRAME_BAND_COLOR: Record<TimeframeBand, string> = {
-  green: '#3fae5c', yellow: '#c9a23a', orange: '#c96a2e',
+  green: '#22c55e', yellow: '#facc15', orange: '#f97316',
 }
 export const TIMEFRAME_BAND_LABEL: Record<TimeframeBand, string> = {
   green: 'Ready now / within 3 months',
