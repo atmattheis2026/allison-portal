@@ -533,6 +533,18 @@ function Team() {
               onChange={(e) => update(m.id, { license_number: e.target.value || null })}
             />
             <button className="del" onClick={() => remove(m.id)} title="Remove from team">×</button>
+            <div style={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4, marginLeft: 42 }}>
+              <input
+                type="email" value={m.email ?? ''} placeholder="Email — needed for their invite"
+                style={{ minWidth: 200, flex: 1 }}
+                onChange={(e) => update(m.id, { email: e.target.value || null })}
+              />
+              <input
+                type="text" value={m.phone ?? ''} placeholder="Phone (optional)"
+                style={{ minWidth: 150, maxWidth: 180, flex: 'none' }}
+                onChange={(e) => update(m.id, { phone: e.target.value || null })}
+              />
+            </div>
             <div style={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
               {(Object.keys(ROLE_LABEL) as TeamRole[]).map((r) => {
                 const on = m.roles.includes(r)
