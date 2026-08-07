@@ -176,20 +176,25 @@ export default function ClientLeadView() {
 
         {appointments.length > 0 && (
           <div className="card" style={{ padding: 16 }}>
-            <h3 className="eyebrow">Upcoming appointments</h3>
+            <h3 className="eyebrow">Appointments</h3>
             <div className="notelist">
               {appointments.map((a) => (
-                <div className="note" key={a.id}>
+                <div className="note" key={a.id} style={{ display: 'flex', gap: 12 }}>
                   {a.photo_url && (
                     <img src={a.photo_url} alt="" style={{
-                      width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 8, marginBottom: 8,
+                      width: 88, height: 88, objectFit: 'cover', borderRadius: 8, flex: 'none',
                     }} />
                   )}
-                  <div className="notemeta"><span className="noteauthor">{fmtWhen(a.scheduled_at)}</span></div>
-                  <p className="notebody">
-                    {a.url ? <a href={a.url} target="_blank" rel="noreferrer">{a.address_line}</a> : a.address_line}
-                    {a.note ? ` — ${a.note}` : ''}
-                  </p>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="notemeta"><span className="noteauthor">{fmtWhen(a.scheduled_at)}</span></div>
+                    <p className="notebody">
+                      {a.url ? <a href={a.url} target="_blank" rel="noreferrer">{a.address_line}</a> : a.address_line}
+                      {a.note ? ` — ${a.note}` : ''}
+                    </p>
+                    {a.completed && (
+                      <MakeOfferButton token={token ?? ''} appointmentId={a.id} initiallyRequested={a.offer_requested} />
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -220,7 +225,7 @@ export default function ClientLeadView() {
 
         {homes.length > 0 && (
           <div className="card" style={{ padding: 16 }}>
-            <h3 className="eyebrow">Homes we're looking at</h3>
+            <h3 className="eyebrow">Homes shown</h3>
             <div className="notelist">
               {homes.map((h) => (
                 <div className="note" key={h.id}>
@@ -299,6 +304,34 @@ function RequestShowingButton({ token, homeId, initiallyRequested }: {
       }}
     >
       {busy ? 'Sending…' : 'Request a showing'}
+    </button>
+  )
+}
+
+function MakeOfferButton({ token, appointmentId, initiallyRequested }: {
+  token: string; appointmentId: string; initiallyRequested: boolean
+}) {
+  const [requested, setRequested] = useState(initiallyRequested)
+  const [busy, setBusy] = useState(false)
+
+  if (requested) {
+    return <p className="notebody muted" style={{ fontSize: 12.5, marginTop: 6 }}>We got it — your agent will be in touch!</p>
+  }
+
+  return (
+    <button
+      type="button" className="btn primary" style={{ marginTop: 8 }} disabled={busy || !supabase}
+      onClick={async () => {
+        if (!supabase) return
+        setBusy(true)
+        const { error } = await supabase.functions.invoke('request-offer', {
+          body: { token, appointment_id: appointmentId },
+        })
+        setBusy(false)
+        if (!error) setRequested(true)
+      }}
+    >
+      {busy ? 'Sending…' : "LET'S MAKE AN OFFER!"}
     </button>
   )
 }

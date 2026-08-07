@@ -237,6 +237,7 @@ export interface Lead {
   /** Which of the two names is the main point of contact. Internal only. */
   primary_contact: '1' | '2'
   realtor_member_id: string | null
+  lender_member_id: string | null
   /** Anchored to created_at, not "today" — see migration 020. Recomputed
    *  live on the frontend so the color-coded urgency dot ages on its own. */
   timeframe_bucket: '0-3' | '3-6' | '6+' | null
@@ -275,6 +276,8 @@ export interface LeadAppointment {
   note: string | null
   /** Whether the showing actually happened — drives "move to Homes shown". */
   completed: boolean
+  /** Client clicked "Let's make an offer!" on this appointment. */
+  offer_requested: boolean
   sort_order: number
 }
 

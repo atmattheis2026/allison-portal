@@ -380,15 +380,27 @@ export default function AdminLead() {
           <p className="sethelp" style={{ margin: '4px 0 0' }}>
             Photos are uploaded by the client themselves from their own page.
           </p>
-          <div className="field">
-            <label>Assigned agent</label>
-            <select value={lead.realtor_member_id ?? ''}
-                    onChange={(e) => patchLead({ realtor_member_id: e.target.value || null })}>
-              <option value="">Not assigned yet</option>
-              {roster.map((m) => (
-                <option key={m.id} value={m.id}>{m.full_name}</option>
-              ))}
-            </select>
+          <div className="field2">
+            <div className="field">
+              <label>Assigned agent</label>
+              <select value={lead.realtor_member_id ?? ''}
+                      onChange={(e) => patchLead({ realtor_member_id: e.target.value || null })}>
+                <option value="">Not assigned yet</option>
+                {roster.map((m) => (
+                  <option key={m.id} value={m.id}>{m.full_name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label>Assigned lender</label>
+              <select value={lead.lender_member_id ?? ''}
+                      onChange={(e) => patchLead({ lender_member_id: e.target.value || null })}>
+                <option value="">Not assigned yet</option>
+                {roster.map((m) => (
+                  <option key={m.id} value={m.id}>{m.full_name}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="field2">
             <div className="field">
@@ -608,6 +620,19 @@ export default function AdminLead() {
               background: 'var(--panel-2)', border: '1px solid var(--line)',
               borderRadius: 'var(--r-md)', padding: '12px 14px', marginBottom: 10,
             }}>
+              {a.offer_requested && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                  background: 'var(--gold-soft, #3a2f1a)', border: '1px solid var(--gold, #C9A44C)',
+                  borderRadius: 'var(--r-sm)', padding: '8px 10px', marginBottom: 10, fontSize: 13,
+                }}>
+                  <span>🎉 Client wants to make an offer on this one!</span>
+                  <button type="button" className="btn" style={{ flex: 'none' }}
+                          onClick={() => patchAppointment(a.id, { offer_requested: false })}>
+                    Got it
+                  </button>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 10 }}>
                 <Thumb src={a.photo_url} />
                 <div style={{ flex: 1, display: 'grid', gap: 6 }}>
