@@ -36,6 +36,11 @@ export interface Person {
   headshot_url: string | null
   phone: string | null
   email: string | null
+  /** Personal/business links — eXp site, social, etc. Set once on the team
+   *  member and shown automatically on every client page they appear on. */
+  website_1?: string | null
+  website_2?: string | null
+  website_3?: string | null
 }
 
 /**
@@ -59,6 +64,16 @@ export interface TeamMember {
   /** Set once this person actually signs in — before that, they're just a
    *  roster entry with no login of their own. */
   profile_id: string | null
+  /** Shown automatically under their card when they're cast as the agent on
+   *  a deal — never when they're shown as the lender, even for someone who
+   *  holds both roles. */
+  realtor_website_1: string | null
+  realtor_website_2: string | null
+  realtor_website_3: string | null
+  /** Same idea, for whenever this person is shown as the lender instead. */
+  lender_website_1: string | null
+  lender_website_2: string | null
+  lender_website_3: string | null
 }
 
 // Order here is the display order everywhere these are listed as a set (e.g.
@@ -97,6 +112,11 @@ export interface Lender {
   phone: string | null
   email: string | null
   is_in_house: boolean
+  /** Only populated when is_in_house (sourced from the roster) — a typed-in
+   *  outside lender has no team_member row to pull these from. */
+  website_1?: string | null
+  website_2?: string | null
+  website_3?: string | null
 }
 
 export interface Milestone {

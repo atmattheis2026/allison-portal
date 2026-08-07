@@ -531,6 +531,11 @@ function TeamCards({
             <div className="role">{realtorLabel}</div>
             <div className="name">{realtor.full_name}</div>
             {realtor.license_number && <div className="lic">{realtor.license_number}</div>}
+            {[realtor.website_1, realtor.website_2, realtor.website_3].filter(Boolean).map((w, i) => (
+              <a key={i} href={w!} target="_blank" rel="noreferrer" className="lic" style={{ display: 'block' }}>
+                {w}
+              </a>
+            ))}
           </div>
         </div>
       ))}
@@ -577,6 +582,11 @@ function TeamCards({
             <div className="role">{lenderLabel}</div>
             <div className="name">{lender.name}</div>
             {lender.license && <div className="lic">{lender.license}</div>}
+            {[lender.website_1, lender.website_2, lender.website_3].filter(Boolean).map((w, i) => (
+              <a key={i} href={w!} target="_blank" rel="noreferrer" className="lic" style={{ display: 'block' }}>
+                {w}
+              </a>
+            ))}
           </div>
         </div>
       )}

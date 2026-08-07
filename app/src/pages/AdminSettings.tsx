@@ -374,6 +374,8 @@ function newMember(sort_order: number): TeamMember {
     id: `new-${nextTeamId++}`, full_name: '', roles: [],
     license_number: null, headshot_url: null, phone: null, email: null,
     sees_all_transactions: false, sort_order, profile_id: null,
+    realtor_website_1: null, realtor_website_2: null, realtor_website_3: null,
+    lender_website_1: null, lender_website_2: null, lender_website_3: null,
   }
 }
 
@@ -474,6 +476,10 @@ function Team() {
         team_id: teamId, full_name: m.full_name, roles: m.roles,
         license_number: m.license_number, headshot_url: m.headshot_url,
         phone: m.phone, email: m.email,
+        realtor_website_1: m.realtor_website_1, realtor_website_2: m.realtor_website_2,
+        realtor_website_3: m.realtor_website_3,
+        lender_website_1: m.lender_website_1, lender_website_2: m.lender_website_2,
+        lender_website_3: m.lender_website_3,
         sees_all_transactions: m.sees_all_transactions, sort_order: m.sort_order,
       }
       if (m.id.startsWith('new-')) {
@@ -594,6 +600,40 @@ function Team() {
                 type="text" value={m.phone ?? ''} placeholder="Phone (optional)"
                 style={{ minWidth: 150, maxWidth: 180, flex: 'none' }}
                 onChange={(e) => update(m.id, { phone: e.target.value || null })}
+              />
+            </div>
+            <div style={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4, marginLeft: 42 }}>
+              <input
+                type="text" value={m.realtor_website_1 ?? ''} placeholder="Real estate website 1 (shows on their agent card)"
+                style={{ minWidth: 200, flex: 1 }}
+                onChange={(e) => update(m.id, { realtor_website_1: e.target.value || null })}
+              />
+              <input
+                type="text" value={m.realtor_website_2 ?? ''} placeholder="Real estate website 2"
+                style={{ minWidth: 200, flex: 1 }}
+                onChange={(e) => update(m.id, { realtor_website_2: e.target.value || null })}
+              />
+              <input
+                type="text" value={m.realtor_website_3 ?? ''} placeholder="Real estate website 3"
+                style={{ minWidth: 200, flex: 1 }}
+                onChange={(e) => update(m.id, { realtor_website_3: e.target.value || null })}
+              />
+            </div>
+            <div style={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4, marginLeft: 42 }}>
+              <input
+                type="text" value={m.lender_website_1 ?? ''} placeholder="Lending website 1 (shows on their lender card)"
+                style={{ minWidth: 200, flex: 1 }}
+                onChange={(e) => update(m.id, { lender_website_1: e.target.value || null })}
+              />
+              <input
+                type="text" value={m.lender_website_2 ?? ''} placeholder="Lending website 2"
+                style={{ minWidth: 200, flex: 1 }}
+                onChange={(e) => update(m.id, { lender_website_2: e.target.value || null })}
+              />
+              <input
+                type="text" value={m.lender_website_3 ?? ''} placeholder="Lending website 3"
+                style={{ minWidth: 200, flex: 1 }}
+                onChange={(e) => update(m.id, { lender_website_3: e.target.value || null })}
               />
             </div>
             <div style={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
