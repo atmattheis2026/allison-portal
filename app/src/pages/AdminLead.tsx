@@ -203,6 +203,20 @@ export default function AdminLead() {
     setMaybeHomes((cur) => cur.filter((x) => x.id !== h.id))
     await supabase.from('lead_maybe_homes').delete().eq('id', h.id)
   }
+  // Agent decides to schedule a showing for this one themselves (no client
+  // request involved) — moves it out of "maybe" and into Appointments.
+  async function moveMaybeHomeToAppointment(h: LeadMaybeHome) {
+    if (!id || !supabase) return
+    const { data } = await supabase.from('lead_appointments')
+      .insert({
+        lead_id: id, address_line: h.address_line, url: h.url,
+        photo_url: h.photo_url, sort_order: appointments.length,
+      })
+      .select('*').single()
+    if (data) setAppointments((cur) => [...cur, data as LeadAppointment])
+    setMaybeHomes((cur) => cur.filter((x) => x.id !== h.id))
+    await supabase.from('lead_maybe_homes').delete().eq('id', h.id)
+  }
   // Client asked to see this one (via the "Request a showing" button on
   // their own page) — this turns that into a real appointment and clears
   // the request badge. Leaves the candidate in this list too, in case it's
@@ -702,6 +716,9 @@ export default function AdminLead() {
                 </div>
               </div>
               <div className="savebar" style={{ padding: '8px 0 0' }}>
+                <button type="button" className="btn" onClick={() => moveMaybeHomeToAppointment(h)}>
+                  Move to appointments →
+                </button>
                 <button type="button" className="btn" onClick={() => promoteMaybeHome(h)}>
                   Mark as shown →
                 </button>
