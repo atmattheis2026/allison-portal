@@ -193,7 +193,49 @@ export default function ClientLeadView() {
             </div>
           )}
         </div>
+
+        <ReferralForm token={token ?? ''} />
       </div>
+    </div>
+  )
+}
+
+function ReferralForm({ token }: { token: string }) {
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!supabase) return
+    setBusy(true); setErr(null)
+    const { error } = await supabase.rpc('add_lead_referral', {
+      p_token: token, p_name: name, p_phone: phone || null, p_email: email || null,
+    })
+    setBusy(false)
+    if (error) { setErr(error.message); return }
+    setSent(true)
+  }
+
+  return (
+    <div className="card" style={{ padding: 16 }}>
+      <h3 className="eyebrow">Know someone looking to buy or sell?</h3>
+      {sent ? (
+        <p className="notebody" style={{ marginTop: 8 }}>Thanks — we'll be in touch with them.</p>
+      ) : (
+        <form onSubmit={submit} style={{ display: 'grid', gap: 10, marginTop: 8 }}>
+          <input value={name} required placeholder="Their name" onChange={(e) => setName(e.target.value)} />
+          <input value={phone} placeholder="Phone (optional)" onChange={(e) => setPhone(e.target.value)} />
+          <input type="email" value={email} placeholder="Email (optional)" onChange={(e) => setEmail(e.target.value)} />
+          {err && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{err}</p>}
+          <button className="btn primary" disabled={busy || !name.trim()} style={{ justifySelf: 'start' }}>
+            {busy ? 'Sending…' : 'Send referral'}
+          </button>
+        </form>
+      )}
     </div>
   )
 }

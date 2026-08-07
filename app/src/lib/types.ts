@@ -221,7 +221,6 @@ export interface Lead {
   funding_type: 'cash' | 'financing' | null
   has_house_to_sell: boolean
   why_selling: string | null
-  friends_family_referrals: string | null
   general_notes: string | null
   converted_transaction_id: string | null
   created_at: string
@@ -280,6 +279,17 @@ export interface LeadPersonalNote {
   /** Birthdays, anniversaries, etc. Optional — not every line needs a date. */
   date_value: string | null
   sort_order: number
+}
+
+/** Someone the buyer (or the agent, on their behalf) has referred. */
+export interface LeadReferral {
+  id: string
+  lead_id: string
+  name: string
+  phone: string | null
+  email: string | null
+  submitted_by: 'agent' | 'client'
+  created_at: string
 }
 
 export interface LeadNote {

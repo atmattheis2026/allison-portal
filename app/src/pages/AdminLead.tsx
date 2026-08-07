@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
-import type { Lead, LeadAppointment, LeadHome, LeadMaybeHome, LeadPriority, LeadPersonalNote, LeadNote, TeamMember } from '../lib/types'
+import type { Lead, LeadAppointment, LeadHome, LeadMaybeHome, LeadPriority, LeadPersonalNote, LeadReferral, LeadNote, TeamMember } from '../lib/types'
 import { leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL, REFERRAL_SOURCES, BUDGET_RANGES } from '../lib/types'
 import './Admin.css'
 
@@ -24,6 +24,7 @@ export default function AdminLead() {
   const [maybeHomes, setMaybeHomes] = useState<LeadMaybeHome[]>([])
   const [priorities, setPriorities] = useState<LeadPriority[]>([])
   const [personalNotes, setPersonalNotes] = useState<LeadPersonalNote[]>([])
+  const [referrals, setReferrals] = useState<LeadReferral[]>([])
   const [notes, setNotes] = useState<LeadNote[]>([])
   const [copied, setCopied] = useState(false)
   const [converting, setConverting] = useState(false)
@@ -55,6 +56,8 @@ export default function AdminLead() {
       .then(({ data }) => setPriorities((data as LeadPriority[]) ?? []))
     supabase.from('lead_personal_notes').select('*').eq('lead_id', id).order('sort_order')
       .then(({ data }) => setPersonalNotes((data as LeadPersonalNote[]) ?? []))
+    supabase.from('lead_referrals').select('*').eq('lead_id', id).order('created_at')
+      .then(({ data }) => setReferrals((data as LeadReferral[]) ?? []))
     supabase.from('lead_notes').select('*').eq('lead_id', id).order('created_at', { ascending: false })
       .then(({ data }) => setNotes((data as LeadNote[]) ?? []))
   }, [id])
@@ -175,6 +178,23 @@ export default function AdminLead() {
   async function removePersonalNote(pnId: string) {
     setPersonalNotes((cur) => cur.filter((p) => p.id !== pnId))
     if (supabase) await supabase.from('lead_personal_notes').delete().eq('id', pnId)
+  }
+
+  // ---- referrals ----
+  async function addReferral() {
+    if (!id || !supabase) return
+    const { data } = await supabase.from('lead_referrals')
+      .insert({ lead_id: id, name: '', submitted_by: 'agent' }).select('*').single()
+    if (data) setReferrals((cur) => [...cur, data as LeadReferral])
+  }
+  async function patchReferral(rId: string, values: Partial<LeadReferral>) {
+    setReferrals((cur) => cur.map((r) => (r.id === rId ? { ...r, ...values } : r)))
+    if (supabase) await supabase.from('lead_referrals').update(values).eq('id', rId)
+    flashSaved()
+  }
+  async function removeReferral(rId: string) {
+    setReferrals((cur) => cur.filter((r) => r.id !== rId))
+    if (supabase) await supabase.from('lead_referrals').delete().eq('id', rId)
   }
 
   // ---- notes ----
@@ -571,12 +591,29 @@ export default function AdminLead() {
             </div>
           ))}
           <div className="savebar"><button className="btn" onClick={addPersonalNote}>+ Add</button></div>
-          <div className="field" style={{ marginTop: 14 }}>
-            <label>Referrals from friends/family</label>
-            <textarea rows={2} value={lead.friends_family_referrals ?? ''} style={{ width: '100%' }}
-                      placeholder="Anyone they've mentioned who might also buy or sell?"
-                      onChange={(e) => patchLead({ friends_family_referrals: e.target.value })} />
-          </div>
+        </div>
+
+        <div className="card setcard">
+          <h2>Referrals from friends &amp; family</h2>
+          <p className="sethelp">
+            Anyone they've mentioned who might also buy or sell. The client can add these
+            themselves from their own page too — those show up here tagged "From client."
+          </p>
+          {referrals.map((r) => (
+            <div className="tmplrow" key={r.id}>
+              <input type="text" value={r.name} placeholder="Name"
+                     onChange={(e) => patchReferral(r.id, { name: e.target.value })} />
+              <input type="text" value={r.phone ?? ''} placeholder="Phone"
+                     onChange={(e) => patchReferral(r.id, { phone: e.target.value })} />
+              <input type="email" value={r.email ?? ''} placeholder="Email"
+                     onChange={(e) => patchReferral(r.id, { email: e.target.value })} />
+              {r.submitted_by === 'client' && (
+                <span className="tag" style={{ flex: 'none' }}>From client</span>
+              )}
+              <button type="button" className="del" onClick={() => removeReferral(r.id)}>✕</button>
+            </div>
+          ))}
+          <div className="savebar"><button className="btn" onClick={addReferral}>+ Add</button></div>
         </div>
 
         <div className="card setcard">
