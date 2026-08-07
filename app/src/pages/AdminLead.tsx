@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
-import type { Lead, LeadAppointment, LeadHome, LeadPriority, LeadPersonalNote, LeadNote, TeamMember } from '../lib/types'
+import type { Lead, LeadAppointment, LeadHome, LeadMaybeHome, LeadPriority, LeadPersonalNote, LeadNote, TeamMember } from '../lib/types'
 import { leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL, REFERRAL_SOURCES, BUDGET_RANGES } from '../lib/types'
 import './Admin.css'
 
@@ -21,6 +21,7 @@ export default function AdminLead() {
   const [roster, setRoster] = useState<TeamMember[]>([])
   const [appointments, setAppointments] = useState<LeadAppointment[]>([])
   const [homes, setHomes] = useState<LeadHome[]>([])
+  const [maybeHomes, setMaybeHomes] = useState<LeadMaybeHome[]>([])
   const [priorities, setPriorities] = useState<LeadPriority[]>([])
   const [personalNotes, setPersonalNotes] = useState<LeadPersonalNote[]>([])
   const [notes, setNotes] = useState<LeadNote[]>([])
@@ -48,6 +49,8 @@ export default function AdminLead() {
       .then(({ data }) => setAppointments((data as LeadAppointment[]) ?? []))
     supabase.from('lead_homes').select('*').eq('lead_id', id).order('sort_order')
       .then(({ data }) => setHomes((data as LeadHome[]) ?? []))
+    supabase.from('lead_maybe_homes').select('*').eq('lead_id', id).order('sort_order')
+      .then(({ data }) => setMaybeHomes((data as LeadMaybeHome[]) ?? []))
     supabase.from('lead_priorities').select('*').eq('lead_id', id).order('sort_order')
       .then(({ data }) => setPriorities((data as LeadPriority[]) ?? []))
     supabase.from('lead_personal_notes').select('*').eq('lead_id', id).order('sort_order')
@@ -112,6 +115,23 @@ export default function AdminLead() {
   async function removeHome(homeId: string) {
     setHomes((cur) => cur.filter((h) => h.id !== homeId))
     if (supabase) await supabase.from('lead_homes').delete().eq('id', homeId)
+  }
+
+  // ---- homes you may like ----
+  async function addMaybeHome() {
+    if (!id || !supabase) return
+    const { data } = await supabase.from('lead_maybe_homes')
+      .insert({ lead_id: id, sort_order: maybeHomes.length }).select('*').single()
+    if (data) setMaybeHomes((cur) => [...cur, data as LeadMaybeHome])
+  }
+  async function patchMaybeHome(mhId: string, values: Partial<LeadMaybeHome>) {
+    setMaybeHomes((cur) => cur.map((h) => (h.id === mhId ? { ...h, ...values } : h)))
+    if (supabase) await supabase.from('lead_maybe_homes').update(values).eq('id', mhId)
+    flashSaved()
+  }
+  async function removeMaybeHome(mhId: string) {
+    setMaybeHomes((cur) => cur.filter((h) => h.id !== mhId))
+    if (supabase) await supabase.from('lead_maybe_homes').delete().eq('id', mhId)
   }
 
   // ---- priorities ----
@@ -399,6 +419,46 @@ export default function AdminLead() {
         </div>
 
         <div className="card setcard">
+          <h2>Homes you may like</h2>
+          <p className="sethelp">Candidates you're still deciding on — visible to the client, same as Homes shown.</p>
+          {maybeHomes.map((h) => (
+            <div key={h.id} style={{
+              background: 'var(--panel-2)', border: '1px solid var(--line)',
+              borderRadius: 'var(--r-md)', padding: '12px 14px', marginBottom: 10,
+            }}>
+              <div className="tmplrow" style={{ padding: 0 }}>
+                <input type="text" value={h.address_line} placeholder="Address"
+                       onChange={(e) => patchMaybeHome(h.id, { address_line: e.target.value })} />
+                <input type="text" value={h.url ?? ''} placeholder="Listing link"
+                       onChange={(e) => patchMaybeHome(h.id, { url: e.target.value })} />
+                <button type="button" className="del" onClick={() => removeMaybeHome(h.id)}>✕</button>
+              </div>
+              <input type="text" value={h.photo_url ?? ''} placeholder="Photo URL (paste from the listing)"
+                     style={{ marginTop: 6, width: '100%' }}
+                     onChange={(e) => patchMaybeHome(h.id, { photo_url: e.target.value })} />
+              {h.photo_url && (
+                <img src={h.photo_url} alt="" style={{
+                  width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 6, marginTop: 6,
+                }} />
+              )}
+              <div className="field2" style={{ marginTop: 8 }}>
+                <div className="field">
+                  <label>Notes (client can see)</label>
+                  <textarea rows={2} value={h.note ?? ''} style={{ width: '100%' }}
+                            onChange={(e) => patchMaybeHome(h.id, { note: e.target.value })} />
+                </div>
+                <div className="field">
+                  <label>Private notes</label>
+                  <textarea rows={2} value={h.private_note ?? ''} style={{ width: '100%' }}
+                            onChange={(e) => patchMaybeHome(h.id, { private_note: e.target.value })} />
+                </div>
+              </div>
+            </div>
+          ))}
+          <div className="savebar"><button className="btn" onClick={addMaybeHome}>+ Add home</button></div>
+        </div>
+
+        <div className="card setcard">
           <h2>Wants &amp; needs</h2>
           <p className="sethelp">In order of importance — top of the list matters most.</p>
           {priorities.map((p, i) => (
@@ -436,16 +496,41 @@ export default function AdminLead() {
 
         <div className="card setcard">
           <h2>Homes shown</h2>
-          <p className="sethelp">The handful of properties you've got in front of them.</p>
+          <p className="sethelp">The handful of properties you've actually toured together — visible to the client.</p>
           {homes.map((h) => (
-            <div className="tmplrow" key={h.id}>
-              <input type="text" value={h.address_line} placeholder="Address"
-                     onChange={(e) => patchHome(h.id, { address_line: e.target.value })} />
-              <input type="text" value={h.price ?? ''} placeholder="Price" style={{ flex: 'none', width: 110 }}
-                     onChange={(e) => patchHome(h.id, { price: e.target.value })} />
-              <input type="text" value={h.url ?? ''} placeholder="Listing link"
-                     onChange={(e) => patchHome(h.id, { url: e.target.value })} />
-              <button type="button" className="del" onClick={() => removeHome(h.id)}>✕</button>
+            <div key={h.id} style={{
+              background: 'var(--panel-2)', border: '1px solid var(--line)',
+              borderRadius: 'var(--r-md)', padding: '12px 14px', marginBottom: 10,
+            }}>
+              <div className="tmplrow" style={{ padding: 0 }}>
+                <input type="text" value={h.address_line} placeholder="Address"
+                       onChange={(e) => patchHome(h.id, { address_line: e.target.value })} />
+                <input type="text" value={h.price ?? ''} placeholder="Price" style={{ flex: 'none', width: 110 }}
+                       onChange={(e) => patchHome(h.id, { price: e.target.value })} />
+                <input type="text" value={h.url ?? ''} placeholder="Listing link"
+                       onChange={(e) => patchHome(h.id, { url: e.target.value })} />
+                <button type="button" className="del" onClick={() => removeHome(h.id)}>✕</button>
+              </div>
+              <input type="text" value={h.photo_url ?? ''} placeholder="Photo URL (paste from the listing)"
+                     style={{ marginTop: 6, width: '100%' }}
+                     onChange={(e) => patchHome(h.id, { photo_url: e.target.value })} />
+              {h.photo_url && (
+                <img src={h.photo_url} alt="" style={{
+                  width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 6, marginTop: 6,
+                }} />
+              )}
+              <div className="field2" style={{ marginTop: 8 }}>
+                <div className="field">
+                  <label>Notes (client can see)</label>
+                  <textarea rows={2} value={h.note ?? ''} style={{ width: '100%' }}
+                            onChange={(e) => patchHome(h.id, { note: e.target.value })} />
+                </div>
+                <div className="field">
+                  <label>Private notes</label>
+                  <textarea rows={2} value={h.private_note ?? ''} style={{ width: '100%' }}
+                            onChange={(e) => patchHome(h.id, { private_note: e.target.value })} />
+                </div>
+              </div>
             </div>
           ))}
           <div className="savebar"><button className="btn" onClick={addHome}>+ Add home</button></div>

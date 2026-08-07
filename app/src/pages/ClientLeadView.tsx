@@ -75,7 +75,7 @@ export default function ClientLeadView() {
     )
   }
 
-  const { lead, realtor, brand, appointments, homes, priorities, notes } = data
+  const { lead, realtor, brand, appointments, homes, maybe_homes: maybeHomes, priorities, notes } = data
   const light = brand?.needs_light_background
   const logo = light ? brand?.logo_light_url || brand?.logo_url : brand?.logo_url
   const styleVars = brand?.accent_hex ? ({ '--gold': brand.accent_hex } as React.CSSProperties) : {}
@@ -122,12 +122,38 @@ export default function ClientLeadView() {
           </div>
         )}
 
+        {maybeHomes.length > 0 && (
+          <div className="card" style={{ padding: 16 }}>
+            <h3 className="eyebrow">Homes you may like</h3>
+            <div className="notelist">
+              {maybeHomes.map((h) => (
+                <div className="note" key={h.id}>
+                  {h.photo_url && (
+                    <img src={h.photo_url} alt="" style={{
+                      width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 8, marginBottom: 8,
+                    }} />
+                  )}
+                  <p className="notebody">
+                    {h.url ? <a href={h.url} target="_blank" rel="noreferrer">{h.address_line}</a> : h.address_line}
+                  </p>
+                  {h.note && <p className="notebody muted" style={{ fontSize: 12.5 }}>{h.note}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {homes.length > 0 && (
           <div className="card" style={{ padding: 16 }}>
             <h3 className="eyebrow">Homes we're looking at</h3>
             <div className="notelist">
               {homes.map((h) => (
                 <div className="note" key={h.id}>
+                  {h.photo_url && (
+                    <img src={h.photo_url} alt="" style={{
+                      width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 8, marginBottom: 8,
+                    }} />
+                  )}
                   <p className="notebody">
                     {h.url ? <a href={h.url} target="_blank" rel="noreferrer">{h.address_line}</a> : h.address_line}
                     {h.city_state_zip ? `, ${h.city_state_zip}` : ''}

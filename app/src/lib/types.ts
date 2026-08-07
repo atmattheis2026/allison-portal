@@ -244,7 +244,25 @@ export interface LeadHome {
   city_state_zip: string | null
   price: string | null
   url: string | null
+  photo_url: string | null
+  /** Client-visible. */
   note: string | null
+  /** Allison's read on the client's reaction — internal only, never part of get_shared_lead(). */
+  private_note: string | null
+  sort_order: number
+}
+
+/** A candidate home, not yet confirmed as shown — same client visibility as LeadHome. */
+export interface LeadMaybeHome {
+  id: string
+  lead_id: string
+  address_line: string
+  url: string | null
+  photo_url: string | null
+  /** Client-visible. */
+  note: string | null
+  /** Internal only, never part of get_shared_lead(). */
+  private_note: string | null
   sort_order: number
 }
 
@@ -311,6 +329,7 @@ export interface SharedLeadPayload {
   brand: Brand | null
   appointments: LeadAppointment[]
   homes: LeadHome[]
+  maybe_homes: LeadMaybeHome[]
   priorities: LeadPriority[]
   notes: LeadNote[]
 }
