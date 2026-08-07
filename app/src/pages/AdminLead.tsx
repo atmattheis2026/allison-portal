@@ -663,6 +663,14 @@ export default function AdminLead() {
                 </div>
                 <button type="button" className="del" onClick={() => removeAppointment(a.id)}>✕</button>
               </div>
+              <details style={{ marginTop: 8 }}>
+                <summary className="muted" style={{ fontSize: 12, cursor: 'pointer' }}>
+                  Paste a photo URL manually instead
+                </summary>
+                <input type="text" value={a.photo_url ?? ''} placeholder="Photo URL"
+                       style={{ marginTop: 6, width: '100%' }}
+                       onChange={(e) => patchAppointment(a.id, { photo_url: e.target.value })} />
+              </details>
               <input type="text" value={a.note ?? ''} placeholder="Note" style={{ marginTop: 8, width: '100%' }}
                      onChange={(e) => patchAppointment(a.id, { note: e.target.value })} />
               <div className="checkline" style={{ marginTop: 8, marginBottom: 0 }}>
