@@ -1,0 +1,13 @@
+[build]
+  base = "app"
+  command = "npm run build"
+  publish = "dist"
+
+# The app is a single-page React app with its own client-side routing
+# (react-router). Without this, opening a link directly to something like
+# /t/<token> or /admin would 404, since there's no real page at that path —
+# only index.html, which then decides what to show.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
