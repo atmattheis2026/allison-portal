@@ -387,12 +387,29 @@ function Team() {
   const [removedIds, setRemovedIds] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [inviteCode, setInviteCode] = useState<string | null>(DEMO_MODE ? 'DEMO1234' : null)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (DEMO_MODE || !supabase) return
     supabase.from('team_members').select('*').order('sort_order')
       .then(({ data }) => setMembers((data as TeamMember[]) ?? []))
+    supabase.auth.getUser().then(async ({ data: auth }) => {
+      const { data: me } = await supabase!.from('profiles')
+        .select('team_id').eq('id', auth.user?.id).single()
+      if (!me?.team_id) return
+      const { data: team } = await supabase!.from('teams')
+        .select('invite_code').eq('id', me.team_id).single()
+      setInviteCode(team?.invite_code ?? null)
+    })
   }, [])
+
+  function copyCode() {
+    if (!inviteCode) return
+    navigator.clipboard.writeText(inviteCode)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1800)
+  }
 
   const update = (id: string, patch: Partial<TeamMember>) =>
     setMembers(members.map((m) => (m.id === id ? { ...m, ...patch } : m)))
@@ -462,6 +479,33 @@ function Team() {
           Leave it off for agents and loan officers, and pick which of their deals
           they're on from each transaction's page.
         </p>
+
+        {inviteCode && (
+          <div className="field" style={{
+            background: 'var(--panel-2)', border: '1px solid var(--line)',
+            borderRadius: 'var(--r-md)', padding: '14px 16px', marginBottom: 18,
+          }}>
+            <label>Invite your team</label>
+            <p className="sethelp" style={{ margin: '2px 0 10px' }}>
+              Add someone below with their name and email first if you want their
+              headshot and role ready to go. Then send them this: go to the app,
+              sign in with their own email, choose "I have an invite code," and
+              enter this code.
+            </p>
+            <div className="swatchrow">
+              <div style={{
+                fontFamily: 'var(--serif)', fontSize: 20, letterSpacing: '.08em',
+                color: 'var(--gold-bright)', padding: '6px 14px',
+                border: '1px solid var(--gold-soft)', borderRadius: 999,
+              }}>
+                {inviteCode}
+              </div>
+              <button type="button" className="btn" onClick={copyCode}>
+                {copied ? 'Copied' : 'Copy code'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {members.map((m) => (
           <div className="tmplrow" key={m.id} style={{ alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>

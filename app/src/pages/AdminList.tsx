@@ -200,12 +200,14 @@ function AssignedChips({ names }: { names: string[] }) {
  * team, both brands, and every checklist template in one call.
  */
 function FirstRun({ onDone }: { onDone: () => void }) {
+  const [mode, setMode] = useState<'create' | 'join'>('create')
   const [company, setCompany] = useState('')
   const [yourName, setYourName] = useState('')
+  const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
-  async function go(e: React.FormEvent) {
+  async function create(e: React.FormEvent) {
     e.preventDefault()
     if (!supabase) return
     setBusy(true); setErr(null)
@@ -216,43 +218,91 @@ function FirstRun({ onDone }: { onDone: () => void }) {
     onDone()
   }
 
+  async function join(e: React.FormEvent) {
+    e.preventDefault()
+    if (!supabase) return
+    setBusy(true); setErr(null)
+    const { error } = await supabase.rpc('join_team_with_code', {
+      p_code: code, p_full_name: yourName,
+    })
+    if (error) { setErr(error.message); setBusy(false); return }
+    onDone()
+  }
+
   return (
     <div className="admin">
-      <form className="card setcard" style={{ maxWidth: 560, margin: '48px auto' }}
-            onSubmit={go}>
+      <div className="card setcard" style={{ maxWidth: 560, margin: '48px auto' }}>
         <h2>One-time setup</h2>
         <p className="sethelp">
-          This is the first time anyone’s signed in, so let’s get your workspace
-          started. Two questions and you’re done — your checklists get set up
-          automatically.
+          This is the first time you’ve signed in.
         </p>
 
-        <div className="field">
-          <label>Your real estate company name</label>
-          <input value={company} required autoFocus
-                 onChange={(e) => setCompany(e.target.value)}
-                 placeholder="Mattheis & Co." />
-          <p className="sethelp" style={{ margin: '6px 0 0' }}>
-            This shows at the top of every page. You can change it later, and add
-            your logo, in Settings.
-          </p>
-        </div>
-
-        <div className="field">
-          <label>Your name</label>
-          <input value={yourName} required
-                 onChange={(e) => setYourName(e.target.value)}
-                 placeholder="Allison Mattheis" />
-        </div>
-
-        {err && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{err}</p>}
-
-        <div className="savebar">
-          <button className="btn primary" disabled={busy}>
-            {busy ? 'Setting up…' : 'Set up my workspace'}
+        <div className="tabs" style={{ marginBottom: 18 }}>
+          <button type="button" className={`tab${mode === 'create' ? ' on' : ''}`}
+                  onClick={() => setMode('create')}>
+            Start a new workspace
+          </button>
+          <button type="button" className={`tab${mode === 'join' ? ' on' : ''}`}
+                  onClick={() => setMode('join')}>
+            I have an invite code
           </button>
         </div>
-      </form>
+
+        {mode === 'create' ? (
+          <form onSubmit={create}>
+            <p className="sethelp">
+              Two questions and you’re done — your checklists get set up automatically.
+            </p>
+            <div className="field">
+              <label>Your real estate company name</label>
+              <input value={company} required autoFocus
+                     onChange={(e) => setCompany(e.target.value)}
+                     placeholder="Mattheis & Co." />
+              <p className="sethelp" style={{ margin: '6px 0 0' }}>
+                This shows at the top of every page. You can change it later, and add
+                your logo, in Settings.
+              </p>
+            </div>
+            <div className="field">
+              <label>Your name</label>
+              <input value={yourName} required
+                     onChange={(e) => setYourName(e.target.value)}
+                     placeholder="Allison Mattheis" />
+            </div>
+            {err && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{err}</p>}
+            <div className="savebar">
+              <button className="btn primary" disabled={busy}>
+                {busy ? 'Setting up…' : 'Set up my workspace'}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={join}>
+            <p className="sethelp">
+              Ask whoever runs your team for their invite code — it's in their
+              Settings › Team page.
+            </p>
+            <div className="field">
+              <label>Your name</label>
+              <input value={yourName} required autoFocus
+                     onChange={(e) => setYourName(e.target.value)}
+                     placeholder="Marcus Webb" />
+            </div>
+            <div className="field">
+              <label>Invite code</label>
+              <input value={code} required
+                     onChange={(e) => setCode(e.target.value.toUpperCase())}
+                     placeholder="A1B2C3D4" style={{ textTransform: 'uppercase' }} />
+            </div>
+            {err && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{err}</p>}
+            <div className="savebar">
+              <button className="btn primary" disabled={busy}>
+                {busy ? 'Joining…' : 'Join the team'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   )
 }
