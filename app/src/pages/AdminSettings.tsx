@@ -373,7 +373,7 @@ function newMember(sort_order: number): TeamMember {
   return {
     id: `new-${nextTeamId++}`, full_name: '', roles: [],
     license_number: null, headshot_url: null, phone: null, email: null,
-    sees_all_transactions: false, sort_order,
+    sees_all_transactions: false, sort_order, profile_id: null,
   }
 }
 
@@ -389,6 +389,17 @@ function Team() {
   const [saved, setSaved] = useState(false)
   const [inviteCode, setInviteCode] = useState<string | null>(DEMO_MODE ? 'DEMO1234' : null)
   const [copied, setCopied] = useState(false)
+  const [inviteStatus, setInviteStatus] = useState<Record<string, 'sending' | 'sent' | 'error'>>({})
+
+  async function sendInvite(memberId: string) {
+    if (DEMO_MODE || !supabase) return
+    setInviteStatus((s) => ({ ...s, [memberId]: 'sending' }))
+    const { error } = await supabase.functions.invoke('send-team-invite', {
+      body: { team_member_id: memberId },
+    })
+    setInviteStatus((s) => ({ ...s, [memberId]: error ? 'error' : 'sent' }))
+    if (!error) setTimeout(() => setInviteStatus((s) => ({ ...s, [memberId]: undefined as never })), 3000)
+  }
 
   useEffect(() => {
     if (DEMO_MODE || !supabase) return
@@ -539,6 +550,21 @@ function Team() {
             >
               {m.sees_all_transactions ? 'Sees every transaction' : 'Sees only assigned'}
             </button>
+            {!m.profile_id && !m.id.startsWith('new-') && (
+              m.email ? (
+                <button
+                  type="button" className="btn" disabled={inviteStatus[m.id] === 'sending'}
+                  onClick={() => sendInvite(m.id)}
+                >
+                  {inviteStatus[m.id] === 'sending' ? 'Sending…'
+                    : inviteStatus[m.id] === 'sent' ? 'Invite sent!'
+                    : inviteStatus[m.id] === 'error' ? 'Failed — try again'
+                    : 'Send Invite'}
+                </button>
+              ) : (
+                <span className="muted" style={{ fontSize: 11 }}>Add an email to invite</span>
+              )
+            )}
             <button className="del" onClick={() => remove(m.id)} title="Remove from team">×</button>
             <div style={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4, marginLeft: 42 }}>
               <input

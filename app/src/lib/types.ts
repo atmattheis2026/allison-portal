@@ -56,6 +56,9 @@ export interface TeamMember {
   email: string | null
   sees_all_transactions: boolean
   sort_order: number
+  /** Set once this person actually signs in — before that, they're just a
+   *  roster entry with no login of their own. */
+  profile_id: string | null
 }
 
 // Order here is the display order everywhere these are listed as a set (e.g.

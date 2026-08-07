@@ -335,23 +335,23 @@ export const TEAM_MEMBERS: TeamMember[] = [
     id: 'tm-allison', full_name: 'Allison Mattheis', roles: ['admin', 'realtor'],
     license_number: 'SL 3512908',
     headshot_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&q=70',
-    phone: '+12536539021', email: null, sees_all_transactions: true, sort_order: 10,
+    phone: '+12536539021', email: null, sees_all_transactions: true, sort_order: 10, profile_id: 'demo-profile',
   },
   {
     id: 'tm-marcus', full_name: 'Marcus Webb', roles: ['realtor'],
     license_number: 'SL 3612411', headshot_url: null,
-    phone: '+14075550199', email: null, sees_all_transactions: false, sort_order: 20,
+    phone: '+14075550199', email: null, sees_all_transactions: false, sort_order: 20, profile_id: null,
   },
   {
     id: 'tm-priya', full_name: 'Priya Nair', roles: ['realtor', 'loan_officer'],
     license_number: 'SL 3688820', headshot_url: null,
-    phone: '+14075550233', email: null, sees_all_transactions: false, sort_order: 30,
+    phone: '+14075550233', email: null, sees_all_transactions: false, sort_order: 30, profile_id: null,
   },
   {
     id: 'tm-jane', full_name: 'Jane Mitchell', roles: ['loan_officer', 'mortgage_broker'],
     license_number: 'NMLS 1184402',
     headshot_url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&q=70',
-    phone: '+14075550142', email: null, sees_all_transactions: false, sort_order: 40,
+    phone: '+14075550142', email: null, sees_all_transactions: false, sort_order: 40, profile_id: null,
   },
 ]
 
