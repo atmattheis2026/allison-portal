@@ -366,17 +366,15 @@ export default function AdminLead() {
           <p className="sethelp" style={{ margin: '4px 0 0' }}>
             Photos are uploaded by the client themselves from their own page.
           </p>
-          <div className="field2">
-            <div className="field">
-              <label>Assigned agent</label>
-              <select value={lead.realtor_member_id ?? ''}
-                      onChange={(e) => patchLead({ realtor_member_id: e.target.value || null })}>
-                <option value="">Not assigned yet</option>
-                {roster.map((m) => (
-                  <option key={m.id} value={m.id}>{m.full_name}</option>
-                ))}
-              </select>
-            </div>
+          <div className="field">
+            <label>Assigned agent</label>
+            <select value={lead.realtor_member_id ?? ''}
+                    onChange={(e) => patchLead({ realtor_member_id: e.target.value || null })}>
+              <option value="">Not assigned yet</option>
+              {roster.map((m) => (
+                <option key={m.id} value={m.id}>{m.full_name}</option>
+              ))}
+            </select>
           </div>
           <div className="field2">
             <div className="field">
@@ -401,12 +399,18 @@ export default function AdminLead() {
           <div className="field">
             <label>Timeframe to buy</label>
             <div className="tabs">
-              {(['0-3', '3-6', '6+'] as const).map((b) => (
-                <button key={b} type="button" className={`tab${lead.timeframe_bucket === b ? ' on' : ''}`}
-                        onClick={() => patchLead({ timeframe_bucket: b })}>
-                  {b === '0-3' ? 'Ready now / 0–3 mo' : b === '3-6' ? '3–6 months' : '6+ months'}
-                </button>
-              ))}
+              {(['0-3', '3-6', '6+'] as const).map((b) => {
+                const bandForButton = b === '0-3' ? 'green' : b === '3-6' ? 'yellow' : 'orange'
+                const on = lead.timeframe_bucket === b
+                const color = TIMEFRAME_BAND_COLOR[bandForButton]
+                return (
+                  <button key={b} type="button" className="tab"
+                          style={on ? { background: `${color}22`, borderColor: color, color } : undefined}
+                          onClick={() => patchLead({ timeframe_bucket: b })}>
+                    {b === '0-3' ? 'Ready now / 0–3 mo' : b === '3-6' ? '3–6 months' : '6+ months'}
+                  </button>
+                )
+              })}
             </div>
             {lead.timeframe_bucket && (() => {
               const band = leadTimeframeBand(lead)!
