@@ -241,6 +241,7 @@ export interface Lead {
    *  live on the frontend so the color-coded urgency dot ages on its own. */
   timeframe_bucket: '0-3' | '3-6' | '6+' | null
   buyer_broker_signed: boolean
+  buyer_broker_signed_date: string | null
   buyer_broker_expires: string | null
   referral_source: ReferralSource | null
   /** Only meaningful when referral_source is 'Agent Referral'. */

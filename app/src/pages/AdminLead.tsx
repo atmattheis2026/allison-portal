@@ -444,10 +444,17 @@ export default function AdminLead() {
                    onChange={(e) => patchLead({ buyer_broker_signed: e.target.checked })} />
             <span className="cl">Buyer broker agreement signed</span>
           </div>
-          <div className="field" style={{ maxWidth: 220 }}>
-            <label>Buyer broker expires</label>
-            <input type="date" value={lead.buyer_broker_expires ?? ''}
-                   onChange={(e) => patchLead({ buyer_broker_expires: e.target.value || null })} />
+          <div className="field2" style={{ maxWidth: 460 }}>
+            <div className="field">
+              <label>Buyer broker signed on</label>
+              <input type="date" value={lead.buyer_broker_signed_date ?? ''}
+                     onChange={(e) => patchLead({ buyer_broker_signed_date: e.target.value || null })} />
+            </div>
+            <div className="field">
+              <label>Buyer broker expires</label>
+              <input type="date" value={lead.buyer_broker_expires ?? ''}
+                     onChange={(e) => patchLead({ buyer_broker_expires: e.target.value || null })} />
+            </div>
           </div>
           <div className="field" style={{ maxWidth: 260 }}>
             <label>Referral source</label>

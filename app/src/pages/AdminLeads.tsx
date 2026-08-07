@@ -1,22 +1,28 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
-import type { Lead, TeamMember } from '../lib/types'
+import type { Lead, TeamMember, TimeframeBand } from '../lib/types'
 import { leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL } from '../lib/types'
 import './Admin.css'
+
+// Most-urgent-to-nurture first — orange (furthest out, most at risk of
+// drifting to another agent) leads, then yellow, then green.
+const BAND_SORT_RANK: Record<TimeframeBand, number> = { orange: 0, yellow: 1, green: 2 }
+
+type SortMode = 'recent' | 'name' | 'broker_signed' | 'broker_expires' | 'color'
 
 /**
  * "Active Buyers" — clients still house hunting, before there's a contract.
  * Lighter cousin of AdminList: no address, no status rail, just who they are
  * and who's working with them. RLS already limits `rows` to leads this signed-
- * in person can see (their own, or all of them if they see every transaction),
- * so there's no client-side filtering to do here.
+ * in person can see (their own, or all of them if they see every transaction).
  */
 export default function AdminLeads() {
   const [rows, setRows] = useState<Lead[] | null>(null)
   const [roster, setRoster] = useState<TeamMember[]>([])
   const [creating, setCreating] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
+  const [sortMode, setSortMode] = useState<SortMode>('recent')
   const nav = useNavigate()
 
   useEffect(() => {
@@ -51,7 +57,55 @@ export default function AdminLeads() {
     return roster.find((m) => m.id === id)?.full_name ?? null
   }
 
-  if (!rows) return <div className="centered"><div className="spinner" /></div>
+  function daysAgo(dateStr: string) {
+    const days = Math.floor((Date.now() - new Date(dateStr + 'T00:00:00').getTime()) / 86400000)
+    if (days < 0) return ''
+    if (days === 0) return '(today)'
+    if (days < 30) return `(${days}d ago)`
+    const months = Math.round(days / 30.44)
+    return `(${months} mo ago)`
+  }
+
+  const sortedRows = useMemo(() => {
+    if (!rows) return null
+    const list = [...rows]
+    switch (sortMode) {
+      case 'name':
+        list.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
+        break
+      case 'broker_expires':
+        // No date on file sorts to the bottom rather than the top.
+        list.sort((a, b) => {
+          if (!a.buyer_broker_expires) return 1
+          if (!b.buyer_broker_expires) return -1
+          return a.buyer_broker_expires.localeCompare(b.buyer_broker_expires)
+        })
+        break
+      case 'broker_signed':
+        // Oldest signed date first — that's the one sitting the longest
+        // with no contract, the one most at risk of drifting to another agent.
+        list.sort((a, b) => {
+          if (!a.buyer_broker_signed_date) return 1
+          if (!b.buyer_broker_signed_date) return -1
+          return a.buyer_broker_signed_date.localeCompare(b.buyer_broker_signed_date)
+        })
+        break
+      case 'color':
+        list.sort((a, b) => {
+          const ba = leadTimeframeBand(a)
+          const bb = leadTimeframeBand(b)
+          if (!ba) return 1
+          if (!bb) return -1
+          return BAND_SORT_RANK[ba] - BAND_SORT_RANK[bb]
+        })
+        break
+      default:
+        list.sort((a, b) => b.created_at.localeCompare(a.created_at))
+    }
+    return list
+  }, [rows, sortMode])
+
+  if (!rows || !sortedRows) return <div className="centered"><div className="spinner" /></div>
 
   return (
     <div className="admin">
@@ -79,6 +133,19 @@ export default function AdminLeads() {
         />
       )}
 
+      {rows.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 24px 12px' }}>
+          <label className="muted" style={{ fontSize: 13 }}>Sort by</label>
+          <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
+            <option value="recent">Recently added</option>
+            <option value="name">Name (A–Z)</option>
+            <option value="broker_signed">Buyer broker signed date (oldest first)</option>
+            <option value="broker_expires">Buyer broker expiration</option>
+            <option value="color">Timeframe (needs nurturing first)</option>
+          </select>
+        </div>
+      )}
+
       {rows.length === 0 ? (
         <div className="centered">
           <div style={{ maxWidth: 360 }}>
@@ -91,7 +158,7 @@ export default function AdminLeads() {
         </div>
       ) : (
         <div className="txlist">
-          {rows.map((r) => {
+          {sortedRows.map((r) => {
             const band = leadTimeframeBand(r)
             return (
               <div className="txcard" key={r.id}
@@ -113,7 +180,11 @@ export default function AdminLeads() {
                     <div className="txmeta">
                       <span className="tag">Active buyer</span>
                       {r.buyer_broker_signed
-                        ? <span className="muted">Buyer broker signed</span>
+                        ? <span className="muted">
+                            Buyer broker signed
+                            {r.buyer_broker_signed_date && ` ${daysAgo(r.buyer_broker_signed_date)}`}
+                            {r.buyer_broker_expires && ` — expires ${new Date(r.buyer_broker_expires + 'T00:00:00').toLocaleDateString()}`}
+                          </span>
                         : <span className="muted">Buyer broker not signed</span>}
                     </div>
                   </div>
