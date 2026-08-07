@@ -57,7 +57,9 @@ Deno.serve(async (req) => {
     // One email per agent, even if they have several dates coming up.
     const byAgent = new Map<string, DueReminder[]>()
     for (const r of rows) {
-      (byAgent.get(r.agent_email) ??= []).push(r)
+      const list = byAgent.get(r.agent_email) ?? []
+      list.push(r)
+      byAgent.set(r.agent_email, list)
     }
 
     let sent = 0
