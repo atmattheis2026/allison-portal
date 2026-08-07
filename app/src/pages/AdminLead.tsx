@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { Lead, LeadAppointment, LeadHome, LeadPriority, LeadNote, TeamMember } from '../lib/types'
+import { leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL } from '../lib/types'
 import './Admin.css'
 
 /** datetime-local wants "YYYY-MM-DDTHH:mm" in local time, not an ISO string. */
@@ -172,6 +173,29 @@ export default function AdminLead() {
               <label>Email</label>
               <input type="email" value={lead.email ?? ''} onChange={(e) => patchLead({ email: e.target.value })} />
             </div>
+          </div>
+          <div className="field">
+            <label>Timeframe to buy</label>
+            <div className="tabs">
+              {(['0-3', '3-6', '6+'] as const).map((b) => (
+                <button key={b} type="button" className={`tab${lead.timeframe_bucket === b ? ' on' : ''}`}
+                        onClick={() => patchLead({ timeframe_bucket: b })}>
+                  {b === '0-3' ? 'Ready now / 0–3 mo' : b === '3-6' ? '3–6 months' : '6+ months'}
+                </button>
+              ))}
+            </div>
+            {lead.timeframe_bucket && (() => {
+              const band = leadTimeframeBand(lead)!
+              return (
+                <p className="sethelp" style={{ margin: '8px 0 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{
+                    display: 'inline-block', width: 10, height: 10, borderRadius: '50%',
+                    background: TIMEFRAME_BAND_COLOR[band],
+                  }} />
+                  Currently showing as {TIMEFRAME_BAND_LABEL[band]} on your list — updates on its own as time passes.
+                </p>
+              )
+            })()}
           </div>
           <div className="checkline">
             <input type="checkbox" checked={lead.buyer_broker_signed}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { Lead, TeamMember } from '../lib/types'
+import { leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL } from '../lib/types'
 import './Admin.css'
 
 /**
@@ -90,25 +91,37 @@ export default function AdminLeads() {
         </div>
       ) : (
         <div className="txlist">
-          {rows.map((r) => (
-            <div className="txcard" key={r.id}>
-              <Link to={`/admin/leads/${r.id}`} className="txmain">
-                <div className="txinfo">
-                  <div className="txaddr">{r.full_name || 'Unnamed buyer'}</div>
-                  <div className="txcity">{agentName(r.realtor_member_id) ?? 'No agent assigned'}</div>
-                  <div className="txmeta">
-                    <span className="tag">Active buyer</span>
-                    {r.buyer_broker_signed
-                      ? <span className="muted">Buyer broker signed</span>
-                      : <span className="muted">Buyer broker not signed</span>}
+          {rows.map((r) => {
+            const band = leadTimeframeBand(r)
+            return (
+              <div className="txcard" key={r.id}>
+                <Link to={`/admin/leads/${r.id}`} className="txmain">
+                  {band && (
+                    <span
+                      title={TIMEFRAME_BAND_LABEL[band]}
+                      style={{
+                        flex: 'none', width: 12, height: 12, borderRadius: '50%',
+                        background: TIMEFRAME_BAND_COLOR[band],
+                      }}
+                    />
+                  )}
+                  <div className="txinfo">
+                    <div className="txaddr">{r.full_name || 'Unnamed buyer'}</div>
+                    <div className="txcity">{agentName(r.realtor_member_id) ?? 'No agent assigned'}</div>
+                    <div className="txmeta">
+                      <span className="tag">Active buyer</span>
+                      {r.buyer_broker_signed
+                        ? <span className="muted">Buyer broker signed</span>
+                        : <span className="muted">Buyer broker not signed</span>}
+                    </div>
                   </div>
-                </div>
-              </Link>
-              <button className="btn" onClick={() => copyLink(r.share_token)}>
-                {copied === r.share_token ? 'Copied' : 'Copy client link'}
-              </button>
-            </div>
-          ))}
+                </Link>
+                <button className="btn" onClick={() => copyLink(r.share_token)}>
+                  {copied === r.share_token ? 'Copied' : 'Copy client link'}
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

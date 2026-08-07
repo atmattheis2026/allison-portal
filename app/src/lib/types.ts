@@ -188,6 +188,9 @@ export interface Lead {
   phone: string | null
   email: string | null
   realtor_member_id: string | null
+  /** Anchored to created_at, not "today" — see migration 020. Recomputed
+   *  live on the frontend so the color-coded urgency dot ages on its own. */
+  timeframe_bucket: '0-3' | '3-6' | '6+' | null
   buyer_broker_signed: boolean
   buyer_broker_expires: string | null
   general_notes: string | null
@@ -228,6 +231,37 @@ export interface LeadNote {
   author_name: string | null
   body: string
   created_at: string
+}
+
+/** Months from "add date" that each bucket estimates as the ready date. */
+const TIMEFRAME_BUCKET_MONTHS: Record<NonNullable<Lead['timeframe_bucket']>, number> = {
+  '0-3': 3, '3-6': 6, '6+': 9,
+}
+
+export type TimeframeBand = 'green' | 'yellow' | 'orange'
+
+export const TIMEFRAME_BAND_COLOR: Record<TimeframeBand, string> = {
+  green: '#3fae5c', yellow: '#c9a23a', orange: '#c96a2e',
+}
+export const TIMEFRAME_BAND_LABEL: Record<TimeframeBand, string> = {
+  green: 'Ready now / within 3 months',
+  yellow: '3–6 months out',
+  orange: 'More than 6 months out',
+}
+
+/**
+ * Recomputed live, not stored — created_at is fixed and "today" isn't, so
+ * calling this on every render is what makes a lead's dot creep from orange
+ * to green over time with no update from anyone. See migration 020.
+ */
+export function leadTimeframeBand(lead: Pick<Lead, 'created_at' | 'timeframe_bucket'>): TimeframeBand | null {
+  if (!lead.timeframe_bucket) return null
+  const readyBy = new Date(lead.created_at)
+  readyBy.setMonth(readyBy.getMonth() + TIMEFRAME_BUCKET_MONTHS[lead.timeframe_bucket])
+  const monthsLeft = (readyBy.getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30.44)
+  if (monthsLeft <= 3) return 'green'
+  if (monthsLeft <= 6) return 'yellow'
+  return 'orange'
 }
 
 /** Exactly what get_shared_lead() returns. */
