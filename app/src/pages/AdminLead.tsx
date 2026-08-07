@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { Lead, LeadAppointment, LeadHome, LeadPriority, LeadPersonalNote, LeadNote, TeamMember } from '../lib/types'
-import { leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL, REFERRAL_SOURCES } from '../lib/types'
+import { leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL, REFERRAL_SOURCES, BUDGET_RANGES } from '../lib/types'
 import './Admin.css'
 
 /** datetime-local wants "YYYY-MM-DDTHH:mm" in local time, not an ISO string. */
@@ -289,8 +289,11 @@ export default function AdminLead() {
           <div className="field2">
             <div className="field">
               <label>Budget</label>
-              <input value={lead.budget ?? ''} placeholder="e.g. $350k–$400k"
-                     onChange={(e) => patchLead({ budget: e.target.value })} />
+              <select value={lead.budget ?? ''}
+                      onChange={(e) => patchLead({ budget: (e.target.value || null) as Lead['budget'] })}>
+                <option value="">Not set</option>
+                {BUDGET_RANGES.map((b) => <option key={b} value={b}>{b}</option>)}
+              </select>
             </div>
             <div className="field">
               <label>Purchase type</label>

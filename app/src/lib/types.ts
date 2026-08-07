@@ -174,6 +174,12 @@ export interface SharedPayload {
   notes: Note[]
 }
 
+export type BudgetRange =
+  | 'Under $200k' | '$200k–$300k' | '$300k–$400k' | '$400k–$500k' | '$500k–$750k' | '$750k–$1M' | '$1M+'
+
+export const BUDGET_RANGES: BudgetRange[] =
+  ['Under $200k', '$200k–$300k', '$300k–$400k', '$400k–$500k', '$500k–$750k', '$750k–$1M', '$1M+']
+
 export type ReferralSource =
   | 'EPIC provided' | 'Personal Referral' | 'Agent Referral' | 'Lead IO' | 'Realtor.com'
 
@@ -207,7 +213,7 @@ export interface Lead {
   referral_commission_pct: number | null
   referral_doc_received: boolean
   preapproval_on_file: boolean
-  budget: string | null
+  budget: BudgetRange | null
   communities: string | null
   likes: string | null
   dislikes: string | null
