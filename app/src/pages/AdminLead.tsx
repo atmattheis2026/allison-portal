@@ -9,6 +9,14 @@ import {
 import AdminNav from '../components/AdminNav'
 import './Admin.css'
 
+/** Days from today to a plain "YYYY-MM-DD" date — negative once it's past. */
+function daysUntil(dateStr: string): number {
+  const target = new Date(dateStr + 'T00:00:00')
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return Math.round((target.getTime() - today.getTime()) / 86_400_000)
+}
+
 /** datetime-local wants "YYYY-MM-DDTHH:mm" in local time, not an ISO string. */
 function toLocalInput(iso: string | null): string {
   if (!iso) return ''
@@ -491,6 +499,16 @@ export default function AdminLead() {
 
         <div className="card setcard">
           <h2>Agent transaction info</h2>
+          {lead.buyer_broker_expires && (() => {
+            const days = daysUntil(lead.buyer_broker_expires)
+            const color = days < 0 ? 'var(--danger, #cc3311)' : days <= 14 ? '#d4a017' : 'var(--ink-faint)'
+            const text = days < 0
+              ? `Buyer broker expired ${Math.abs(days)}d ago`
+              : days === 0
+              ? 'Buyer broker expires today'
+              : `Buyer broker expires in ${days}d`
+            return <p className="sethelp" style={{ margin: '0 0 12px', color, fontWeight: 600 }}>{text}</p>
+          })()}
           <div className="field" style={{ maxWidth: 260 }}>
             <label>Referral source</label>
             <select value={lead.referral_source ?? ''}
