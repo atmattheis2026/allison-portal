@@ -487,6 +487,10 @@ export default function AdminLead() {
                      onChange={(e) => patchLead({ buyer_broker_expires: e.target.value || null })} />
             </div>
           </div>
+        </div>
+
+        <div className="card setcard">
+          <h2>Agent transaction info</h2>
           <div className="field" style={{ maxWidth: 260 }}>
             <label>Referral source</label>
             <select value={lead.referral_source ?? ''}
