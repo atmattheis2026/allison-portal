@@ -116,6 +116,16 @@ export default function AdminLead() {
   async function convert(homeId?: string) {
     if (!id || !supabase || converting) return
     if (!confirm('Convert this buyer to a full transaction? Use this once they’re under contract.')) return
+
+    // The transaction page shows city/state/zip on its own line — if this
+    // home never got one (common, since it's usually filled in from a
+    // parsed listing link), ask once now rather than leaving it blank.
+    const home = homeId ? homes.find((h) => h.id === homeId) : undefined
+    if (home && !home.city_state_zip?.trim()) {
+      const csz = prompt('City, state, zip for this home?', '')
+      if (csz && csz.trim()) await patchHome(home.id, { city_state_zip: csz.trim() })
+    }
+
     setConverting(true)
     const { data: txId, error } = await supabase.rpc('convert_lead_to_transaction', {
       p_lead_id: id, p_home_id: homeId ?? null,
@@ -801,15 +811,28 @@ export default function AdminLead() {
                            onChange={(e) => patchHome(h.id, { price: e.target.value })} />
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
+                    <input type="text" value={h.city_state_zip ?? ''} placeholder="City, state, zip" style={{ flex: 1 }}
+                           onChange={(e) => patchHome(h.id, { city_state_zip: e.target.value || null })} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
                     <input type="text" value={h.url ?? ''} placeholder="Listing link" style={{ flex: 1 }}
                            onChange={(e) => patchHome(h.id, { url: e.target.value })} />
                     <button type="button" className="btn" style={{ flex: 'none' }}
                             disabled={!h.url || fetchingId === h.id}
                             onClick={async () => {
+                              const parsed = parseAddressFromListingUrl(h.url ?? '')
                               const preview = await fetchListingPreview(h.id, h.url ?? '')
                               const values: Partial<LeadHome> = {}
                               if (preview?.photo_url) values.photo_url = preview.photo_url
-                              if (preview?.title && !h.address_line) values.address_line = preview.title
+                              if (parsed) {
+                                const guess = `${parsed.street}, ${parsed.cityStateZip}`
+                                if (confirm(`Use this address?\n\n${guess}`)) {
+                                  values.address_line = parsed.street
+                                  values.city_state_zip = parsed.cityStateZip
+                                }
+                              } else if (preview?.title && !h.address_line) {
+                                values.address_line = preview.title
+                              }
                               if (Object.keys(values).length) patchHome(h.id, values)
                               else alert('Couldn’t find a photo or address from that link — enter them below.')
                             }}>
