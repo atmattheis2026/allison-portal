@@ -516,14 +516,9 @@ export default function AdminLead() {
                 </div>
                 <div className="field">
                   <label>EPIC commission split</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <input type="number" step="0.01" min="0" max="100" style={{ flex: 1 }}
-                           value={lead.referral_epic_split_pct ?? ''}
-                           onChange={(e) => patchLead({
-                             referral_epic_split_pct: e.target.value === '' ? null : Number(e.target.value),
-                           })} />
-                    <span className="muted">%</span>
-                  </div>
+                  <input type="text" placeholder="e.g. 80/20"
+                         value={lead.referral_epic_split_pct ?? ''}
+                         onChange={(e) => patchLead({ referral_epic_split_pct: e.target.value || null })} />
                 </div>
               </div>
               <div className="field" style={{ marginTop: 8 }}>
