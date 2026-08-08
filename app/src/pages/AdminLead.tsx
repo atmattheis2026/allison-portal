@@ -501,13 +501,24 @@ export default function AdminLead() {
           <h2>Agent transaction info</h2>
           {lead.buyer_broker_expires && (() => {
             const days = daysUntil(lead.buyer_broker_expires)
-            const color = days < 0 ? 'var(--danger, #cc3311)' : days <= 14 ? '#d4a017' : 'var(--ink-faint)'
+            // 3–6mo bright green, 1–3mo yellow, <30d orange, <=7d red+bold —
+            // matches the urgency of the email reminder sent at the 7-day mark.
+            const urgent = days <= 7
+            const color = days <= 7 ? '#e5322d'
+              : days < 30 ? '#e8720c'
+              : days < 90 ? '#d4a017'
+              : days <= 180 ? '#2ecc40'
+              : 'var(--ink-faint)'
             const text = days < 0
               ? `Buyer broker expired ${Math.abs(days)}d ago`
               : days === 0
               ? 'Buyer broker expires today'
               : `Buyer broker expires in ${days}d`
-            return <p className="sethelp" style={{ margin: '0 0 12px', color, fontWeight: 600 }}>{text}</p>
+            return (
+              <p className="sethelp" style={{ margin: '0 0 12px', color, fontWeight: urgent ? 700 : 600 }}>
+                {text}
+              </p>
+            )
           })()}
           <div className="field" style={{ maxWidth: 260 }}>
             <label>Referral source</label>
