@@ -256,6 +256,11 @@ export interface Lead {
   referral_contact_info: string | null
   referral_commission_pct: number | null
   referral_doc_received: boolean
+  /** These three apply no matter which referral_source is picked, not just
+   *  Agent Referral — internal only, same as the rest of this section. */
+  referral_met_exp_cap: boolean | null
+  referral_epic_split_pct: number | null
+  referral_notes: string | null
   preapproval_on_file: boolean
   budget: BudgetRange | null
   communities: string | null

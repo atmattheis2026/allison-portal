@@ -497,6 +497,45 @@ export default function AdminLead() {
             <p className="sethelp" style={{ margin: '6px 0 0' }}>Just for you — this never shows to the client.</p>
           </div>
 
+          {lead.referral_source && (
+            <div className="field" style={{
+              background: 'var(--panel-2)', border: '1px solid var(--line)',
+              borderRadius: 'var(--r-md)', padding: '14px 16px', marginTop: 4,
+            }}>
+              <div className="field2">
+                <div className="field">
+                  <label>Met eXp Cap</label>
+                  <select value={lead.referral_met_exp_cap === null ? '' : lead.referral_met_exp_cap ? 'yes' : 'no'}
+                          onChange={(e) => patchLead({
+                            referral_met_exp_cap: e.target.value === '' ? null : e.target.value === 'yes',
+                          })}>
+                    <option value="">Not set</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>EPIC commission split</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input type="number" step="0.01" min="0" max="100" style={{ flex: 1 }}
+                           value={lead.referral_epic_split_pct ?? ''}
+                           onChange={(e) => patchLead({
+                             referral_epic_split_pct: e.target.value === '' ? null : Number(e.target.value),
+                           })} />
+                    <span className="muted">%</span>
+                  </div>
+                </div>
+              </div>
+              <div className="field" style={{ marginTop: 8 }}>
+                <label>Notes</label>
+                <textarea rows={2} style={{ width: '100%' }}
+                          placeholder="e.g. using 2 agents to sell, other details worth remembering"
+                          value={lead.referral_notes ?? ''}
+                          onChange={(e) => patchLead({ referral_notes: e.target.value || null })} />
+              </div>
+            </div>
+          )}
+
           {lead.referral_source === 'Agent Referral' && (
             <div className="field" style={{
               background: 'var(--panel-2)', border: '1px solid var(--line)',
