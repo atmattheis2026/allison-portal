@@ -183,6 +183,27 @@ export default function ClientLeadView() {
           </div>
         )}
 
+        {(lead.preapproval_on_file || lead.budget || lead.purchase_type || lead.funding_type || lead.has_house_to_sell) && (
+          <div className="card" style={{ padding: 16 }}>
+            <h3 className="eyebrow">Qualification</h3>
+            <div className="notelist">
+              {lead.preapproval_on_file && <p className="notebody">✓ Preapproval on file</p>}
+              {lead.budget && <p className="notebody">Budget: {lead.budget}</p>}
+              {lead.purchase_type && (
+                <p className="notebody">{lead.purchase_type === 'investment' ? 'Investment purchase' : 'Personal purchase'}</p>
+              )}
+              {lead.funding_type && (
+                <p className="notebody">{lead.funding_type === 'cash' ? 'Paying cash' : 'Financing'}</p>
+              )}
+              {lead.has_house_to_sell && (
+                <p className="notebody">
+                  Has a house to sell first{lead.why_selling ? ` — ${lead.why_selling}` : ''}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
         {appointments.length > 0 && (
           <div className="card" style={{ padding: 16 }}>
             <h3 className="eyebrow">Appointments</h3>
@@ -198,6 +219,7 @@ export default function ClientLeadView() {
                     <div className="notemeta"><span className="noteauthor">{fmtWhen(a.scheduled_at)}</span></div>
                     <p className="notebody">
                       {a.url ? <a href={a.url} target="_blank" rel="noreferrer">{a.address_line}</a> : a.address_line}
+                      {a.city_state_zip ? `, ${a.city_state_zip}` : ''}
                       {a.note ? ` — ${a.note}` : ''}
                     </p>
                   </div>
@@ -220,6 +242,7 @@ export default function ClientLeadView() {
                   )}
                   <p className="notebody">
                     {h.url ? <a href={h.url} target="_blank" rel="noreferrer">{h.address_line}</a> : h.address_line}
+                    {h.city_state_zip ? `, ${h.city_state_zip}` : ''}
                   </p>
                   {h.note && <p className="notebody muted" style={{ fontSize: 12.5 }}>{h.note}</p>}
                   <RequestShowingButton token={token ?? ''} homeId={h.id} initiallyRequested={h.showing_requested} />

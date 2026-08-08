@@ -276,6 +276,7 @@ export interface LeadAppointment {
   lead_id: string
   scheduled_at: string | null
   address_line: string
+  city_state_zip: string | null
   url: string | null
   photo_url: string | null
   note: string | null
@@ -309,6 +310,7 @@ export interface LeadMaybeHome {
   id: string
   lead_id: string
   address_line: string
+  city_state_zip: string | null
   url: string | null
   photo_url: string | null
   /** Client-visible. */
@@ -443,6 +445,12 @@ export interface SharedLeadPayload {
   lead: {
     id: string; full_name: string; full_name_2: string | null
     client_photo_url: string | null; client_photo_url_2: string | null
+    preapproval_on_file: boolean
+    budget: BudgetRange | null
+    purchase_type: 'investment' | 'personal' | null
+    funding_type: 'cash' | 'financing' | null
+    has_house_to_sell: boolean
+    why_selling: string | null
   }
   realtor: Person | null
   brand: Brand | null

@@ -159,7 +159,7 @@ export default function AdminLead() {
     await patchAppointment(apt.id, { completed: true })
     const { data } = await supabase.from('lead_homes')
       .insert({
-        lead_id: id, address_line: apt.address_line, url: apt.url,
+        lead_id: id, address_line: apt.address_line, city_state_zip: apt.city_state_zip, url: apt.url,
         photo_url: apt.photo_url, note: apt.note, sort_order: homes.length,
         shown_at: apt.scheduled_at ? apt.scheduled_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
       })
@@ -207,7 +207,7 @@ export default function AdminLead() {
     if (!id || !supabase) return
     const { data, error } = await supabase.from('lead_homes')
       .insert({
-        lead_id: id, address_line: h.address_line, url: h.url,
+        lead_id: id, address_line: h.address_line, city_state_zip: h.city_state_zip, url: h.url,
         photo_url: h.photo_url, note: h.note, private_note: h.private_note, sort_order: homes.length,
         shown_at: new Date().toISOString().slice(0, 10),
       })
@@ -226,7 +226,7 @@ export default function AdminLead() {
     if (!id || !supabase) return
     const { data, error } = await supabase.from('lead_appointments')
       .insert({
-        lead_id: id, address_line: h.address_line, url: h.url,
+        lead_id: id, address_line: h.address_line, city_state_zip: h.city_state_zip, url: h.url,
         photo_url: h.photo_url, sort_order: appointments.length,
       })
       .select('*').single()
@@ -246,7 +246,7 @@ export default function AdminLead() {
     if (!id || !supabase) return
     const { data } = await supabase.from('lead_appointments')
       .insert({
-        lead_id: id, address_line: h.address_line, url: h.url,
+        lead_id: id, address_line: h.address_line, city_state_zip: h.city_state_zip, url: h.url,
         photo_url: h.photo_url, note: h.note, sort_order: appointments.length,
       })
       .select('*').single()
@@ -340,6 +340,31 @@ export default function AdminLead() {
       <AdminNav current="leads" />
 
       <div style={{ display: 'grid', gap: 18, maxWidth: 1040, margin: '0 auto' }}>
+        <div className="card setcard">
+          <div className="field2">
+            <div className="field">
+              <label>Assigned agent</label>
+              <select value={lead.realtor_member_id ?? ''}
+                      onChange={(e) => patchLead({ realtor_member_id: e.target.value || null })}>
+                <option value="">Not assigned yet</option>
+                {roster.map((m) => (
+                  <option key={m.id} value={m.id}>{m.full_name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label>Assigned lender</label>
+              <select value={lead.lender_member_id ?? ''}
+                      onChange={(e) => patchLead({ lender_member_id: e.target.value || null })}>
+                <option value="">Not assigned yet</option>
+                {roster.map((m) => (
+                  <option key={m.id} value={m.id}>{m.full_name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
         <div className="card setcard notesboard">
           <h2>Updates</h2>
           <p className="sethelp">Posted here shows up on their client page — check this first.</p>
@@ -372,33 +397,14 @@ export default function AdminLead() {
         <div className="card setcard">
           <h2>Buyer info</h2>
           <div className="field2">
-            <div className="field">
-              <label>Assigned agent</label>
-              <select value={lead.realtor_member_id ?? ''}
-                      onChange={(e) => patchLead({ realtor_member_id: e.target.value || null })}>
-                <option value="">Not assigned yet</option>
-                {roster.map((m) => (
-                  <option key={m.id} value={m.id}>{m.full_name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label>Assigned lender</label>
-              <select value={lead.lender_member_id ?? ''}
-                      onChange={(e) => patchLead({ lender_member_id: e.target.value || null })}>
-                <option value="">Not assigned yet</option>
-                {roster.map((m) => (
-                  <option key={m.id} value={m.id}>{m.full_name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="field2">
-            <div className="field">
-              <label>Name</label>
+            <div className="field" style={{
+              background: 'var(--panel-2)', border: '1px solid var(--line)',
+              borderRadius: 'var(--r-md)', padding: 12,
+            }}>
+              <label>Client 1</label>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <Thumb src={lead.client_photo_url} />
-                <input style={{ flex: 1 }} value={lead.full_name}
+                <input style={{ flex: 1 }} value={lead.full_name} placeholder="Name"
                        onChange={(e) => patchLead({ full_name: e.target.value })} />
               </div>
               <label className="cl" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
@@ -406,9 +412,16 @@ export default function AdminLead() {
                        onChange={() => patchLead({ primary_contact: '1' })} />
                 Primary contact
               </label>
+              <input style={{ marginTop: 8, width: '100%' }} value={lead.phone ?? ''} placeholder="Phone"
+                     onChange={(e) => patchLead({ phone: e.target.value })} />
+              <input type="email" style={{ marginTop: 8, width: '100%' }} value={lead.email ?? ''} placeholder="Email"
+                     onChange={(e) => patchLead({ email: e.target.value })} />
             </div>
-            <div className="field">
-              <label>Second name (optional)</label>
+            <div className="field" style={{
+              background: 'var(--panel-2)', border: '1px solid var(--line)',
+              borderRadius: 'var(--r-md)', padding: 12,
+            }}>
+              <label>Client 2 (optional)</label>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <Thumb src={lead.client_photo_url_2} />
                 <input style={{ flex: 1 }} value={lead.full_name_2 ?? ''} placeholder="e.g. spouse or co-buyer"
@@ -419,31 +432,15 @@ export default function AdminLead() {
                        onChange={() => patchLead({ primary_contact: '2' })} />
                 Primary contact
               </label>
+              <input style={{ marginTop: 8, width: '100%' }} value={lead.phone_2 ?? ''} placeholder="Phone"
+                     onChange={(e) => patchLead({ phone_2: e.target.value })} />
+              <input type="email" style={{ marginTop: 8, width: '100%' }} value={lead.email_2 ?? ''} placeholder="Email"
+                     onChange={(e) => patchLead({ email_2: e.target.value })} />
             </div>
           </div>
-          <p className="sethelp" style={{ margin: '4px 0 0' }}>
+          <p className="sethelp" style={{ margin: '8px 0 0' }}>
             Photos are uploaded by the client themselves from their own page.
           </p>
-          <div className="field2">
-            <div className="field">
-              <label>Phone</label>
-              <input value={lead.phone ?? ''} onChange={(e) => patchLead({ phone: e.target.value })} />
-            </div>
-            <div className="field">
-              <label>Email</label>
-              <input type="email" value={lead.email ?? ''} onChange={(e) => patchLead({ email: e.target.value })} />
-            </div>
-          </div>
-          <div className="field2">
-            <div className="field">
-              <label>Second buyer's phone</label>
-              <input value={lead.phone_2 ?? ''} onChange={(e) => patchLead({ phone_2: e.target.value })} />
-            </div>
-            <div className="field">
-              <label>Second buyer's email</label>
-              <input type="email" value={lead.email_2 ?? ''} onChange={(e) => patchLead({ email_2: e.target.value })} />
-            </div>
-          </div>
           <div className="field">
             <label>Timeframe to buy</label>
             <div className="tabs">
@@ -544,7 +541,7 @@ export default function AdminLead() {
 
         <div className="card setcard">
           <h2>Qualification</h2>
-          <p className="sethelp">Just for you — none of this shows to the client.</p>
+          <p className="sethelp">Visible to the client on their page.</p>
           <div className="checkline">
             <input type="checkbox" checked={lead.preapproval_on_file}
                    onChange={(e) => patchLead({ preapproval_on_file: e.target.checked })} />
@@ -655,6 +652,10 @@ export default function AdminLead() {
                            onChange={(e) => patchAppointment(a.id, { address_line: e.target.value })} />
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
+                    <input type="text" value={a.city_state_zip ?? ''} placeholder="City, state, zip" style={{ flex: 1 }}
+                           onChange={(e) => patchAppointment(a.id, { city_state_zip: e.target.value || null })} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
                     <input type="text" value={a.url ?? ''} placeholder="Listing link" style={{ flex: 1 }}
                            onChange={(e) => patchAppointment(a.id, { url: e.target.value })} />
                     <button type="button" className="btn" style={{ flex: 'none' }}
@@ -664,8 +665,15 @@ export default function AdminLead() {
                               const preview = await fetchListingPreview(a.id, a.url ?? '')
                               const values: Partial<LeadAppointment> = {}
                               if (preview?.photo_url) values.photo_url = preview.photo_url
-                              const guess = parsed ? `${parsed.street}, ${parsed.cityStateZip}` : preview?.title
-                              if (guess && confirm(`Use this address?\n\n${guess}`)) values.address_line = guess
+                              if (parsed) {
+                                const guess = `${parsed.street}, ${parsed.cityStateZip}`
+                                if (confirm(`Use this address?\n\n${guess}`)) {
+                                  values.address_line = parsed.street
+                                  values.city_state_zip = parsed.cityStateZip
+                                }
+                              } else if (preview?.title && !a.address_line) {
+                                values.address_line = preview.title
+                              }
                               if (Object.keys(values).length) patchAppointment(a.id, values)
                               else alert('Couldn’t find a photo or address from that link — enter them below.')
                             }}>
@@ -721,6 +729,8 @@ export default function AdminLead() {
                 <div style={{ flex: 1, display: 'grid', gap: 6 }}>
                   <input type="text" value={h.address_line} placeholder="Address"
                          onChange={(e) => patchMaybeHome(h.id, { address_line: e.target.value })} />
+                  <input type="text" value={h.city_state_zip ?? ''} placeholder="City, state, zip"
+                         onChange={(e) => patchMaybeHome(h.id, { city_state_zip: e.target.value || null })} />
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input type="text" value={h.url ?? ''} placeholder="Listing link" style={{ flex: 1 }}
                            onChange={(e) => patchMaybeHome(h.id, { url: e.target.value })} />
@@ -732,8 +742,15 @@ export default function AdminLead() {
                               const values: Partial<LeadMaybeHome> = {}
                               if (preview?.photo_url) values.photo_url = preview.photo_url
                               if (!h.address_line) {
-                                const guess = parsed ? `${parsed.street}, ${parsed.cityStateZip}` : preview?.title
-                                if (guess && confirm(`Use this address?\n\n${guess}`)) values.address_line = guess
+                                if (parsed) {
+                                  const guess = `${parsed.street}, ${parsed.cityStateZip}`
+                                  if (confirm(`Use this address?\n\n${guess}`)) {
+                                    values.address_line = parsed.street
+                                    values.city_state_zip = parsed.cityStateZip
+                                  }
+                                } else if (preview?.title) {
+                                  values.address_line = preview.title
+                                }
                               }
                               if (Object.keys(values).length) patchMaybeHome(h.id, values)
                               else alert('Couldn’t find a photo or address from that link — enter them below.')
