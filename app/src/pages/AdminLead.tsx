@@ -521,6 +521,27 @@ export default function AdminLead() {
                          onChange={(e) => patchLead({ referral_epic_split_pct: e.target.value || null })} />
                 </div>
               </div>
+              <div className="checkline" style={{ marginTop: 8 }}>
+                <input type="checkbox" checked={lead.referral_transaction_fee}
+                       onChange={(e) => patchLead({
+                         referral_transaction_fee: e.target.checked,
+                         ...(e.target.checked ? {} : { referral_transaction_fee_amount: null }),
+                       })} />
+                <span className="cl">Will there be a transaction fee?</span>
+              </div>
+              {lead.referral_transaction_fee && (
+                <div className="field" style={{ maxWidth: 180 }}>
+                  <label>Fee amount</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span className="muted">$</span>
+                    <input type="number" step="0.01" min="0" style={{ flex: 1 }}
+                           value={lead.referral_transaction_fee_amount ?? ''}
+                           onChange={(e) => patchLead({
+                             referral_transaction_fee_amount: e.target.value === '' ? null : Number(e.target.value),
+                           })} />
+                  </div>
+                </div>
+              )}
               <div className="field" style={{ marginTop: 8 }}>
                 <label>Notes</label>
                 <textarea rows={2} style={{ width: '100%' }}

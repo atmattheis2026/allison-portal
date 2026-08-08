@@ -260,6 +260,8 @@ export interface Lead {
    *  Agent Referral — internal only, same as the rest of this section. */
   referral_met_exp_cap: boolean | null
   referral_epic_split_pct: string | null
+  referral_transaction_fee: boolean
+  referral_transaction_fee_amount: number | null
   referral_notes: string | null
   preapproval_on_file: boolean
   budget: BudgetRange | null
