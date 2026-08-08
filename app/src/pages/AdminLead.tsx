@@ -164,15 +164,20 @@ export default function AdminLead() {
   // just stops her from retyping the same address/link/photo a second time.
   async function completeAppointment(apt: LeadAppointment) {
     if (!id || !supabase) return
-    await patchAppointment(apt.id, { completed: true })
-    const { data } = await supabase.from('lead_homes')
+    const { data, error } = await supabase.from('lead_homes')
       .insert({
         lead_id: id, address_line: apt.address_line, city_state_zip: apt.city_state_zip, url: apt.url,
         photo_url: apt.photo_url, note: apt.note, sort_order: homes.length,
         shown_at: apt.scheduled_at ? apt.scheduled_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
       })
       .select('*').single()
-    if (data) setHomes((cur) => [...cur, data as LeadHome])
+    if (error || !data) {
+      alert(`Couldn't move that to Homes shown: ${error?.message ?? 'unknown error'}`)
+      return
+    }
+    setHomes((cur) => [...cur, data as LeadHome])
+    setAppointments((cur) => cur.filter((a) => a.id !== apt.id))
+    await supabase.from('lead_appointments').delete().eq('id', apt.id)
   }
 
   // ---- homes ----
@@ -781,10 +786,10 @@ export default function AdminLead() {
               </details>
               <input type="text" value={a.note ?? ''} placeholder="Note" style={{ marginTop: 8, width: '100%' }}
                      onChange={(e) => patchAppointment(a.id, { note: e.target.value })} />
-              <div className="checkline" style={{ marginTop: 8, marginBottom: 0 }}>
-                <input type="checkbox" checked={a.completed}
-                       onChange={(e) => e.target.checked ? completeAppointment(a) : patchAppointment(a.id, { completed: false })} />
-                <span className="cl">Showing happened — move it to Homes shown</span>
+              <div className="savebar" style={{ padding: '8px 0 0' }}>
+                <button type="button" className="btn primary" onClick={() => completeAppointment(a)}>
+                  Showing happened — move to Homes shown →
+                </button>
               </div>
             </div>
           ))}
