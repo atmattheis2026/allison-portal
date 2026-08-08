@@ -6,6 +6,7 @@ import {
   leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL, REFERRAL_SOURCES, BUDGET_RANGES,
   parseAddressFromListingUrl,
 } from '../lib/types'
+import AdminNav from '../components/AdminNav'
 import './Admin.css'
 
 /** datetime-local wants "YYYY-MM-DDTHH:mm" in local time, not an ISO string. */
@@ -326,6 +327,7 @@ export default function AdminLead() {
           </button>
         </nav>
       </header>
+      <AdminNav current="leads" />
 
       <div style={{ display: 'grid', gap: 18, maxWidth: 1040, margin: '0 auto' }}>
         <div className="card setcard notesboard">
@@ -361,6 +363,28 @@ export default function AdminLead() {
           <h2>Buyer info</h2>
           <div className="field2">
             <div className="field">
+              <label>Assigned agent</label>
+              <select value={lead.realtor_member_id ?? ''}
+                      onChange={(e) => patchLead({ realtor_member_id: e.target.value || null })}>
+                <option value="">Not assigned yet</option>
+                {roster.map((m) => (
+                  <option key={m.id} value={m.id}>{m.full_name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label>Assigned lender</label>
+              <select value={lead.lender_member_id ?? ''}
+                      onChange={(e) => patchLead({ lender_member_id: e.target.value || null })}>
+                <option value="">Not assigned yet</option>
+                {roster.map((m) => (
+                  <option key={m.id} value={m.id}>{m.full_name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="field2">
+            <div className="field">
               <label>Name</label>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <Thumb src={lead.client_photo_url} />
@@ -390,28 +414,6 @@ export default function AdminLead() {
           <p className="sethelp" style={{ margin: '4px 0 0' }}>
             Photos are uploaded by the client themselves from their own page.
           </p>
-          <div className="field2">
-            <div className="field">
-              <label>Assigned agent</label>
-              <select value={lead.realtor_member_id ?? ''}
-                      onChange={(e) => patchLead({ realtor_member_id: e.target.value || null })}>
-                <option value="">Not assigned yet</option>
-                {roster.map((m) => (
-                  <option key={m.id} value={m.id}>{m.full_name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label>Assigned lender</label>
-              <select value={lead.lender_member_id ?? ''}
-                      onChange={(e) => patchLead({ lender_member_id: e.target.value || null })}>
-                <option value="">Not assigned yet</option>
-                {roster.map((m) => (
-                  <option key={m.id} value={m.id}>{m.full_name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
           <div className="field2">
             <div className="field">
               <label>Phone</label>

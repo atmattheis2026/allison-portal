@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { Lead, TeamMember, TimeframeBand } from '../lib/types'
 import { leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL } from '../lib/types'
+import AdminNav from '../components/AdminNav'
 import './Admin.css'
 
 // Most-urgent-to-nurture first — orange (furthest out, most at risk of
@@ -118,12 +119,12 @@ export default function AdminLeads() {
       <header className="adminbar">
         <span className="wordmark" style={{ fontSize: 15 }}>Active Buyers</span>
         <nav className="adminnav">
-          <Link className="btn" to="/admin">Transactions</Link>
           <button className="btn primary" onClick={() => setCreating(true)}>
             New lead
           </button>
         </nav>
       </header>
+      <AdminNav current="leads" />
 
       {creating && (
         <NewLead

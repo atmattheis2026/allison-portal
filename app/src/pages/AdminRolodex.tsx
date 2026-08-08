@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
+import AdminNav from '../components/AdminNav'
 import './Admin.css'
 
 interface Row {
@@ -116,11 +117,8 @@ export default function AdminRolodex() {
     <div className="admin">
       <header className="adminbar">
         <span className="wordmark" style={{ fontSize: 15 }}>Rolodex</span>
-        <nav className="adminnav">
-          <Link className="btn" to="/admin">Transactions</Link>
-          <Link className="btn" to="/admin/leads">Active Buyers</Link>
-        </nav>
       </header>
+      <AdminNav current="rolodex" />
 
       <div className="card setcard">
         <p className="sethelp">

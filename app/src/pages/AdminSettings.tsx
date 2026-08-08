@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import { TEAM_MEMBERS } from '../lib/demoData'
 import { ROLE_LABEL, type BrandKind, type DealType, type Side, type TeamMember, type TeamRole } from '../lib/types'
+import AdminNav from '../components/AdminNav'
 import './Admin.css'
 
 /**
@@ -28,10 +28,8 @@ export default function AdminSettings() {
 
       <header className="adminbar">
         <span className="wordmark" style={{ fontSize: 15 }}>Settings</span>
-        <nav className="adminnav">
-          <Link className="btn" to="/admin">All transactions</Link>
-        </nav>
       </header>
+      <AdminNav current="settings" />
 
       <div className="tabs">
         <button className={`tab${tab === 'branding' ? ' on' : ''}`} onClick={() => setTab('branding')}>

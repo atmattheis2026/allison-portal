@@ -4,6 +4,7 @@ import Dashboard from '../components/Dashboard'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import { DEMO_BY_TOKEN, DEMO_PAYLOAD, SAVED_CONTACTS, TEAM_MEMBERS, TRANSACTION_ASSIGNEES } from '../lib/demoData'
 import { ROLE_LABEL, type Contact, type Milestone, type SavedContact, type SharedPayload, type Side, type TeamMember, type Transaction } from '../lib/types'
+import AdminNav from '../components/AdminNav'
 import './Admin.css'
 
 /**
@@ -392,6 +393,7 @@ export default function AdminTransaction() {
         </div>
       )}
       <div className="admin" style={{ paddingTop: 16, paddingBottom: 0 }}>
+        <AdminNav current="transactions" />
         <AssignedTo roster={roster} assignedIds={assignedIds} onToggle={toggleAssignee} />
       </div>
       <Dashboard
