@@ -6,16 +6,25 @@ import AdminNav from '../components/AdminNav'
 import { useIsDatabaseManager } from '../lib/useIsDatabaseManager'
 import './Admin.css'
 
+interface ClosedTx {
+  id: string
+  address_line: string
+  city_state_zip: string
+}
+
 /**
  * Clients whose transaction has been marked Closed & Funded (see
  * AdminTransaction.tsx). Their Active Buyer file — appointments, homes
- * shown, wants/needs, all of it — stays exactly where it was; this is just
- * a different list pointing at the same /admin/leads/:id page, filtered to
- * lead_status = 'closed' instead of active/under_contract.
+ * shown, wants/needs, all of it — stays exactly where it was; this list
+ * just points at the same /admin/leads/:id page, filtered to
+ * lead_status = 'closed', plus a link to the linked /admin/t/:id
+ * transaction file when there is one.
  */
 export default function AdminClosed() {
   const [rows, setRows] = useState<Lead[] | null>(null)
   const [roster, setRoster] = useState<TeamMember[]>([])
+  const [txById, setTxById] = useState<Record<string, ClosedTx>>({})
+  const [openId, setOpenId] = useState<string | null>(null)
   const nav = useNavigate()
 
   useEffect(() => {
@@ -31,10 +40,22 @@ export default function AdminClosed() {
         .eq('lead_status', 'closed')
         .order('closed_date', { ascending: false })
       if (error) console.error(error)
-      setRows((data as Lead[]) ?? [])
+      const leadRows = (data as Lead[]) ?? []
+      setRows(leadRows)
 
       const { data: members } = await supabase!.from('team_members').select('*').order('sort_order')
       setRoster((members as TeamMember[]) ?? [])
+
+      // The address a closed buyer purchased lives on their linked
+      // transaction, not the lead itself — fetch those in one batch.
+      const txIds = leadRows.map((r) => r.converted_transaction_id).filter((id): id is string => Boolean(id))
+      if (txIds.length) {
+        const { data: txRows } = await supabase!.from('transactions')
+          .select('id, address_line, city_state_zip').in('id', txIds)
+        const byId: Record<string, ClosedTx> = {}
+        for (const t of (txRows as ClosedTx[]) ?? []) byId[t.id] = t
+        setTxById(byId)
+      }
     }
     load()
   }, [nav])
@@ -79,32 +100,61 @@ export default function AdminClosed() {
         </div>
       ) : (
         <div className="txlist">
-          {rows.map((r) => (
-            <div className="txcard" key={r.id} style={{ borderLeft: '5px solid #2ecc40' }}>
-              <Link to={`/admin/leads/${r.id}`} className="txmain">
-                <div className="txinfo">
-                  <div className="txaddr">{r.full_name || 'Unnamed buyer'}</div>
-                  <div className="txcity">{agentName(r.realtor_member_id) ?? 'No agent assigned'}</div>
-                  <div className="txmeta">
-                    <span className="tag" style={{ borderColor: '#2ecc40', color: '#2ecc40' }}>Closed</span>
-                    {r.closed_date && (
-                      <span className="muted">
-                        {new Date(r.closed_date + 'T00:00:00').toLocaleDateString('en-US', {
-                          year: 'numeric', month: 'long', day: 'numeric',
-                        })}
-                      </span>
+          {rows.map((r) => {
+            const tx = r.converted_transaction_id ? txById[r.converted_transaction_id] : undefined
+            const open = openId === r.id
+            const addressLabel = tx
+              ? `${tx.address_line}${tx.city_state_zip ? `, ${tx.city_state_zip}` : ''}`
+              : r.full_name || 'Unnamed buyer'
+            return (
+              <div className="txcard" key={r.id} style={{ borderLeft: '5px solid #2ecc40', flexDirection: 'column', alignItems: 'stretch' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <button
+                    type="button" className="txmain" style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}
+                    onClick={() => setOpenId(open ? null : r.id)}
+                  >
+                    <span className="muted" style={{ fontSize: 18, flex: 'none', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s', display: 'inline-block' }}>
+                      ▶
+                    </span>
+                    <div className="txinfo">
+                      <div className="txaddr">{addressLabel}</div>
+                      <div className="txcity">{r.full_name} · {agentName(r.realtor_member_id) ?? 'No agent assigned'}</div>
+                      <div className="txmeta">
+                        <span className="tag" style={{ borderColor: '#2ecc40', color: '#2ecc40' }}>Closed</span>
+                        {r.closed_date && (
+                          <span className="muted">
+                            {new Date(r.closed_date + 'T00:00:00').toLocaleDateString('en-US', {
+                              year: 'numeric', month: 'long', day: 'numeric',
+                            })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                  {isDatabaseManager && (
+                    <button className="btn" style={{ color: 'var(--danger, #cc3311)', flex: 'none' }}
+                            onClick={() => deleteLead(r)} title="Permanently delete this file">
+                      Delete
+                    </button>
+                  )}
+                </div>
+                {open && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12, paddingLeft: 32 }}>
+                    <Link to={`/admin/leads/${r.id}`} className="btn" style={{ alignSelf: 'flex-start' }}>
+                      Buyer file →
+                    </Link>
+                    {tx ? (
+                      <Link to={`/admin/t/${tx.id}`} className="btn" style={{ alignSelf: 'flex-start' }}>
+                        Transaction file →
+                      </Link>
+                    ) : (
+                      <span className="muted" style={{ fontSize: 12.5 }}>No transaction linked</span>
                     )}
                   </div>
-                </div>
-              </Link>
-              {isDatabaseManager && (
-                <button className="btn" style={{ color: 'var(--danger, #cc3311)' }}
-                        onClick={() => deleteLead(r)} title="Permanently delete this file">
-                  Delete
-                </button>
-              )}
-            </div>
-          ))}
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
