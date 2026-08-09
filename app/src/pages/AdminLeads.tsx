@@ -4,6 +4,7 @@ import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { Lead, TeamMember, TimeframeBand } from '../lib/types'
 import { leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL } from '../lib/types'
 import AdminNav from '../components/AdminNav'
+import { useIsDatabaseManager } from '../lib/useIsDatabaseManager'
 import './Admin.css'
 
 // Most-urgent-to-nurture first — orange (furthest out, most at risk of
@@ -57,6 +58,16 @@ export default function AdminLeads() {
     navigator.clipboard.writeText(url)
     setCopied(token)
     setTimeout(() => setCopied(null), 1800)
+  }
+
+  const isDatabaseManager = useIsDatabaseManager()
+
+  async function deleteLead(r: Lead) {
+    if (!confirm(`Permanently delete "${r.full_name || 'this buyer'}"? This can't be undone — appointments, homes, notes, and everything else on their file goes with it.`)) return
+    setRows((cur) => cur?.filter((x) => x.id !== r.id) ?? cur)
+    if (DEMO_MODE || !supabase) return
+    const { error } = await supabase.from('leads').delete().eq('id', r.id)
+    if (error) alert(`Couldn't delete it: ${error.message}`)
   }
 
   function agentName(id: string | null) {
@@ -215,6 +226,12 @@ export default function AdminLeads() {
                 <button className="btn" onClick={() => copyLink(r.share_token)}>
                   {copied === r.share_token ? 'Copied' : 'Copy client link'}
                 </button>
+                {isDatabaseManager && (
+                  <button className="btn" style={{ color: 'var(--danger, #cc3311)' }}
+                          onClick={() => deleteLead(r)} title="Permanently delete this file">
+                    Delete
+                  </button>
+                )}
               </div>
             )
           })}

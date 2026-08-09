@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { Lead, TeamMember } from '../lib/types'
 import AdminNav from '../components/AdminNav'
+import { useIsDatabaseManager } from '../lib/useIsDatabaseManager'
 import './Admin.css'
 
 /**
@@ -40,6 +41,16 @@ export default function AdminClosed() {
 
   function agentName(memberId: string | null) {
     return roster.find((m) => m.id === memberId)?.full_name ?? null
+  }
+
+  const isDatabaseManager = useIsDatabaseManager()
+
+  async function deleteLead(r: Lead) {
+    if (!confirm(`Permanently delete "${r.full_name || 'this buyer'}"? This can't be undone.`)) return
+    setRows((cur) => cur?.filter((x) => x.id !== r.id) ?? cur)
+    if (DEMO_MODE || !supabase) return
+    const { error } = await supabase.from('leads').delete().eq('id', r.id)
+    if (error) alert(`Couldn't delete it: ${error.message}`)
   }
 
   if (!rows) return <div className="centered"><div className="spinner" /></div>
@@ -86,6 +97,12 @@ export default function AdminClosed() {
                   </div>
                 </div>
               </Link>
+              {isDatabaseManager && (
+                <button className="btn" style={{ color: 'var(--danger, #cc3311)' }}
+                        onClick={() => deleteLead(r)} title="Permanently delete this file">
+                  Delete
+                </button>
+              )}
             </div>
           ))}
         </div>

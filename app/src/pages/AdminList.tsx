@@ -4,6 +4,7 @@ import { DEMO_MODE, supabase } from '../lib/supabase'
 import { DEMO_PAYLOAD, DEMO_SELLER, TEAM_MEMBERS, TRANSACTION_ASSIGNEES } from '../lib/demoData'
 import { STATUS_LABEL, type DealType, type TeamMember, type TxStatus } from '../lib/types'
 import AdminNav from '../components/AdminNav'
+import { useIsDatabaseManager } from '../lib/useIsDatabaseManager'
 import './Admin.css'
 
 interface Row {
@@ -101,6 +102,16 @@ export default function AdminList() {
     setTimeout(() => setCopied(null), 1800)
   }
 
+  const isDatabaseManager = useIsDatabaseManager()
+
+  async function deleteTransaction(r: Row) {
+    if (!confirm(`Permanently delete "${r.address_line || 'this transaction'}"? This can't be undone — all its milestones, documents, contacts, and notes go with it.`)) return
+    setRows((cur) => cur?.filter((x) => x.id !== r.id) ?? cur)
+    if (DEMO_MODE || !supabase) return
+    const { error } = await supabase.from('transactions').delete().eq('id', r.id)
+    if (error) alert(`Couldn't delete it: ${error.message}`)
+  }
+
   if (!rows) return <div className="centered"><div className="spinner" /></div>
 
   if (needsSetup) return <FirstRun onDone={() => window.location.reload()} />
@@ -169,6 +180,12 @@ export default function AdminList() {
               <button className="btn" onClick={() => copyLink(r.share_token)}>
                 {copied === r.share_token ? 'Copied' : 'Copy client link'}
               </button>
+              {isDatabaseManager && (
+                <button className="btn" style={{ color: 'var(--danger, #cc3311)' }}
+                        onClick={() => deleteTransaction(r)} title="Permanently delete this transaction">
+                  Delete
+                </button>
+              )}
             </div>
           ))}
         </div>
