@@ -15,6 +15,7 @@ interface Row {
   roleLabel: string
   context: string
   href: string | null
+  address?: string | null
   /** Buyers/Sellers on a transaction, or an Active Client lead — someone
    *  with an actual client profile to click through to, as opposed to an
    *  agent, lender, title company, or other non-client contact. */
@@ -81,7 +82,7 @@ export default function AdminRolodex() {
 
     const { data: savedRows } = await supabase
       .from('saved_contacts')
-      .select('id, name, phone, email, role_label')
+      .select('id, name, phone, email, role_label, address')
 
     // Traces each transaction contact back to a closed lead (if any), so
     // "Reactivate for a new deal" can show up right on that contact's row —
@@ -132,6 +133,7 @@ export default function AdminRolodex() {
 
     const fromSaved: Row[] = ((savedRows ?? []) as Array<{
       id: string; name: string; phone: string | null; email: string | null; role_label: string
+      address: string | null
     }>).map((s) => ({
       key: `s-${s.id}`,
       kind: 'saved',
@@ -143,6 +145,7 @@ export default function AdminRolodex() {
       context: 'Saved contact',
       href: null,
       isClient: false,
+      address: s.address,
     }))
 
     setRows([...fromContacts, ...fromLeads, ...fromSaved])
@@ -174,20 +177,22 @@ export default function AdminRolodex() {
     setRows((cur) => cur?.filter((x) => x.key !== r.key) ?? cur)
   }
 
-  async function addSavedContact(values: { name: string; roleLabel: string; phone: string; email: string }) {
+  async function addSavedContact(values: { name: string; roleLabel: string; phone: string; email: string; address: string }) {
     if (!supabase || !teamId) return
     const { data, error } = await supabase.from('saved_contacts')
       .insert({
         team_id: teamId, group_key: 'people',
         role_label: values.roleLabel.trim() || 'Contact',
         name: values.name.trim(), phone: values.phone.trim() || null, email: values.email.trim() || null,
+        address: values.address.trim() || null,
       })
-      .select('id, name, phone, email, role_label').single()
+      .select('id, name, phone, email, role_label, address').single()
     if (error || !data) { alert(error?.message ?? 'Could not add that contact.'); return }
     setRows((cur) => [...(cur ?? []), {
       key: `s-${data.id}`, kind: 'saved', id: data.id,
       name: data.name, phone: data.phone, email: data.email,
       roleLabel: data.role_label, context: 'Saved contact', href: null, isClient: false,
+      address: data.address,
     }])
     setAddingContact(false)
   }
@@ -238,7 +243,7 @@ export default function AdminRolodex() {
         </div>
         <p className="notebody" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span>
-            {[r.phone, r.email].filter(Boolean).join(' · ') || <span className="muted">No contact info</span>}
+            {[r.phone, r.email, r.address].filter(Boolean).join(' · ') || <span className="muted">No contact info</span>}
             {r.href && <>{' — '}<Link to={r.href}>{r.context}</Link></>}
           </span>
           {r.closedLeadId && (
@@ -332,19 +337,20 @@ export default function AdminRolodex() {
 
 function AddContactForm({ onCancel, onSave }: {
   onCancel: () => void
-  onSave: (values: { name: string; roleLabel: string; phone: string; email: string }) => void | Promise<void>
+  onSave: (values: { name: string; roleLabel: string; phone: string; email: string; address: string }) => void | Promise<void>
 }) {
   const [name, setName] = useState('')
   const [roleLabel, setRoleLabel] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
+  const [address, setAddress] = useState('')
   const [busy, setBusy] = useState(false)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) return
     setBusy(true)
-    await onSave({ name, roleLabel, phone, email })
+    await onSave({ name, roleLabel, phone, email, address })
     setBusy(false)
   }
 
@@ -372,6 +378,11 @@ function AddContactForm({ onCancel, onSave }: {
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                  placeholder="jordan@example.com" />
         </div>
+      </div>
+      <div className="field">
+        <label>Address</label>
+        <input value={address} onChange={(e) => setAddress(e.target.value)}
+               placeholder="123 Main St, Orlando, FL 32801" />
       </div>
       <div className="savebar">
         <button className="btn primary" disabled={busy}>{busy ? 'Adding…' : 'Add contact'}</button>
