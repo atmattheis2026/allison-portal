@@ -555,24 +555,32 @@ function Countdown({ date, editable, onPatch }: {
 function FinalPricePanel({ price, editable, onPatch }: {
   price: number | null; editable?: boolean; onPatch?: (v: Partial<Transaction>) => void
 }) {
+  const formatted = price != null ? price.toLocaleString('en-US') : ''
+
   return (
-    <div className="countdown">
-      <div className="num">✓</div>
-      <div className="rt">
-        <div className="lab">Final purchase price</div>
-        {editable ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span className="unit">$</span>
-            <input className="closingInput" type="number" step="0.01" min="0"
-                   value={price ?? ''}
-                   onChange={(e) => onPatch?.({
-                     final_purchase_price: e.target.value === '' ? null : Number(e.target.value),
-                   })} />
-          </div>
-        ) : (
-          <div className="when">{price != null ? `$${price.toLocaleString()}` : 'Not set'}</div>
-        )}
-      </div>
+    <div className="countdown" style={{ flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 6 }}>
+      <div className="lab">Final purchase price</div>
+      {editable ? (
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, justifyContent: 'center' }}>
+          <span style={{ fontFamily: 'var(--serif)', fontSize: 36, fontWeight: 700, color: 'var(--gold-bright)' }}>$</span>
+          <input
+            type="text" inputMode="decimal" value={formatted}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/[^0-9.]/g, '')
+              onPatch?.({ final_purchase_price: raw === '' ? null : Number(raw) })
+            }}
+            style={{
+              fontFamily: 'var(--serif)', fontSize: 36, fontWeight: 700, textAlign: 'center',
+              width: 200, background: 'none', border: 'none', borderBottom: '1px solid var(--gold-soft)',
+              color: 'inherit',
+            }}
+          />
+        </div>
+      ) : (
+        <div style={{ fontFamily: 'var(--serif)', fontSize: 36, fontWeight: 700, color: 'var(--gold-bright)' }}>
+          {price != null ? `$${formatted}` : 'Not set'}
+        </div>
+      )}
     </div>
   )
 }
