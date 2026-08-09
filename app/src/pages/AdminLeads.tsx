@@ -15,7 +15,9 @@ const BAND_SORT_RANK: Record<TimeframeBand, number> = { orange: 0, yellow: 1, gr
 // accent — under contract is a different kind of status, not an urgency level.
 const UNDER_CONTRACT_COLOR = '#3b82f6'
 
-type SortMode = 'recent' | 'name' | 'broker_signed' | 'broker_expires' | 'color'
+type SortMode = 'recent' | 'name' | 'broker_signed' | 'broker_expires' | 'color' | 'comms'
+
+interface Comm { at: string; text: string }
 
 /**
  * "Active Clients" — people still pre-contract, whether they're house
@@ -28,6 +30,7 @@ type SortMode = 'recent' | 'name' | 'broker_signed' | 'broker_expires' | 'color'
 export default function AdminLeads() {
   const [rows, setRows] = useState<Lead[] | null>(null)
   const [roster, setRoster] = useState<TeamMember[]>([])
+  const [comms, setComms] = useState<Record<string, Comm>>({})
   const [creating, setCreating] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const [sortMode, setSortMode] = useState<SortMode>('recent')
@@ -51,6 +54,33 @@ export default function AdminLeads() {
 
       const { data: members } = await supabase!.from('team_members').select('*').order('sort_order')
       setRoster((members as TeamMember[]) ?? [])
+
+      // Three separate places a client can act on their own page — a
+      // referral, a showing request, or an offer request. Whichever
+      // happened most recently per lead is what shows up front and center
+      // on the list.
+      const [{ data: referrals }, { data: showings }, { data: offers }] = await Promise.all([
+        supabase!.from('lead_referrals').select('lead_id, name, created_at').eq('submitted_by', 'client'),
+        supabase!.from('lead_maybe_homes').select('lead_id, address_line, showing_requested_at').eq('showing_requested', true),
+        supabase!.from('lead_homes').select('lead_id, address_line, offer_requested_at').eq('offer_requested', true),
+      ])
+
+      const nextComms: Record<string, Comm> = {}
+      function consider(leadId: string, at: string | null, text: string) {
+        if (!at) return
+        const existing = nextComms[leadId]
+        if (!existing || at > existing.at) nextComms[leadId] = { at, text }
+      }
+      for (const r of (referrals ?? []) as Array<{ lead_id: string; name: string; created_at: string }>) {
+        consider(r.lead_id, r.created_at, `Referred a friend — ${r.name}`)
+      }
+      for (const s of (showings ?? []) as Array<{ lead_id: string; address_line: string | null; showing_requested_at: string | null }>) {
+        consider(s.lead_id, s.showing_requested_at, `Requested a showing — ${s.address_line || 'a home'}`)
+      }
+      for (const o of (offers ?? []) as Array<{ lead_id: string; address_line: string | null; offer_requested_at: string | null }>) {
+        consider(o.lead_id, o.offer_requested_at, `Ready to make an offer — ${o.address_line || 'a home'}`)
+      }
+      setComms(nextComms)
     }
     load()
   }, [nav])
@@ -83,6 +113,19 @@ export default function AdminLeads() {
     if (days < 30) return `(${days}d ago)`
     const months = Math.round(days / 30.44)
     return `(${months} mo ago)`
+  }
+
+  function commWhen(iso: string) {
+    const ms = Date.now() - new Date(iso).getTime()
+    const mins = Math.floor(ms / 60000)
+    if (mins < 1) return 'just now'
+    if (mins < 60) return `${mins}m ago`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `${hours}h ago`
+    const days = Math.floor(hours / 24)
+    if (days === 1) return 'yesterday'
+    if (days < 7) return `${days}d ago`
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
   const sortedRows = useMemo(() => {
@@ -118,11 +161,23 @@ export default function AdminLeads() {
           return BAND_SORT_RANK[ba] - BAND_SORT_RANK[bb]
         })
         break
+      case 'comms':
+        // Whoever communicated most recently floats to the top — no
+        // communication on file sorts to the bottom.
+        list.sort((a, b) => {
+          const ca = comms[a.id]?.at
+          const cb = comms[b.id]?.at
+          if (!ca && !cb) return 0
+          if (!ca) return 1
+          if (!cb) return -1
+          return cb.localeCompare(ca)
+        })
+        break
       default:
         list.sort((a, b) => b.created_at.localeCompare(a.created_at))
     }
     return list
-  }, [rows, sortMode])
+  }, [rows, sortMode, comms])
 
   if (!rows || !sortedRows) return <div className="centered"><div className="spinner" /></div>
 
@@ -161,6 +216,7 @@ export default function AdminLeads() {
             <option value="broker_signed">Buyer broker signed date (oldest first)</option>
             <option value="broker_expires">Buyer broker expiration</option>
             <option value="color">Timeframe (needs nurturing first)</option>
+            <option value="comms">New client communications</option>
           </select>
         </div>
       )}
@@ -231,6 +287,12 @@ export default function AdminLeads() {
                       )}
                     </div>
                   </div>
+                  {comms[r.id] && (
+                    <div className="txcomm">
+                      <div className="txcommtext">{comms[r.id].text}</div>
+                      <div className="txcommwhen">{commWhen(comms[r.id].at)}</div>
+                    </div>
+                  )}
                 </Link>
                 <button className="btn" onClick={() => copyLink(r.share_token)}>
                   {copied === r.share_token ? 'Copied' : 'Copy client link'}
