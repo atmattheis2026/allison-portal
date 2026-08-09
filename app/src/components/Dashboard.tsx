@@ -565,14 +565,17 @@ function FinalPricePanel({ price, editable, onPatch }: {
           <span style={{ fontFamily: 'var(--serif)', fontSize: 36, fontWeight: 700, color: 'var(--gold-bright)' }}>$</span>
           <input
             type="text" inputMode="decimal" value={formatted}
+            placeholder="0"
             onChange={(e) => {
               const raw = e.target.value.replace(/[^0-9.]/g, '')
               onPatch?.({ final_purchase_price: raw === '' ? null : Number(raw) })
             }}
+            size={Math.max(formatted.length, 1)}
             style={{
               fontFamily: 'var(--serif)', fontSize: 36, fontWeight: 700, textAlign: 'center',
-              width: 200, background: 'none', border: 'none', borderBottom: '1px solid var(--gold-soft)',
-              color: 'inherit',
+              width: `${Math.max(formatted.length, 1)}ch`, minWidth: '1.2ch', maxWidth: '100%',
+              background: 'none', border: 'none', borderBottom: '1px solid var(--gold-soft)',
+              color: 'inherit', padding: 0,
             }}
           />
         </div>
