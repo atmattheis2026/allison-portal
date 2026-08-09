@@ -58,6 +58,7 @@ export default function AdminLead() {
   const nav = useNavigate()
 
   const [lead, setLead] = useState<Lead | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [roster, setRoster] = useState<TeamMember[]>([])
   const [appointments, setAppointments] = useState<LeadAppointment[]>([])
   const [homes, setHomes] = useState<LeadHome[]>([])
@@ -88,7 +89,10 @@ export default function AdminLead() {
     if (DEMO_MODE || !supabase || !id) return
 
     supabase.from('leads').select('*').eq('id', id).single()
-      .then(({ data }) => setLead(data as Lead))
+      .then(({ data, error }) => {
+        if (error) { setLoadError(error.message); return }
+        setLead(data as Lead)
+      })
     supabase.from('team_members').select('*').order('sort_order')
       .then(({ data }) => setRoster((data as TeamMember[]) ?? []))
     supabase.from('lead_appointments').select('*').eq('lead_id', id).order('sort_order')
@@ -417,6 +421,15 @@ export default function AdminLead() {
     if (data) { setNotes((cur) => [data as LeadNote, ...cur]); setNoteDraft('') }
   }
 
+  if (loadError) {
+    return (
+      <div className="centered">
+        <p className="muted" style={{ maxWidth: 360, textAlign: 'center' }}>
+          Couldn't load this client: {loadError}
+        </p>
+      </div>
+    )
+  }
   if (!lead) return <div className="centered"><div className="spinner" /></div>
 
   return (

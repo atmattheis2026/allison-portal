@@ -18,6 +18,7 @@ import './Admin.css'
 export default function AdminTransaction() {
   const { id } = useParams<{ id: string }>()
   const [data, setData] = useState<SharedPayload | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -45,12 +46,16 @@ export default function AdminTransaction() {
     // The admin view reads through the same assembling function so both pages
     // are guaranteed to show identical data. She authenticates separately.
     supabase.from('transactions').select('share_token').eq('id', id).single()
-      .then(({ data: row }) => {
+      .then(({ data: row, error }) => {
+        if (error) { setLoadError(error.message); return }
         const t = row?.share_token as string | undefined
-        if (!t) return
+        if (!t) { setLoadError('This transaction has no share token on file.'); return }
         setToken(t)
         supabase!.rpc('get_shared_transaction', { p_token: t })
-          .then(({ data: payload }) => setData(payload as SharedPayload))
+          .then(({ data: payload, error: rpcError }) => {
+            if (rpcError) { setLoadError(rpcError.message); return }
+            setData(payload as SharedPayload)
+          })
       })
     supabase.from('team_members').select('*').order('sort_order')
       .then(({ data: rows }) => setRoster((rows as TeamMember[]) ?? []))
@@ -422,6 +427,15 @@ export default function AdminTransaction() {
     patch((d) => ({ ...d, transaction: { ...d.transaction, closed_and_funded: true, closed_and_funded_date: dateStr, status: 'closed' } }))
   }
 
+  if (loadError) {
+    return (
+      <div className="centered">
+        <p className="muted" style={{ maxWidth: 360, textAlign: 'center' }}>
+          Couldn't load this transaction: {loadError}
+        </p>
+      </div>
+    )
+  }
   if (!data) return <div className="centered"><div className="spinner" /></div>
 
   return (
