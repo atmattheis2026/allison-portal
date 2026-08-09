@@ -263,25 +263,45 @@ export default function AdminList() {
         <div className="txlist">
           {visibleRows!.map((r) => (
             <div className="txcard" key={r.id}
-                 style={r.closed_and_funded ? { filter: 'grayscale(1)', opacity: 0.55 } : undefined}>
+                 style={r.closed_and_funded ? { background: 'var(--panel-2)', borderColor: 'var(--line-soft)' } : undefined}>
               <Link to={`/admin/t/${r.id}`} className="txmain">
-                <div className="txthumb">
+                <div className="txthumb" style={r.closed_and_funded ? { filter: 'grayscale(1)', opacity: 0.5 } : undefined}>
                   {r.photo_url
                     ? <img src={r.photo_url} alt="" />
                     : <span className="muted" style={{ fontSize: 11 }}>No photo</span>}
                 </div>
                 <div className="txinfo">
-                  <div className="txaddr">{r.address_line || 'Untitled property'}</div>
-                  <div className="txcity">{r.city_state_zip}</div>
-                  {clientNameByTx[r.id] && <div className="txcity">{clientNameByTx[r.id]}</div>}
+                  <div className="txaddr" style={r.closed_and_funded ? { opacity: 0.5 } : undefined}>
+                    {r.address_line || 'Untitled property'}
+                  </div>
+                  <div className="txcity" style={r.closed_and_funded ? { opacity: 0.5 } : undefined}>
+                    {r.city_state_zip}
+                  </div>
+                  {clientNameByTx[r.id] && (
+                    <div className="txcity" style={r.closed_and_funded ? { opacity: 0.5 } : undefined}>
+                      {clientNameByTx[r.id]}
+                    </div>
+                  )}
                   <div className="txmeta">
-                    <span className={`tag${r.deal_type === 'sell' ? ' sell' : ''}`}>
+                    <span className={`tag${r.deal_type === 'sell' ? ' sell' : ''}`}
+                          style={r.closed_and_funded ? { opacity: 0.5 } : undefined}>
                       {r.deal_type === 'sell' ? 'Listing' : r.deal_type === 'loan' ? 'Loan only' : 'Buyer'}
                     </span>
-                    <span className="muted">{STATUS_LABEL[r.status]}</span>
-                    {r.closing_date && <span className="muted">· Closes {r.closing_date}</span>}
+                    <span className="muted" style={r.closed_and_funded ? { opacity: 0.5 } : undefined}>
+                      {STATUS_LABEL[r.status]}
+                    </span>
+                    {r.closing_date && !r.closed_and_funded && (
+                      <span className="muted">· Closes {r.closing_date}</span>
+                    )}
+                    {r.closing_date && r.closed_and_funded && (
+                      <span style={{ color: 'var(--gold-bright)', fontWeight: 700 }}>
+                        · Closed {r.closing_date}
+                      </span>
+                    )}
                     {r.closed_and_funded && r.final_purchase_price != null && (
-                      <span className="muted">· Sold for ${r.final_purchase_price.toLocaleString()}</span>
+                      <span style={{ color: 'var(--gold-bright)', fontWeight: 700 }}>
+                        · Sold for ${r.final_purchase_price.toLocaleString()}
+                      </span>
                     )}
                   </div>
                 </div>
