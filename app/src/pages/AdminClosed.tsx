@@ -165,14 +165,16 @@ export default function AdminClosed() {
             placeholder="Search by client name, address, or agent…"
             style={{ flex: 1, minWidth: 220, maxWidth: 420 }}
           />
-          <label className="muted" style={{ fontSize: 13 }}>Sort by</label>
-          <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
-            <option value="lastname">Client last name</option>
-            <option value="price">Purchase price (highest first)</option>
-            <option value="closing_date">Closing date (most recent first)</option>
-            <option value="agent">Agent</option>
-            <option value="lender">Lender</option>
-          </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none', whiteSpace: 'nowrap' }}>
+            <label className="muted" style={{ fontSize: 13 }}>Sort by</label>
+            <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
+              <option value="lastname">Client last name</option>
+              <option value="price">Purchase price (highest first)</option>
+              <option value="closing_date">Closing date (most recent first)</option>
+              <option value="agent">Agent</option>
+              <option value="lender">Lender</option>
+            </select>
+          </div>
         </div>
       )}
 

@@ -46,10 +46,16 @@ export default function AdminRolodex() {
         .not('name', 'is', null)
         .neq('name', '')
 
+      // Once a lead converts, their Buyers/Sellers contact card on the
+      // transaction is the canonical entry for this person — leaving the
+      // lead in here too (it stays visible on purpose, see Active Buyers/
+      // Closed) would flag every single converted client as a "duplicate"
+      // of themselves forever.
       const { data: leadRows } = await supabase!
         .from('leads')
         .select('id, full_name, phone, email')
         .is('archived_at', null)
+        .is('converted_transaction_id', null)
 
       const fromContacts: Row[] = ((contactRows ?? []) as unknown as Array<{
         id: string; name: string; phone: string | null; email: string | null

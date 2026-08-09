@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import { DEMO_PAYLOAD, DEMO_SELLER, TEAM_MEMBERS, TRANSACTION_ASSIGNEES } from '../lib/demoData'
@@ -17,8 +17,13 @@ interface Row {
   closing_date: string | null
   closed_and_funded: boolean
   final_purchase_price: number | null
+  realtor_member_id: string | null
+  lender_member_id: string | null
+  lender_name: string | null
   share_token: string
 }
+
+type SortMode = 'recent' | 'agent' | 'lender' | 'client' | 'city' | 'price'
 
 const DEMO_ROWS: Row[] = [
   {
@@ -31,6 +36,9 @@ const DEMO_ROWS: Row[] = [
     closing_date: DEMO_PAYLOAD.transaction.closing_date,
     closed_and_funded: false,
     final_purchase_price: null,
+    realtor_member_id: DEMO_PAYLOAD.transaction.realtor_member_id,
+    lender_member_id: DEMO_PAYLOAD.transaction.lender_member_id,
+    lender_name: null,
     share_token: 'demo',
   },
   {
@@ -43,6 +51,9 @@ const DEMO_ROWS: Row[] = [
     closing_date: DEMO_SELLER.transaction.closing_date,
     closed_and_funded: false,
     final_purchase_price: null,
+    realtor_member_id: DEMO_SELLER.transaction.realtor_member_id,
+    lender_member_id: DEMO_SELLER.transaction.lender_member_id,
+    lender_name: null,
     share_token: 'demo-sell',
   },
 ]
@@ -56,6 +67,9 @@ export default function AdminList() {
   const [needsSetup, setNeedsSetup] = useState(false)
   const [roster, setRoster] = useState<TeamMember[]>([])
   const [assignedByTx, setAssignedByTx] = useState<Record<string, string[]>>({})
+  const [clientNameByTx, setClientNameByTx] = useState<Record<string, string | null>>({})
+  const [search, setSearch] = useState('')
+  const [sortMode, setSortMode] = useState<SortMode>('recent')
 
   useEffect(() => {
     if (DEMO_MODE || !supabase) {
@@ -77,18 +91,18 @@ export default function AdminList() {
 
       const { data, error } = await supabase!
         .from('transactions')
-        .select('id,address_line,city_state_zip,photo_url,status,deal_type,closing_date,closed_and_funded,final_purchase_price,share_token')
+        .select('id,address_line,city_state_zip,photo_url,status,deal_type,closing_date,closed_and_funded,final_purchase_price,realtor_member_id,lender_member_id,lender_name,share_token')
         .is('archived_at', null)
         .order('created_at', { ascending: false })
       if (error) console.error(error)
-      setRows((data as Row[]) ?? [])
+      const txRows = (data as Row[]) ?? []
+      setRows(txRows)
 
       // RLS already limits which transaction rows come back to whoever's
       // signed in, so this is just for the little "who's on it" chips per
       // row — not a second layer of access control.
       const { data: members } = await supabase!.from('team_members').select('*').order('sort_order')
       setRoster((members as TeamMember[]) ?? [])
-
 
       const { data: assignments } = await supabase!
         .from('transaction_assignees').select('transaction_id,team_member_id')
@@ -97,6 +111,24 @@ export default function AdminList() {
         (grouped[a.transaction_id] ??= []).push(a.team_member_id)
       }
       setAssignedByTx(grouped)
+
+      // Client name lives on the Buyers/Sellers contact row, not the
+      // transaction itself — one batched fetch for every listed deal.
+      const txIds = txRows.map((r) => r.id)
+      if (txIds.length) {
+        const { data: contactRows } = await supabase!.from('contacts')
+          .select('transaction_id, role_label, name')
+          .in('transaction_id', txIds)
+          .in('role_label', ['Buyers', 'Sellers'])
+        const byTx: Record<string, string | null> = {}
+        for (const tx of txRows) {
+          const wantLabel = tx.deal_type === 'sell' ? 'Sellers' : 'Buyers'
+          const match = (contactRows ?? []).find(
+            (c) => c.transaction_id === tx.id && c.role_label === wantLabel && c.name?.trim())
+          byTx[tx.id] = match?.name ?? null
+        }
+        setClientNameByTx(byTx)
+      }
     }
     load()
   }, [nav])
@@ -107,6 +139,52 @@ export default function AdminList() {
     setCopied(token)
     setTimeout(() => setCopied(null), 1800)
   }
+
+  function agentName(memberId: string | null) {
+    return roster.find((m) => m.id === memberId)?.full_name ?? null
+  }
+  function lenderName(r: Row) {
+    if (r.lender_member_id) return roster.find((m) => m.id === r.lender_member_id)?.full_name ?? null
+    return r.lender_name
+  }
+
+  const visibleRows = useMemo(() => {
+    if (!rows) return null
+    const q = search.trim().toLowerCase()
+    const filtered = q
+      ? rows.filter((r) => {
+          const haystack = [
+            agentName(r.realtor_member_id), lenderName(r), clientNameByTx[r.id], r.city_state_zip, r.address_line,
+          ].filter(Boolean).join(' ').toLowerCase()
+          return haystack.includes(q)
+        })
+      : rows
+
+    const sorted = [...filtered]
+    switch (sortMode) {
+      case 'agent':
+        sorted.sort((a, b) => (agentName(a.realtor_member_id) || '').localeCompare(agentName(b.realtor_member_id) || ''))
+        break
+      case 'lender':
+        sorted.sort((a, b) => (lenderName(a) || '').localeCompare(lenderName(b) || ''))
+        break
+      case 'client':
+        sorted.sort((a, b) => (clientNameByTx[a.id] || '').localeCompare(clientNameByTx[b.id] || ''))
+        break
+      case 'city':
+        sorted.sort((a, b) => a.city_state_zip.localeCompare(b.city_state_zip))
+        break
+      case 'price':
+        sorted.sort((a, b) => {
+          if (a.final_purchase_price == null) return 1
+          if (b.final_purchase_price == null) return -1
+          return b.final_purchase_price - a.final_purchase_price
+        })
+        break
+      // 'recent' keeps the order already returned by the query (created_at desc).
+    }
+    return sorted
+  }, [rows, search, sortMode, roster, clientNameByTx])
 
   const isDatabaseManager = useIsDatabaseManager()
 
@@ -147,6 +225,27 @@ export default function AdminList() {
         />
       )}
 
+      {rows.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, padding: '0 24px 12px' }}>
+          <input
+            type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by agent, lender, client, or city…"
+            style={{ flex: 1, minWidth: 220, maxWidth: 420 }}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none', whiteSpace: 'nowrap' }}>
+            <label className="muted" style={{ fontSize: 13 }}>Sort by</label>
+            <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
+              <option value="recent">Recently added</option>
+              <option value="agent">Agent</option>
+              <option value="lender">Lender</option>
+              <option value="client">Client name</option>
+              <option value="city">City</option>
+              <option value="price">Purchase price (highest first)</option>
+            </select>
+          </div>
+        </div>
+      )}
+
       {rows.length === 0 ? (
         <div className="centered">
           <div style={{ maxWidth: 360 }}>
@@ -156,10 +255,15 @@ export default function AdminList() {
             </p>
           </div>
         </div>
+      ) : visibleRows && visibleRows.length === 0 ? (
+        <div className="centered">
+          <p className="muted">No transactions match "{search}".</p>
+        </div>
       ) : (
         <div className="txlist">
-          {rows.map((r) => (
-            <div className="txcard" key={r.id}>
+          {visibleRows!.map((r) => (
+            <div className="txcard" key={r.id}
+                 style={r.closed_and_funded ? { filter: 'grayscale(1)', opacity: 0.55 } : undefined}>
               <Link to={`/admin/t/${r.id}`} className="txmain">
                 <div className="txthumb">
                   {r.photo_url
@@ -169,6 +273,7 @@ export default function AdminList() {
                 <div className="txinfo">
                   <div className="txaddr">{r.address_line || 'Untitled property'}</div>
                   <div className="txcity">{r.city_state_zip}</div>
+                  {clientNameByTx[r.id] && <div className="txcity">{clientNameByTx[r.id]}</div>}
                   <div className="txmeta">
                     <span className={`tag${r.deal_type === 'sell' ? ' sell' : ''}`}>
                       {r.deal_type === 'sell' ? 'Listing' : r.deal_type === 'loan' ? 'Loan only' : 'Buyer'}
