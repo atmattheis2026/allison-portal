@@ -390,6 +390,15 @@ export interface LeadReferral {
   created_at: string
 }
 
+export interface LeadDocument {
+  id: string
+  lead_id: string
+  file_name: string
+  file_url: string
+  storage_path: string
+  created_at: string
+}
+
 export interface LeadNote {
   id: string
   author_name: string | null

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
-import type { Lead, LeadAppointment, LeadHome, LeadMaybeHome, LeadPriority, LeadPersonalNote, LeadReferral, LeadNote, TeamMember } from '../lib/types'
+import type { Lead, LeadAppointment, LeadHome, LeadMaybeHome, LeadPriority, LeadPersonalNote, LeadReferral, LeadDocument, LeadNote, TeamMember } from '../lib/types'
 import {
   leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL, REFERRAL_SOURCES, BUDGET_RANGES,
   parseAddressFromListingUrl, LOAN_TYPES, LOAN_STATUSES,
@@ -65,6 +65,8 @@ export default function AdminLead() {
   const [priorities, setPriorities] = useState<LeadPriority[]>([])
   const [personalNotes, setPersonalNotes] = useState<LeadPersonalNote[]>([])
   const [referrals, setReferrals] = useState<LeadReferral[]>([])
+  const [documents, setDocuments] = useState<LeadDocument[]>([])
+  const [uploadingDoc, setUploadingDoc] = useState(false)
   const [notes, setNotes] = useState<LeadNote[]>([])
   const [dealHistory, setDealHistory] = useState<DealHistoryRow[]>([])
   const [copied, setCopied] = useState(false)
@@ -101,6 +103,8 @@ export default function AdminLead() {
       .then(({ data }) => setPersonalNotes((data as LeadPersonalNote[]) ?? []))
     supabase.from('lead_referrals').select('*').eq('lead_id', id).order('created_at')
       .then(({ data }) => setReferrals((data as LeadReferral[]) ?? []))
+    supabase.from('lead_documents').select('*').eq('lead_id', id).order('created_at', { ascending: false })
+      .then(({ data }) => setDocuments((data as LeadDocument[]) ?? []))
     supabase.from('lead_notes').select('*').eq('lead_id', id).order('created_at', { ascending: false })
       .then(({ data }) => setNotes((data as LeadNote[]) ?? []))
     supabase.from('lead_transactions')
@@ -354,6 +358,28 @@ export default function AdminLead() {
   async function removeReferral(rId: string) {
     setReferrals((cur) => cur.filter((r) => r.id !== rId))
     if (supabase) await supabase.from('lead_referrals').delete().eq('id', rId)
+  }
+
+  // ---- documents ----
+  async function uploadDocument(file: File) {
+    if (!id || !supabase) return
+    setUploadingDoc(true)
+    const path = `lead-docs/${id}-${Date.now()}-${file.name}`
+    const { error: uploadError } = await supabase.storage.from('media').upload(path, file)
+    if (uploadError) { alert(`Couldn't upload that: ${uploadError.message}`); setUploadingDoc(false); return }
+    const { data: pub } = supabase.storage.from('media').getPublicUrl(path)
+    const { data } = await supabase.from('lead_documents')
+      .insert({ lead_id: id, file_name: file.name, file_url: pub.publicUrl, storage_path: path })
+      .select('*').single()
+    if (data) setDocuments((cur) => [data as LeadDocument, ...cur])
+    setUploadingDoc(false)
+  }
+  async function removeDocument(doc: LeadDocument) {
+    if (!confirm(`Remove "${doc.file_name}"? This can't be undone.`)) return
+    setDocuments((cur) => cur.filter((d) => d.id !== doc.id))
+    if (!supabase) return
+    await supabase.from('lead_documents').delete().eq('id', doc.id)
+    await supabase.storage.from('media').remove([doc.storage_path])
   }
 
   // ---- notes ----
@@ -1175,6 +1201,42 @@ export default function AdminLead() {
             </div>
           ))}
           <div className="savebar"><button className="btn" onClick={addReferral}>+ Add</button></div>
+        </div>
+
+        <div className="card setcard">
+          <h2>Documents</h2>
+          <p className="sethelp">
+            Preapproval letters, IDs, signed agreements — anything worth keeping on hand.
+            Just for you and your team; the client never sees this list.
+          </p>
+          {documents.length === 0 ? (
+            <p className="muted" style={{ fontSize: 12.5 }}>Nothing uploaded yet.</p>
+          ) : (
+            <div className="notelist">
+              {documents.map((doc) => (
+                <div className="note" key={doc.id}>
+                  <p className="notebody" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <a href={doc.file_url} target="_blank" rel="noreferrer">{doc.file_name}</a>
+                    <span className="notewhen">
+                      {new Date(doc.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                    <button type="button" className="btn" style={{ flex: 'none', marginLeft: 'auto', color: 'var(--danger, #cc3311)' }}
+                            onClick={() => removeDocument(doc)}>
+                      Delete
+                    </button>
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="savebar">
+            <label className="btn" style={{ cursor: 'pointer' }}>
+              <input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" style={{ display: 'none' }}
+                     disabled={uploadingDoc}
+                     onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadDocument(f) }} />
+              {uploadingDoc ? 'Uploading…' : '+ Upload document'}
+            </label>
+          </div>
         </div>
 
         <div className="card setcard">
