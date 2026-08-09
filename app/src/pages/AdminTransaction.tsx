@@ -383,6 +383,27 @@ export default function AdminTransaction() {
     setTimeout(() => setCopied(false), 1800)
   }
 
+  // Marks this deal closed & funded — moves the linked lead (if it came from
+  // Active Buyers) into the Closed list and sets up the yearly anniversary
+  // reminder. Asks for the date rather than assuming "today," since this
+  // often gets entered a day or two after the fact.
+  async function markClosed() {
+    if (!id) return
+    const existing = data?.transaction.closed_and_funded_date
+    const input = prompt('What date did this close & fund? (YYYY-MM-DD)', existing ?? new Date().toISOString().slice(0, 10))
+    if (!input) return
+    const dateStr = input.trim()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) { alert('Please enter a date as YYYY-MM-DD.'); return }
+
+    if (DEMO_MODE || !supabase) {
+      patch((d) => ({ ...d, transaction: { ...d.transaction, closed_and_funded: true, closed_and_funded_date: dateStr, status: 'closed' } }))
+      return
+    }
+    const { error } = await supabase.rpc('mark_transaction_closed', { p_transaction_id: id, p_closed_date: dateStr })
+    if (error) { alert(error.message); return }
+    patch((d) => ({ ...d, transaction: { ...d.transaction, closed_and_funded: true, closed_and_funded_date: dateStr, status: 'closed' } }))
+  }
+
   if (!data) return <div className="centered"><div className="spinner" /></div>
 
   return (
@@ -395,6 +416,27 @@ export default function AdminTransaction() {
       <div className="admin" style={{ paddingTop: 16, paddingBottom: 0 }}>
         <AdminNav current="transactions" />
         <AssignedTo roster={roster} assignedIds={assignedIds} onToggle={toggleAssignee} />
+        <div className="card setcard" style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexWrap: 'wrap', gap: 10,
+        }}>
+          {data.transaction.closed_and_funded ? (
+            <>
+              <span style={{ fontWeight: 700, color: '#2ecc40' }}>
+                ✓ Closed &amp; funded {data.transaction.closed_and_funded_date &&
+                  `on ${new Date(data.transaction.closed_and_funded_date + 'T00:00:00').toLocaleDateString()}`}
+              </span>
+              <button className="btn" onClick={markClosed}>Edit date</button>
+            </>
+          ) : (
+            <>
+              <span className="muted" style={{ fontSize: 13 }}>
+                Once funds have disbursed, mark this closed to move the client's file to Closed.
+              </span>
+              <button className="btn primary" onClick={markClosed}>Closed &amp; Funded</button>
+            </>
+          )}
+        </div>
       </div>
       <Dashboard
         data={data}

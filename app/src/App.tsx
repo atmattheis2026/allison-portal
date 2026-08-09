@@ -5,6 +5,7 @@ import AdminTransaction from './pages/AdminTransaction'
 import AdminList from './pages/AdminList'
 import AdminLeads from './pages/AdminLeads'
 import AdminLead from './pages/AdminLead'
+import AdminClosed from './pages/AdminClosed'
 import AdminRolodex from './pages/AdminRolodex'
 import AdminSettings from './pages/AdminSettings'
 import Login from './pages/Login'
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="/admin/t/:id" element={<AdminTransaction />} />
         <Route path="/admin/leads" element={<AdminLeads />} />
         <Route path="/admin/leads/:id" element={<AdminLead />} />
+        <Route path="/admin/closed" element={<AdminClosed />} />
         <Route path="/admin/rolodex" element={<AdminRolodex />} />
 
         {/* No marketing homepage — land on the admin list. */}

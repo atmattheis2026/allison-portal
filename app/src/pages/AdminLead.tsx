@@ -345,12 +345,33 @@ export default function AdminLead() {
           {saveFlash && <span className="muted" style={{ fontSize: 12.5 }}>Saved</span>}
           <Link className="btn" to="/admin/leads">← Active Buyers</Link>
           <button className="btn" onClick={copyLink}>{copied ? 'Copied' : 'Copy client link'}</button>
-          <button className="btn primary" onClick={() => convert()} disabled={converting}>
-            {converting ? 'Converting…' : 'Convert to transaction'}
-          </button>
+          {lead.converted_transaction_id ? (
+            <Link className="btn primary" to={`/admin/t/${lead.converted_transaction_id}`}>
+              View transaction →
+            </Link>
+          ) : (
+            <button className="btn primary" onClick={() => convert()} disabled={converting}>
+              {converting ? 'Converting…' : 'Convert to transaction'}
+            </button>
+          )}
         </nav>
       </header>
       <AdminNav current="leads" />
+
+      {lead.lead_status !== 'active' && (
+        <div style={{
+          maxWidth: 1040, margin: '0 auto 18px', padding: '12px 18px',
+          borderRadius: 'var(--r-md)', fontWeight: 800, fontSize: 15, letterSpacing: '.03em',
+          textAlign: 'center', textTransform: 'uppercase',
+          background: lead.lead_status === 'under_contract' ? '#3b82f622' : '#2ecc4022',
+          border: `2px solid ${lead.lead_status === 'under_contract' ? '#3b82f6' : '#2ecc40'}`,
+          color: lead.lead_status === 'under_contract' ? '#3b82f6' : '#2ecc40',
+        }}>
+          {lead.lead_status === 'under_contract'
+            ? 'Under contract'
+            : `Closed${lead.closed_date ? ` — ${new Date(lead.closed_date + 'T00:00:00').toLocaleDateString()}` : ''}`}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gap: 18, maxWidth: 1040, margin: '0 auto' }}>
         <div className="card setcard">

@@ -10,6 +10,10 @@ import './Admin.css'
 // drifting to another agent) leads, then yellow, then green.
 const BAND_SORT_RANK: Record<TimeframeBand, number> = { orange: 0, yellow: 1, green: 2 }
 
+// Distinct from the green/yellow/orange nurture scale and the red BBA-urgency
+// accent — under contract is a different kind of status, not an urgency level.
+const UNDER_CONTRACT_COLOR = '#3b82f6'
+
 type SortMode = 'recent' | 'name' | 'broker_signed' | 'broker_expires' | 'color'
 
 /**
@@ -37,6 +41,7 @@ export default function AdminLeads() {
         .from('leads')
         .select('*')
         .is('archived_at', null)
+        .neq('lead_status', 'closed')
         .order('created_at', { ascending: false })
       if (error) console.error(error)
       setRows((data as Lead[]) ?? [])
@@ -161,11 +166,22 @@ export default function AdminLeads() {
         <div className="txlist">
           {sortedRows.map((r) => {
             const band = leadTimeframeBand(r)
+            const underContract = r.lead_status === 'under_contract'
+            const borderColor = underContract ? UNDER_CONTRACT_COLOR : band ? TIMEFRAME_BAND_COLOR[band] : undefined
             return (
               <div className="txcard" key={r.id}
-                   style={band ? { borderLeft: `5px solid ${TIMEFRAME_BAND_COLOR[band]}` } : undefined}>
+                   style={borderColor ? { borderLeft: `5px solid ${borderColor}` } : undefined}>
                 <Link to={`/admin/leads/${r.id}`} className="txmain">
-                  {band && (
+                  {underContract ? (
+                    <span
+                      title="Under contract"
+                      style={{
+                        flex: 'none', width: 18, height: 18, borderRadius: '50%',
+                        background: UNDER_CONTRACT_COLOR,
+                        boxShadow: `0 0 0 3px ${UNDER_CONTRACT_COLOR}33`,
+                      }}
+                    />
+                  ) : band && (
                     <span
                       title={TIMEFRAME_BAND_LABEL[band]}
                       style={{
@@ -179,7 +195,13 @@ export default function AdminLeads() {
                     <div className="txaddr">{r.full_name || 'Unnamed buyer'}</div>
                     <div className="txcity">{agentName(r.realtor_member_id) ?? 'No agent assigned'}</div>
                     <div className="txmeta">
-                      <span className="tag">Active buyer</span>
+                      {underContract ? (
+                        <span className="tag" style={{ borderColor: UNDER_CONTRACT_COLOR, color: UNDER_CONTRACT_COLOR, fontWeight: 700 }}>
+                          UNDER CONTRACT
+                        </span>
+                      ) : (
+                        <span className="tag">Active buyer</span>
+                      )}
                       {r.buyer_broker_signed
                         ? <span className="muted">
                             Buyer broker signed

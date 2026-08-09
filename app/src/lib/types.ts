@@ -165,6 +165,8 @@ export interface Transaction {
   status: TxStatus
   status_note: string | null
   closing_date: string | null
+  closed_and_funded: boolean
+  closed_and_funded_date: string | null
   lender: Lender
   /** Which roster member is shown as "Realtor." Picked in Settings › Team roster. */
   realtor_member_id: string | null
@@ -274,8 +276,19 @@ export interface Lead {
   why_selling: string | null
   general_notes: string | null
   converted_transaction_id: string | null
+  /** 'active' until converted, 'under_contract' once a transaction exists,
+   *  'closed' once that transaction is marked Closed & Funded. Independent
+   *  of archived_at — a converted/closed lead stays visible on purpose. */
+  lead_status: 'active' | 'under_contract' | 'closed'
+  closed_date: string | null
   created_at: string
   archived_at: string | null
+}
+
+export const LEAD_STATUS_LABEL: Record<Lead['lead_status'], string> = {
+  active: 'Active buyer',
+  under_contract: 'Under contract',
+  closed: 'Closed',
 }
 
 export interface LeadAppointment {

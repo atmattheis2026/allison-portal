@@ -149,6 +149,7 @@ export const DEMO_PAYLOAD: SharedPayload = {
     status: 'on_track',
     status_note: null,
     closing_date: closingDate(9),
+    closed_and_funded: false, closed_and_funded_date: null,
     realtor_member_id: 'tm-allison',
     realtor_title: 'realtor',
     lender_title: 'loan_officer',
@@ -253,6 +254,7 @@ export const DEMO_SELLER: SharedPayload = {
     photo_url:
       'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=1200&q=70',
     closing_date: closingDate(27),
+    closed_and_funded: false, closed_and_funded_date: null,
     // A listing she took herself, so there's no outside lender on the page.
     lender: { ...DEMO_PAYLOAD.transaction.lender, name: null, headshot_url: null },
   },
@@ -300,6 +302,7 @@ export const DEMO_LOAN: SharedPayload = {
     photo_url: null,
     realtor_member_id: null,
     closing_date: closingDate(18),
+    closed_and_funded: false, closed_and_funded_date: null,
   },
   realtor: null,
   milestones: LOAN.map(([label, has_date, is_complete, date_value], i) => ({
