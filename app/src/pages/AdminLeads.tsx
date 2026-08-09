@@ -17,7 +17,11 @@ const UNDER_CONTRACT_COLOR = '#3b82f6'
 
 type SortMode = 'recent' | 'name' | 'broker_signed' | 'broker_expires' | 'color' | 'comms'
 
-interface Comm { at: string; text: string }
+interface Comm { at: string; text: string; kind: 'referral' | 'showing' | 'offer'; id: string }
+
+interface ReferralRow { id: string; lead_id: string; name: string; created_at: string }
+interface ShowingRow { id: string; lead_id: string; address_line: string | null; showing_requested_at: string | null }
+interface OfferRow { id: string; lead_id: string; address_line: string | null; offer_requested_at: string | null }
 
 /**
  * "Active Clients" — people still pre-contract, whether they're house
@@ -30,7 +34,10 @@ interface Comm { at: string; text: string }
 export default function AdminLeads() {
   const [rows, setRows] = useState<Lead[] | null>(null)
   const [roster, setRoster] = useState<TeamMember[]>([])
-  const [comms, setComms] = useState<Record<string, Comm>>({})
+  const [referrals, setReferrals] = useState<ReferralRow[]>([])
+  const [showings, setShowings] = useState<ShowingRow[]>([])
+  const [offers, setOffers] = useState<OfferRow[]>([])
+  const [resolvingId, setResolvingId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const [sortMode, setSortMode] = useState<SortMode>('recent')
@@ -58,32 +65,51 @@ export default function AdminLeads() {
       // Three separate places a client can act on their own page — a
       // referral, a showing request, or an offer request. Whichever
       // happened most recently per lead is what shows up front and center
-      // on the list.
-      const [{ data: referrals }, { data: showings }, { data: offers }] = await Promise.all([
-        supabase!.from('lead_referrals').select('lead_id, name, created_at').eq('submitted_by', 'client'),
-        supabase!.from('lead_maybe_homes').select('lead_id, address_line, showing_requested_at').eq('showing_requested', true),
-        supabase!.from('lead_homes').select('lead_id, address_line, offer_requested_at').eq('offer_requested', true),
+      // on the list. Resolved ones are left out — that's how "mark as
+      // handled" makes them disappear.
+      const [{ data: referralData }, { data: showingData }, { data: offerData }] = await Promise.all([
+        supabase!.from('lead_referrals').select('id, lead_id, name, created_at')
+          .eq('submitted_by', 'client').eq('resolved', false),
+        supabase!.from('lead_maybe_homes').select('id, lead_id, address_line, showing_requested_at')
+          .eq('showing_requested', true).eq('showing_request_resolved', false),
+        supabase!.from('lead_homes').select('id, lead_id, address_line, offer_requested_at')
+          .eq('offer_requested', true).eq('offer_request_resolved', false),
       ])
-
-      const nextComms: Record<string, Comm> = {}
-      function consider(leadId: string, at: string | null, text: string) {
-        if (!at) return
-        const existing = nextComms[leadId]
-        if (!existing || at > existing.at) nextComms[leadId] = { at, text }
-      }
-      for (const r of (referrals ?? []) as Array<{ lead_id: string; name: string; created_at: string }>) {
-        consider(r.lead_id, r.created_at, `Referred a friend — ${r.name}`)
-      }
-      for (const s of (showings ?? []) as Array<{ lead_id: string; address_line: string | null; showing_requested_at: string | null }>) {
-        consider(s.lead_id, s.showing_requested_at, `Requested a showing — ${s.address_line || 'a home'}`)
-      }
-      for (const o of (offers ?? []) as Array<{ lead_id: string; address_line: string | null; offer_requested_at: string | null }>) {
-        consider(o.lead_id, o.offer_requested_at, `Ready to make an offer — ${o.address_line || 'a home'}`)
-      }
-      setComms(nextComms)
+      setReferrals((referralData as ReferralRow[]) ?? [])
+      setShowings((showingData as ShowingRow[]) ?? [])
+      setOffers((offerData as OfferRow[]) ?? [])
     }
     load()
   }, [nav])
+
+  const comms = useMemo(() => {
+    const next: Record<string, Comm> = {}
+    function consider(leadId: string, at: string | null, text: string, kind: Comm['kind'], id: string) {
+      if (!at) return
+      const existing = next[leadId]
+      if (!existing || at > existing.at) next[leadId] = { at, text, kind, id }
+    }
+    for (const r of referrals) consider(r.lead_id, r.created_at, `Referred a friend — ${r.name}`, 'referral', r.id)
+    for (const s of showings) consider(s.lead_id, s.showing_requested_at, `Requested a showing — ${s.address_line || 'a home'}`, 'showing', s.id)
+    for (const o of offers) consider(o.lead_id, o.offer_requested_at, `Ready to make an offer — ${o.address_line || 'a home'}`, 'offer', o.id)
+    return next
+  }, [referrals, showings, offers])
+
+  async function resolveComm(comm: Comm) {
+    if (!supabase || resolvingId) return
+    setResolvingId(comm.id)
+    const target = comm.kind === 'referral'
+      ? { table: 'lead_referrals' as const, col: 'resolved' as const }
+      : comm.kind === 'showing'
+      ? { table: 'lead_maybe_homes' as const, col: 'showing_request_resolved' as const }
+      : { table: 'lead_homes' as const, col: 'offer_request_resolved' as const }
+    const { error } = await supabase.from(target.table).update({ [target.col]: true }).eq('id', comm.id)
+    setResolvingId(null)
+    if (error) { alert(error.message); return }
+    if (comm.kind === 'referral') setReferrals((cur) => cur.filter((x) => x.id !== comm.id))
+    else if (comm.kind === 'showing') setShowings((cur) => cur.filter((x) => x.id !== comm.id))
+    else setOffers((cur) => cur.filter((x) => x.id !== comm.id))
+  }
 
   function copyLink(token: string) {
     const url = `${window.location.origin}/l/${token}`
@@ -240,7 +266,7 @@ export default function AdminLeads() {
             return (
               <div className="txcard" key={r.id}
                    style={borderColor ? { borderLeft: `5px solid ${borderColor}` } : undefined}>
-                <Link to={`/admin/leads/${r.id}`} className="txmain">
+                <Link to={`/admin/leads/${r.id}`} className="txmain" style={{ flex: '0 1 340px', minWidth: 220 }}>
                   {underContract ? (
                     <span
                       title="Under contract"
@@ -287,13 +313,22 @@ export default function AdminLeads() {
                       )}
                     </div>
                   </div>
-                  {comms[r.id] && (
-                    <div className="txcomm">
-                      <div className="txcommtext">{comms[r.id].text}</div>
-                      <div className="txcommwhen">{commWhen(comms[r.id].at)}</div>
-                    </div>
-                  )}
                 </Link>
+                {comms[r.id] && (
+                  <div className="txcomm">
+                    <div className="txcommtext">{comms[r.id].text}</div>
+                    <div className="txcommfoot">
+                      <span className="txcommwhen">{commWhen(comms[r.id].at)}</span>
+                      <button
+                        type="button" className="btn" style={{ flex: 'none' }}
+                        disabled={resolvingId === comms[r.id].id}
+                        onClick={() => resolveComm(comms[r.id])}
+                      >
+                        {resolvingId === comms[r.id].id ? 'Marking…' : 'Mark handled'}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <button className="btn" onClick={() => copyLink(r.share_token)}>
                   {copied === r.share_token ? 'Copied' : 'Copy client link'}
                 </button>
