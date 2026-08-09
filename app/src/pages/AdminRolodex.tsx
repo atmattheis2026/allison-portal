@@ -221,9 +221,8 @@ export default function AdminRolodex() {
     if (dupesOnly && !dupeKeys.has(r.key)) return false
     if (!q.trim()) return true
     const needle = q.trim().toLowerCase()
-    return r.name.toLowerCase().includes(needle)
-      || r.email?.toLowerCase().includes(needle)
-      || r.phone?.toLowerCase().includes(needle)
+    return [r.name, r.email, r.phone, r.roleLabel, r.context, r.address]
+      .some((field) => field?.toLowerCase().includes(needle))
   }
 
   const clientRows = rows.filter((r) => r.isClient).filter(matches).sort((a, b) => a.name.localeCompare(b.name))
@@ -279,7 +278,7 @@ export default function AdminRolodex() {
           <div className="field">
             <label>Search</label>
             <input value={q} onChange={(e) => setQ(e.target.value)}
-                   placeholder="Name, phone, or email" />
+                   placeholder="Name, phone, email, category, or address" />
           </div>
           <div className="field">
             <label>&nbsp;</label>
