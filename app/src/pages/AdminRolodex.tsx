@@ -2,16 +2,23 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import AdminNav from '../components/AdminNav'
+import { useIsDatabaseManager } from '../lib/useIsDatabaseManager'
 import './Admin.css'
 
 interface Row {
   key: string
+  kind: 'contact' | 'lead'
+  id: string
   name: string
   phone: string | null
   email: string | null
   roleLabel: string
   context: string
   href: string
+  /** Buyers/Sellers on a transaction, or an Active Client lead — someone
+   *  with an actual client profile to click through to, as opposed to an
+   *  agent, lender, title company, or other non-client contact. */
+  isClient: boolean
   /** Set when this row traces back to a closed lead — shows the
    *  "Client returning to active" button, since that's the only state
    *  where reactivating actually makes sense. */
@@ -35,7 +42,9 @@ export default function AdminRolodex() {
   const [q, setQ] = useState('')
   const [dupesOnly, setDupesOnly] = useState(false)
   const [reactivatingId, setReactivatingId] = useState<string | null>(null)
+  const [deletingKey, setDeletingKey] = useState<string | null>(null)
   const nav = useNavigate()
+  const isDatabaseManager = useIsDatabaseManager()
 
   async function load() {
     if (DEMO_MODE || !supabase) { setRows([]); return }
@@ -81,12 +90,15 @@ export default function AdminRolodex() {
       transactions: { address_line: string; city_state_zip: string } | null
     }>).map((c) => ({
       key: `c-${c.id}`,
+      kind: 'contact',
+      id: c.id,
       name: c.name,
       phone: c.phone,
       email: c.email,
       roleLabel: c.role_label,
       context: c.transactions?.address_line || 'Untitled transaction',
       href: `/admin/t/${c.transaction_id}`,
+      isClient: c.role_label === 'Buyers' || c.role_label === 'Sellers',
       closedLeadId: closedLeadByTx.get(c.transaction_id),
     }))
 
@@ -94,12 +106,15 @@ export default function AdminRolodex() {
       id: string; full_name: string; phone: string | null; email: string | null
     }>).filter((l) => l.full_name?.trim()).map((l) => ({
       key: `l-${l.id}`,
+      kind: 'lead',
+      id: l.id,
       name: l.full_name,
       phone: l.phone,
       email: l.email,
       roleLabel: 'Active client',
       context: 'Active Clients',
       href: `/admin/leads/${l.id}`,
+      isClient: true,
     }))
 
     setRows([...fromContacts, ...fromLeads])
@@ -115,6 +130,20 @@ export default function AdminRolodex() {
     setReactivatingId(null)
     if (error) { alert(error.message); return }
     nav(`/admin/leads/${r.closedLeadId}`)
+  }
+
+  async function deleteRow(r: Row) {
+    if (!supabase || deletingKey) return
+    const confirmMsg = r.kind === 'lead'
+      ? `Permanently delete "${r.name || 'this client'}"? This can't be undone — appointments, homes, notes, and everything else on their file goes with it.`
+      : `Remove "${r.name || 'this contact'}" from ${r.context}? This can't be undone.`
+    if (!confirm(confirmMsg)) return
+    setDeletingKey(r.key)
+    const table = r.kind === 'lead' ? 'leads' : 'contacts'
+    const { error } = await supabase.from(table).delete().eq('id', r.id)
+    setDeletingKey(null)
+    if (error) { alert(`Couldn't delete it: ${error.message}`); return }
+    setRows((cur) => cur?.filter((x) => x.key !== r.key) ?? cur)
   }
 
   const dupeKeys = useMemo(() => {
@@ -182,7 +211,9 @@ export default function AdminRolodex() {
             {filtered.map((r) => (
               <div className="note" key={r.key}>
                 <div className="notemeta">
-                  <span className="noteauthor">{r.name}</span>
+                  <span className="noteauthor">
+                    {r.isClient ? <Link to={r.href}>{r.name}</Link> : r.name}
+                  </span>
                   <span className="notewhen">{r.roleLabel}</span>
                   {dupeKeys.has(r.key) && (
                     <span className="notewhen" style={{ color: 'var(--danger)' }}>Possible duplicate</span>
@@ -199,6 +230,15 @@ export default function AdminRolodex() {
                             disabled={reactivatingId === r.key}
                             onClick={() => reactivate(r)}>
                       {reactivatingId === r.key ? 'Reactivating…' : 'Reactivate for a new deal →'}
+                    </button>
+                  )}
+                  {isDatabaseManager && (
+                    <button type="button" className="btn"
+                            style={{ flex: 'none', marginLeft: 'auto', color: 'var(--danger, #cc3311)' }}
+                            disabled={deletingKey === r.key}
+                            onClick={() => deleteRow(r)}
+                            title={r.kind === 'lead' ? 'Permanently delete this file' : 'Remove this contact'}>
+                      {deletingKey === r.key ? 'Deleting…' : 'Delete'}
                     </button>
                   )}
                 </p>
