@@ -623,10 +623,18 @@ export default function AdminLead() {
               <div className="field">
                 <label>Loan type</label>
                 <select value={lead.loan_type ?? ''}
-                        onChange={(e) => patchLead({ loan_type: (e.target.value || null) as Lead['loan_type'] })}>
+                        onChange={(e) => patchLead({
+                          loan_type: (e.target.value || null) as Lead['loan_type'],
+                          ...(e.target.value === 'Other' ? {} : { loan_type_other: null }),
+                        })}>
                   <option value="">Not set</option>
                   {LOAN_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
+                {lead.loan_type === 'Other' && (
+                  <input style={{ marginTop: 8 }} value={lead.loan_type_other ?? ''}
+                         placeholder="What kind of loan?"
+                         onChange={(e) => patchLead({ loan_type_other: e.target.value || null })} />
+                )}
               </div>
               <div className="field">
                 <label>Application status</label>

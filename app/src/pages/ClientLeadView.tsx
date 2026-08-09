@@ -190,7 +190,11 @@ export default function ClientLeadView() {
           <div className="card" style={{ padding: 16 }}>
             <h3 className="eyebrow">Loan Status</h3>
             <div className="notelist">
-              {lead.loan_type && <p className="notebody">Loan type: {lead.loan_type}</p>}
+              {lead.loan_type && (
+                <p className="notebody">
+                  Loan type: {lead.loan_type === 'Other' && lead.loan_type_other ? lead.loan_type_other : lead.loan_type}
+                </p>
+              )}
               {lead.loan_status && <p className="notebody">Status: {lead.loan_status}</p>}
             </div>
           </div>

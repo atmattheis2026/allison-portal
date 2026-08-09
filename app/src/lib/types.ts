@@ -252,6 +252,8 @@ export interface Lead {
   wants_buying: boolean
   wants_loan: boolean
   loan_type: LoanType | null
+  /** Only meaningful when loan_type is 'Other' — what it actually is. */
+  loan_type_other: string | null
   estimated_loan_amount: number | null
   loan_status: LoanStatus | null
   phone: string | null
@@ -507,6 +509,7 @@ export interface SharedLeadPayload {
     wants_buying: boolean
     wants_loan: boolean
     loan_type: LoanType | null
+    loan_type_other: string | null
     loan_status: LoanStatus | null
     preapproval_on_file: boolean
     budget: BudgetRange | null
