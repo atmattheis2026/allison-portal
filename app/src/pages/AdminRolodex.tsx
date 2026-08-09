@@ -16,6 +16,7 @@ interface Row {
   context: string
   href: string | null
   address?: string | null
+  businessName?: string | null
   /** Buyers/Sellers on a transaction, or an Active Client lead — someone
    *  with an actual client profile to click through to, as opposed to an
    *  agent, lender, title company, or other non-client contact. */
@@ -82,7 +83,7 @@ export default function AdminRolodex() {
 
     const { data: savedRows } = await supabase
       .from('saved_contacts')
-      .select('id, name, phone, email, role_label, address')
+      .select('id, name, phone, email, role_label, address, business_name')
 
     // Traces each transaction contact back to a closed lead (if any), so
     // "Reactivate for a new deal" can show up right on that contact's row —
@@ -133,7 +134,7 @@ export default function AdminRolodex() {
 
     const fromSaved: Row[] = ((savedRows ?? []) as Array<{
       id: string; name: string; phone: string | null; email: string | null; role_label: string
-      address: string | null
+      address: string | null; business_name: string | null
     }>).map((s) => ({
       key: `s-${s.id}`,
       kind: 'saved',
@@ -146,6 +147,7 @@ export default function AdminRolodex() {
       href: null,
       isClient: false,
       address: s.address,
+      businessName: s.business_name,
     }))
 
     setRows([...fromContacts, ...fromLeads, ...fromSaved])
@@ -177,22 +179,22 @@ export default function AdminRolodex() {
     setRows((cur) => cur?.filter((x) => x.key !== r.key) ?? cur)
   }
 
-  async function addSavedContact(values: { name: string; roleLabel: string; phone: string; email: string; address: string }) {
+  async function addSavedContact(values: { name: string; businessName: string; roleLabel: string; phone: string; email: string; address: string }) {
     if (!supabase || !teamId) return
     const { data, error } = await supabase.from('saved_contacts')
       .insert({
         team_id: teamId, group_key: 'people',
         role_label: values.roleLabel.trim() || 'Contact',
         name: values.name.trim(), phone: values.phone.trim() || null, email: values.email.trim() || null,
-        address: values.address.trim() || null,
+        address: values.address.trim() || null, business_name: values.businessName.trim() || null,
       })
-      .select('id, name, phone, email, role_label, address').single()
+      .select('id, name, phone, email, role_label, address, business_name').single()
     if (error || !data) { alert(error?.message ?? 'Could not add that contact.'); return }
     setRows((cur) => [...(cur ?? []), {
       key: `s-${data.id}`, kind: 'saved', id: data.id,
       name: data.name, phone: data.phone, email: data.email,
       roleLabel: data.role_label, context: 'Saved contact', href: null, isClient: false,
-      address: data.address,
+      address: data.address, businessName: data.business_name,
     }])
     setAddingContact(false)
   }
@@ -221,7 +223,7 @@ export default function AdminRolodex() {
     if (dupesOnly && !dupeKeys.has(r.key)) return false
     if (!q.trim()) return true
     const needle = q.trim().toLowerCase()
-    return [r.name, r.email, r.phone, r.roleLabel, r.context, r.address]
+    return [r.name, r.email, r.phone, r.roleLabel, r.context, r.address, r.businessName]
       .some((field) => field?.toLowerCase().includes(needle))
   }
 
@@ -235,6 +237,7 @@ export default function AdminRolodex() {
           <span className="noteauthor">
             {r.isClient && r.href ? <Link to={r.href}>{r.name}</Link> : r.name}
           </span>
+          {r.businessName && <span className="notewhen">{r.businessName}</span>}
           <span className="notewhen">{r.roleLabel}</span>
           {dupeKeys.has(r.key) && (
             <span className="notewhen" style={{ color: 'var(--danger)' }}>Possible duplicate</span>
@@ -336,9 +339,10 @@ export default function AdminRolodex() {
 
 function AddContactForm({ onCancel, onSave }: {
   onCancel: () => void
-  onSave: (values: { name: string; roleLabel: string; phone: string; email: string; address: string }) => void | Promise<void>
+  onSave: (values: { name: string; businessName: string; roleLabel: string; phone: string; email: string; address: string }) => void | Promise<void>
 }) {
   const [name, setName] = useState('')
+  const [businessName, setBusinessName] = useState('')
   const [roleLabel, setRoleLabel] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
@@ -349,7 +353,7 @@ function AddContactForm({ onCancel, onSave }: {
     e.preventDefault()
     if (!name.trim()) return
     setBusy(true)
-    await onSave({ name, roleLabel, phone, email, address })
+    await onSave({ name, businessName, roleLabel, phone, email, address })
     setBusy(false)
   }
 
@@ -362,26 +366,33 @@ function AddContactForm({ onCancel, onSave }: {
                  placeholder="Jordan Reyes" />
         </div>
         <div className="field">
-          <label>Category</label>
-          <input value={roleLabel} onChange={(e) => setRoleLabel(e.target.value)}
-                 placeholder="Title Company, Inspector, Lender…" />
+          <label>Business name</label>
+          <input value={businessName} onChange={(e) => setBusinessName(e.target.value)}
+                 placeholder="ABC Title Company" />
         </div>
       </div>
       <div className="field2">
         <div className="field">
+          <label>Category</label>
+          <input value={roleLabel} onChange={(e) => setRoleLabel(e.target.value)}
+                 placeholder="Title Company, Inspector, Lender…" />
+        </div>
+        <div className="field">
           <label>Phone</label>
           <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(407) 555-0100" />
         </div>
+      </div>
+      <div className="field2">
         <div className="field">
           <label>Email</label>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                  placeholder="jordan@example.com" />
         </div>
-      </div>
-      <div className="field">
-        <label>Address</label>
-        <input value={address} onChange={(e) => setAddress(e.target.value)}
-               placeholder="123 Main St, Orlando, FL 32801" />
+        <div className="field">
+          <label>Address</label>
+          <input value={address} onChange={(e) => setAddress(e.target.value)}
+                 placeholder="123 Main St, Orlando, FL 32801" />
+        </div>
       </div>
       <div className="savebar">
         <button className="btn primary" disabled={busy}>{busy ? 'Adding…' : 'Add contact'}</button>
