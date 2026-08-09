@@ -329,15 +329,17 @@ export default function AdminLeads() {
                     </div>
                   </div>
                 )}
-                <button className="btn" onClick={() => copyLink(r.share_token)}>
-                  {copied === r.share_token ? 'Copied' : 'Copy client link'}
-                </button>
-                {isDatabaseManager && (
-                  <button className="btn" style={{ color: 'var(--danger, #cc3311)' }}
-                          onClick={() => deleteLead(r)} title="Permanently delete this file">
-                    Delete
+                <div style={{ display: 'flex', gap: 14, marginLeft: 'auto', flex: 'none' }}>
+                  <button className="btn" onClick={() => copyLink(r.share_token)}>
+                    {copied === r.share_token ? 'Copied' : 'Copy client link'}
                   </button>
-                )}
+                  {isDatabaseManager && (
+                    <button className="btn" style={{ color: 'var(--danger, #cc3311)' }}
+                            onClick={() => deleteLead(r)} title="Permanently delete this file">
+                      Delete
+                    </button>
+                  )}
+                </div>
               </div>
             )
           })}
