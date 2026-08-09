@@ -270,10 +270,6 @@ export default function AdminRolodex() {
       <AdminNav current="rolodex" />
 
       <div className="card setcard">
-        <p className="sethelp">
-          Clients only show up here for whoever's actually attached to their deal. Professional
-          contacts are saved for the whole team, no matter who's on which deal.
-        </p>
         <div className="field2">
           <div className="field">
             <label>Search</label>
@@ -293,6 +289,10 @@ export default function AdminRolodex() {
       <div className="settings" style={{ marginTop: 18 }}>
         <div className="card setcard">
           <h2>Clients</h2>
+          <p className="sethelp">
+            Client info is only saved into the Rolodex of team members added to that
+            client's profile.
+          </p>
           {clientRows.length === 0 ? (
             <p className="muted" style={{ fontSize: 12.5 }}>Nothing matches.</p>
           ) : (
@@ -304,6 +304,10 @@ export default function AdminRolodex() {
 
         <div className="card setcard">
           <h2>Professional Contacts</h2>
+          <p className="sethelp">
+            Professional contacts save for all user access — visible to the whole team,
+            no matter who's on which deal.
+          </p>
           {professionalRows.length === 0 ? (
             <p className="muted" style={{ fontSize: 12.5 }}>Nothing matches.</p>
           ) : (
