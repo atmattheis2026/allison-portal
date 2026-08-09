@@ -70,6 +70,28 @@ function Branding() {
     ...BLANK, name: 'Mattheis & Co.', wordmark_text: 'MATTHEIS & CO.',
   })
   const [lend, setLend] = useState<BrandForm>({ ...BLANK, accent_hex: '#7F9CB8' })
+  const [teamId, setTeamId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(!DEMO_MODE)
+
+  useEffect(() => {
+    if (DEMO_MODE || !supabase) { setLoading(false); return }
+    async function load() {
+      const { data: auth } = await supabase!.auth.getUser()
+      const { data: me } = await supabase!.from('profiles')
+        .select('team_id').eq('id', auth.user?.id).single()
+      setTeamId(me?.team_id ?? null)
+
+      const { data } = await supabase!.from('brands').select('*')
+      for (const row of (data as (BrandForm & { kind: BrandKind })[]) ?? []) {
+        if (row.kind === 'real_estate') setRe({ ...BLANK, ...row })
+        else if (row.kind === 'lending') setLend({ ...BLANK, ...row })
+      }
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  if (loading) return <div className="centered"><div className="spinner" /></div>
 
   return (
     <div className="settings">
@@ -78,14 +100,14 @@ function Branding() {
         title="Real Estate Company"
         help="This is the logo at the very top of every page, and its color is the
               main accent used across the whole portal."
-        value={re} onChange={setRe}
+        value={re} onChange={setRe} teamId={teamId}
       />
       <BrandCard
         kind="lending"
         title="Lending Company"
         help="This one appears on the Loan section only, with its own color, so the
               page reads as co-branded rather than one company speaking for both."
-        value={lend} onChange={setLend}
+        value={lend} onChange={setLend} teamId={teamId}
       />
       <p className="sethelp" style={{ maxWidth: 620 }}>
         Upload a logo made for a <strong>dark background</strong> — usually the white
@@ -97,12 +119,32 @@ function Branding() {
   )
 }
 
-function BrandCard({ kind, title, help, value, onChange }: {
+function BrandCard({ kind, title, help, value, onChange, teamId }: {
   kind: BrandKind; title: string; help: string
-  value: BrandForm; onChange: (b: BrandForm) => void
+  value: BrandForm; onChange: (b: BrandForm) => void; teamId: string | null
 }) {
   const [busy, setBusy] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const set = (patch: Partial<BrandForm>) => onChange({ ...value, ...patch })
+
+  async function save() {
+    if (DEMO_MODE || !supabase) return
+    if (!teamId) { setSaveError('Could not work out which team you’re on.'); return }
+    setSaving(true); setSaveError(null)
+    const { error } = await supabase.from('brands').upsert({
+      team_id: teamId, kind,
+      name: value.name, wordmark_text: value.wordmark_text,
+      logo_url: value.logo_url, logo_light_url: value.logo_light_url,
+      accent_hex: value.accent_hex, needs_light_background: value.needs_light_background,
+      disclaimer_text: value.disclaimer_text,
+    }, { onConflict: 'team_id,kind' })
+    setSaving(false)
+    if (error) { setSaveError(error.message); return }
+    setSaved(true)
+    setTimeout(() => setSaved(false), 1800)
+  }
 
   async function upload(file: File, field: 'logo_url' | 'logo_light_url') {
     if (DEMO_MODE || !supabase) {
@@ -188,7 +230,11 @@ function BrandCard({ kind, title, help, value, onChange }: {
       </div>
 
       <div className="savebar">
-        <button className="btn primary" disabled={DEMO_MODE}>Save {title.toLowerCase()}</button>
+        <button className="btn primary" disabled={DEMO_MODE || saving} onClick={save}>
+          {saving ? 'Saving…' : `Save ${title.toLowerCase()}`}
+        </button>
+        {saved && <span className="muted" style={{ fontSize: 12 }}>Saved.</span>}
+        {saveError && <span style={{ color: 'var(--danger)', fontSize: 12 }}>{saveError}</span>}
         {DEMO_MODE && <span className="muted" style={{ fontSize: 12 }}>Saving needs the database connected.</span>}
       </div>
     </div>
