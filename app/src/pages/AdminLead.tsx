@@ -9,6 +9,18 @@ import {
 import AdminNav from '../components/AdminNav'
 import './Admin.css'
 
+/** One row of a client's lifetime deal history — every transaction ever
+ *  linked to this lead, past and present (see migration 055). */
+interface DealHistoryRow {
+  transaction_id: string
+  address_line: string
+  city_state_zip: string
+  status: string
+  closed_and_funded: boolean
+  closed_and_funded_date: string | null
+  final_purchase_price: number | null
+}
+
 /** Days from today to a plain "YYYY-MM-DD" date — negative once it's past. */
 function daysUntil(dateStr: string): number {
   const target = new Date(dateStr + 'T00:00:00')
@@ -54,8 +66,10 @@ export default function AdminLead() {
   const [personalNotes, setPersonalNotes] = useState<LeadPersonalNote[]>([])
   const [referrals, setReferrals] = useState<LeadReferral[]>([])
   const [notes, setNotes] = useState<LeadNote[]>([])
+  const [dealHistory, setDealHistory] = useState<DealHistoryRow[]>([])
   const [copied, setCopied] = useState(false)
   const [converting, setConverting] = useState(false)
+  const [reactivating, setReactivating] = useState(false)
   const [noteDraft, setNoteDraft] = useState('')
   const [saveFlash, setSaveFlash] = useState(false)
   const [fetchingId, setFetchingId] = useState<string | null>(null)
@@ -89,6 +103,16 @@ export default function AdminLead() {
       .then(({ data }) => setReferrals((data as LeadReferral[]) ?? []))
     supabase.from('lead_notes').select('*').eq('lead_id', id).order('created_at', { ascending: false })
       .then(({ data }) => setNotes((data as LeadNote[]) ?? []))
+    supabase.from('lead_transactions')
+      .select('transaction_id, created_at, transactions(address_line, city_state_zip, status, closed_and_funded, closed_and_funded_date, final_purchase_price)')
+      .eq('lead_id', id).order('created_at', { ascending: false })
+      .then(({ data }) => {
+        const rows = ((data ?? []) as unknown as Array<{
+          transaction_id: string
+          transactions: Omit<DealHistoryRow, 'transaction_id'> | null
+        }>).filter((r) => r.transactions).map((r) => ({ transaction_id: r.transaction_id, ...r.transactions! }))
+        setDealHistory(rows)
+      })
   }, [id])
 
   async function patchLead(values: Partial<Lead>) {
@@ -141,6 +165,19 @@ export default function AdminLead() {
     setConverting(false)
     if (error || !txId) { alert(error?.message ?? 'Could not convert this lead.'); return }
     nav(`/admin/t/${txId}`)
+  }
+
+  // Reopens a closed client's same file for a new deal — their past
+  // transaction(s) stay visible in Deal history, this just clears the
+  // "current transaction" pointer so Convert to transaction works again.
+  async function reactivateLead() {
+    if (!id || !supabase || reactivating) return
+    if (!confirm('Reactivate this client for a new deal? Their past transaction history stays on this file.')) return
+    setReactivating(true)
+    const { error } = await supabase.rpc('reactivate_lead', { p_lead_id: id })
+    setReactivating(false)
+    if (error) { alert(error.message); return }
+    setLead((cur) => (cur ? { ...cur, lead_status: 'active', converted_transaction_id: null, closed_date: null } : cur))
   }
 
   // ---- appointments ----
@@ -361,15 +398,24 @@ export default function AdminLead() {
       {lead.lead_status !== 'active' && (
         <div style={{
           maxWidth: 1040, margin: '0 auto 18px', padding: '12px 18px',
-          borderRadius: 'var(--r-md)', fontWeight: 800, fontSize: 15, letterSpacing: '.03em',
-          textAlign: 'center', textTransform: 'uppercase',
+          borderRadius: 'var(--r-md)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexWrap: 'wrap', gap: 12,
           background: lead.lead_status === 'under_contract' ? '#3b82f622' : '#2ecc4022',
           border: `2px solid ${lead.lead_status === 'under_contract' ? '#3b82f6' : '#2ecc40'}`,
-          color: lead.lead_status === 'under_contract' ? '#3b82f6' : '#2ecc40',
         }}>
-          {lead.lead_status === 'under_contract'
-            ? 'Under contract'
-            : `Closed${lead.closed_date ? ` — ${new Date(lead.closed_date + 'T00:00:00').toLocaleDateString()}` : ''}`}
+          <span style={{
+            fontWeight: 800, fontSize: 15, letterSpacing: '.03em', textTransform: 'uppercase',
+            color: lead.lead_status === 'under_contract' ? '#3b82f6' : '#2ecc40',
+          }}>
+            {lead.lead_status === 'under_contract'
+              ? 'Under contract'
+              : `Closed${lead.closed_date ? ` — ${new Date(lead.closed_date + 'T00:00:00').toLocaleDateString()}` : ''}`}
+          </span>
+          {lead.lead_status === 'closed' && (
+            <button type="button" className="btn" onClick={reactivateLead} disabled={reactivating}>
+              {reactivating ? 'Reactivating…' : 'Reactivate for a new deal →'}
+            </button>
+          )}
         </div>
       )}
 
@@ -579,6 +625,26 @@ export default function AdminLead() {
             <p className="sethelp" style={{ margin: '6px 0 0' }}>
               Loan type and status show on the client's page — the estimated amount stays just for you.
             </p>
+          </div>
+        )}
+
+        {dealHistory.length > 0 && (
+          <div className="card setcard">
+            <h2>Deal history</h2>
+            <p className="sethelp">Every transaction ever linked to this client, past and present.</p>
+            {dealHistory.map((d) => (
+              <div key={d.transaction_id} className="tmplrow">
+                <Link to={`/admin/t/${d.transaction_id}`} style={{ flex: 1 }}>
+                  {d.address_line || 'Untitled property'}{d.city_state_zip ? `, ${d.city_state_zip}` : ''}
+                </Link>
+                <span className="muted" style={{ fontSize: 12.5, flex: 'none' }}>
+                  {d.closed_and_funded
+                    ? `Closed${d.closed_and_funded_date ? ` ${new Date(d.closed_and_funded_date + 'T00:00:00').toLocaleDateString()}` : ''}`
+                        + (d.final_purchase_price != null ? ` — $${d.final_purchase_price.toLocaleString()}` : '')
+                    : d.status}
+                </span>
+              </div>
+            ))}
           </div>
         )}
 
