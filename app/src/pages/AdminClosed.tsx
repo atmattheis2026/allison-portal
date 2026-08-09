@@ -10,7 +10,10 @@ interface ClosedTx {
   id: string
   address_line: string
   city_state_zip: string
+  final_purchase_price: number | null
 }
+
+type SortMode = 'lastname' | 'price' | 'closing_date' | 'agent' | 'lender'
 
 /** "Marcus Webb" -> "Webb, Marcus" — names are stored as one free-text
  *  field, so this just splits on the last space. Multi-word last names
@@ -38,6 +41,7 @@ export default function AdminClosed() {
   const [txById, setTxById] = useState<Record<string, ClosedTx>>({})
   const [openId, setOpenId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [sortMode, setSortMode] = useState<SortMode>('lastname')
   const nav = useNavigate()
 
   useEffect(() => {
@@ -64,7 +68,7 @@ export default function AdminClosed() {
       const txIds = leadRows.map((r) => r.converted_transaction_id).filter((id): id is string => Boolean(id))
       if (txIds.length) {
         const { data: txRows } = await supabase!.from('transactions')
-          .select('id, address_line, city_state_zip').in('id', txIds)
+          .select('id, address_line, city_state_zip, final_purchase_price').in('id', txIds)
         const byId: Record<string, ClosedTx> = {}
         for (const t of (txRows as ClosedTx[]) ?? []) byId[t.id] = t
         setTxById(byId)
@@ -76,6 +80,9 @@ export default function AdminClosed() {
   function agentName(memberId: string | null) {
     return roster.find((m) => m.id === memberId)?.full_name ?? null
   }
+  function lenderName(memberId: string | null) {
+    return roster.find((m) => m.id === memberId)?.full_name ?? null
+  }
 
   const visibleRows = useMemo(() => {
     if (!rows) return null
@@ -85,14 +92,46 @@ export default function AdminClosed() {
           const tx = r.converted_transaction_id ? txById[r.converted_transaction_id] : undefined
           const haystack = [
             r.full_name, r.full_name_2, tx?.address_line, tx?.city_state_zip,
-            agentName(r.realtor_member_id),
+            agentName(r.realtor_member_id), lenderName(r.lender_member_id),
           ].filter(Boolean).join(' ').toLowerCase()
           return haystack.includes(q)
         })
       : rows
-    return [...filtered].sort((a, b) =>
-      lastNameFirst(a.full_name || '').localeCompare(lastNameFirst(b.full_name || '')))
-  }, [rows, search, txById, roster])
+
+    const sorted = [...filtered]
+    switch (sortMode) {
+      case 'price':
+        // Highest sale price first — no price on file sorts to the bottom.
+        sorted.sort((a, b) => {
+          const pa = a.converted_transaction_id ? txById[a.converted_transaction_id]?.final_purchase_price : null
+          const pb = b.converted_transaction_id ? txById[b.converted_transaction_id]?.final_purchase_price : null
+          if (pa == null) return 1
+          if (pb == null) return -1
+          return pb - pa
+        })
+        break
+      case 'closing_date':
+        // Most recent close first.
+        sorted.sort((a, b) => {
+          if (!a.closed_date) return 1
+          if (!b.closed_date) return -1
+          return b.closed_date.localeCompare(a.closed_date)
+        })
+        break
+      case 'agent':
+        sorted.sort((a, b) =>
+          (agentName(a.realtor_member_id) || '').localeCompare(agentName(b.realtor_member_id) || ''))
+        break
+      case 'lender':
+        sorted.sort((a, b) =>
+          (lenderName(a.lender_member_id) || '').localeCompare(lenderName(b.lender_member_id) || ''))
+        break
+      default:
+        sorted.sort((a, b) =>
+          lastNameFirst(a.full_name || '').localeCompare(lastNameFirst(b.full_name || '')))
+    }
+    return sorted
+  }, [rows, search, sortMode, txById, roster])
 
   const isDatabaseManager = useIsDatabaseManager()
 
@@ -120,12 +159,20 @@ export default function AdminClosed() {
       <AdminNav current="closed" />
 
       {rows.length > 0 && (
-        <div style={{ padding: '0 24px 12px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, padding: '0 24px 12px' }}>
           <input
             type="text" value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by client name, address, or agent…"
-            style={{ width: '100%', maxWidth: 420 }}
+            style={{ flex: 1, minWidth: 220, maxWidth: 420 }}
           />
+          <label className="muted" style={{ fontSize: 13 }}>Sort by</label>
+          <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
+            <option value="lastname">Client last name</option>
+            <option value="price">Purchase price (highest first)</option>
+            <option value="closing_date">Closing date (most recent first)</option>
+            <option value="agent">Agent</option>
+            <option value="lender">Lender</option>
+          </select>
         </div>
       )}
 
@@ -172,6 +219,9 @@ export default function AdminClosed() {
                               year: 'numeric', month: 'long', day: 'numeric',
                             })}
                           </span>
+                        )}
+                        {tx?.final_purchase_price != null && (
+                          <span className="muted">${tx.final_purchase_price.toLocaleString()}</span>
                         )}
                       </div>
                     </div>

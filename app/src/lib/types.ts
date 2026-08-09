@@ -167,6 +167,9 @@ export interface Transaction {
   closing_date: string | null
   closed_and_funded: boolean
   closed_and_funded_date: string | null
+  offer_price: number | null
+  contingencies_addendums: string | null
+  final_purchase_price: number | null
   lender: Lender
   /** Which roster member is shown as "Realtor." Picked in Settings › Team roster. */
   realtor_member_id: string | null

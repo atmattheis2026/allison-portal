@@ -15,6 +15,8 @@ interface Row {
   status: TxStatus
   deal_type: DealType
   closing_date: string | null
+  closed_and_funded: boolean
+  final_purchase_price: number | null
   share_token: string
 }
 
@@ -27,6 +29,8 @@ const DEMO_ROWS: Row[] = [
     status: DEMO_PAYLOAD.transaction.status,
     deal_type: 'buy',
     closing_date: DEMO_PAYLOAD.transaction.closing_date,
+    closed_and_funded: false,
+    final_purchase_price: null,
     share_token: 'demo',
   },
   {
@@ -37,6 +41,8 @@ const DEMO_ROWS: Row[] = [
     status: DEMO_SELLER.transaction.status,
     deal_type: 'sell',
     closing_date: DEMO_SELLER.transaction.closing_date,
+    closed_and_funded: false,
+    final_purchase_price: null,
     share_token: 'demo-sell',
   },
 ]
@@ -71,7 +77,7 @@ export default function AdminList() {
 
       const { data, error } = await supabase!
         .from('transactions')
-        .select('id,address_line,city_state_zip,photo_url,status,deal_type,closing_date,share_token')
+        .select('id,address_line,city_state_zip,photo_url,status,deal_type,closing_date,closed_and_funded,final_purchase_price,share_token')
         .is('archived_at', null)
         .order('created_at', { ascending: false })
       if (error) console.error(error)
@@ -169,6 +175,9 @@ export default function AdminList() {
                     </span>
                     <span className="muted">{STATUS_LABEL[r.status]}</span>
                     {r.closing_date && <span className="muted">· Closes {r.closing_date}</span>}
+                    {r.closed_and_funded && r.final_purchase_price != null && (
+                      <span className="muted">· Sold for ${r.final_purchase_price.toLocaleString()}</span>
+                    )}
                   </div>
                 </div>
               </Link>

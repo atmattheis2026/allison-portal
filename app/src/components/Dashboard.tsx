@@ -140,10 +140,14 @@ export default function Dashboard({
             <StatusPill tx={tx} editable={editable} onPatch={h.onPatchTransaction} />
           </div>
         </div>
-        {(tx.closing_date || editable) && (
+        {(tx.closing_date || editable || tx.closed_and_funded) && (
           <div className="countdownPhone">
-            <Countdown date={tx.closing_date} editable={editable}
-                       onPatch={h.onPatchTransaction} />
+            {tx.closed_and_funded ? (
+              <FinalPricePanel price={tx.final_purchase_price} editable={editable} onPatch={h.onPatchTransaction} />
+            ) : (
+              <Countdown date={tx.closing_date} editable={editable}
+                         onPatch={h.onPatchTransaction} />
+            )}
           </div>
         )}
         <TeamCards realtor={realtor} lender={tx.lender} roster={roster}
@@ -168,11 +172,18 @@ export default function Dashboard({
         )}
 
         <div className="col">
-          {(tx.closing_date || editable) && (
+          {(tx.closing_date || editable || tx.closed_and_funded) && (
             <div className="countdownDesk">
-              <Countdown date={tx.closing_date} editable={editable}
-                         onPatch={h.onPatchTransaction} />
+              {tx.closed_and_funded ? (
+                <FinalPricePanel price={tx.final_purchase_price} editable={editable} onPatch={h.onPatchTransaction} />
+              ) : (
+                <Countdown date={tx.closing_date} editable={editable}
+                           onPatch={h.onPatchTransaction} />
+              )}
             </div>
+          )}
+          {showRealEstateCol && (
+            <OfferDetailsSection tx={tx} editable={editable} onPatch={h.onPatchTransaction} />
           )}
           {showRealEstateCol && (
             <HomeInfoSection tx={tx} editable={editable} onPatch={h.onPatchTransaction}
@@ -243,6 +254,63 @@ function Disclaimers({ brands }: { brands: Partial<Record<BrandKind, Brand>> }) 
         </div>
       ))}
     </footer>
+  )
+}
+
+/**
+ * Original offer price and any contingencies/addenda — deal terms she
+ * enters herself, not sourced from the MLS, so no verification disclaimer
+ * like Home Info below it.
+ */
+function OfferDetailsSection({ tx, editable, onPatch }: {
+  tx: Transaction; editable: boolean
+  onPatch?: (v: Partial<Transaction>) => void
+}) {
+  const hasAnyFact = tx.offer_price != null || tx.contingencies_addendums
+  if (!editable && !hasAnyFact) return null
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', background: 'var(--panel-2)', border: '1px solid var(--line)',
+    borderRadius: 6, padding: '8px 10px', font: 'inherit', color: 'inherit',
+  }
+  const labelStyle: React.CSSProperties = {
+    fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-faint, #8a8578)',
+    display: 'block', marginBottom: 4,
+  }
+
+  return (
+    <div className="card" style={{ padding: 16 }}>
+      <h3 className="eyebrow">Offer Details</h3>
+      {editable ? (
+        <div style={{ display: 'grid', gap: 10, marginTop: 8 }}>
+          <div>
+            <label style={labelStyle}>Original offer price</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span className="muted">$</span>
+              <input style={inputStyle} type="number" step="0.01" min="0"
+                     value={tx.offer_price ?? ''}
+                     onChange={(e) => onPatch?.({
+                       offer_price: e.target.value === '' ? null : Number(e.target.value),
+                     })} />
+            </div>
+          </div>
+          <div>
+            <label style={labelStyle}>Contingencies / addenda</label>
+            <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={3}
+                      value={tx.contingencies_addendums ?? ''}
+                      placeholder="e.g. sale of buyer's current home, inspection contingency, seller-paid closing costs addendum"
+                      onChange={(e) => onPatch?.({ contingencies_addendums: e.target.value || null })} />
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 6, marginTop: 8, fontSize: 14 }}>
+          {tx.offer_price != null && <div><strong>Original offer:</strong> ${tx.offer_price.toLocaleString()}</div>}
+          {tx.contingencies_addendums && (
+            <div><strong>Contingencies / addenda:</strong> {tx.contingencies_addendums}</div>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -476,6 +544,33 @@ function Countdown({ date, editable, onPatch }: {
                  onChange={(e) => onPatch?.({ closing_date: e.target.value || null })} />
         ) : (
           <div className="when">{date ? fmtLong(date) : ''}</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Replaces Countdown once a deal is marked Closed & Funded — same visual
+ *  slot, but there's no more "days until" to show, just the final number. */
+function FinalPricePanel({ price, editable, onPatch }: {
+  price: number | null; editable?: boolean; onPatch?: (v: Partial<Transaction>) => void
+}) {
+  return (
+    <div className="countdown">
+      <div className="num">✓</div>
+      <div className="rt">
+        <div className="lab">Final purchase price</div>
+        {editable ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span className="unit">$</span>
+            <input className="closingInput" type="number" step="0.01" min="0"
+                   value={price ?? ''}
+                   onChange={(e) => onPatch?.({
+                     final_purchase_price: e.target.value === '' ? null : Number(e.target.value),
+                   })} />
+          </div>
+        ) : (
+          <div className="when">{price != null ? `$${price.toLocaleString()}` : 'Not set'}</div>
         )}
       </div>
     </div>
