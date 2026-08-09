@@ -84,7 +84,7 @@ export default function AdminLead() {
     setTimeout(() => setSaveFlash(false), 1200)
   }
 
-  useEffect(() => {
+  function loadAll() {
     if (DEMO_MODE || !supabase || !id) return
 
     supabase.from('leads').select('*').eq('id', id).single()
@@ -117,6 +117,28 @@ export default function AdminLead() {
         }>).filter((r) => r.transactions).map((r) => ({ transaction_id: r.transaction_id, ...r.transactions! }))
         setDealHistory(rows)
       })
+  }
+
+  useEffect(() => { loadAll() }, [id])
+
+  // Someone else (another agent, the lender) can have this same file open at
+  // the same time — rather than track every table's changes field by field,
+  // just reload everything whenever any of them changes. Simple, and cheap
+  // enough at the scale of one lead's data.
+  useEffect(() => {
+    if (DEMO_MODE || !supabase || !id) return
+    const channel = supabase.channel(`lead-${id}`)
+    const leadChildTables = [
+      'lead_appointments', 'lead_homes', 'lead_maybe_homes', 'lead_priorities',
+      'lead_personal_notes', 'lead_referrals', 'lead_documents', 'lead_notes', 'lead_transactions',
+    ]
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'leads', filter: `id=eq.${id}` }, loadAll)
+    for (const table of leadChildTables) {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table, filter: `lead_id=eq.${id}` }, loadAll)
+    }
+    channel.subscribe()
+    return () => { supabase!.removeChannel(channel) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   async function patchLead(values: Partial<Lead>) {
