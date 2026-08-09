@@ -18,10 +18,12 @@ const UNDER_CONTRACT_COLOR = '#3b82f6'
 type SortMode = 'recent' | 'name' | 'broker_signed' | 'broker_expires' | 'color'
 
 /**
- * "Active Buyers" — clients still house hunting, before there's a contract.
- * Lighter cousin of AdminList: no address, no status rail, just who they are
- * and who's working with them. RLS already limits `rows` to leads this signed-
- * in person can see (their own, or all of them if they see every transaction).
+ * "Active Clients" — people still pre-contract, whether they're house
+ * hunting, working a loan, or both (wants_buying/wants_loan, independent
+ * flags on the same record — see migration 054). Lighter cousin of
+ * AdminList: no address, no status rail, just who they are and who's
+ * working with them. RLS already limits `rows` to leads this signed-in
+ * person can see (their own, or all of them if they see every transaction).
  */
 export default function AdminLeads() {
   const [rows, setRows] = useState<Lead[] | null>(null)
@@ -133,10 +135,10 @@ export default function AdminLeads() {
       )}
 
       <header className="adminbar">
-        <span className="wordmark" style={{ fontSize: 15 }}>Active Buyers</span>
+        <span className="wordmark" style={{ fontSize: 15 }}>Active Clients</span>
         <nav className="adminnav">
           <button className="btn primary" onClick={() => setCreating(true)}>
-            New lead
+            New client
           </button>
         </nav>
       </header>
@@ -211,15 +213,22 @@ export default function AdminLeads() {
                           UNDER CONTRACT
                         </span>
                       ) : (
-                        <span className="tag">Active buyer</span>
+                        <span className="tag">
+                          {r.wants_buying && r.wants_loan ? 'Buyer + Loan' : r.wants_loan ? 'Loan client' : 'Buyer'}
+                        </span>
                       )}
-                      {r.buyer_broker_signed
-                        ? <span className="muted">
-                            Buyer broker signed
-                            {r.buyer_broker_signed_date && ` ${daysAgo(r.buyer_broker_signed_date)}`}
-                            {r.buyer_broker_expires && ` — expires ${new Date(r.buyer_broker_expires + 'T00:00:00').toLocaleDateString()}`}
-                          </span>
-                        : <span className="muted">Buyer broker not signed</span>}
+                      {r.wants_buying && (
+                        r.buyer_broker_signed
+                          ? <span className="muted">
+                              Buyer broker signed
+                              {r.buyer_broker_signed_date && ` ${daysAgo(r.buyer_broker_signed_date)}`}
+                              {r.buyer_broker_expires && ` — expires ${new Date(r.buyer_broker_expires + 'T00:00:00').toLocaleDateString()}`}
+                            </span>
+                          : <span className="muted">Buyer broker not signed</span>
+                      )}
+                      {r.wants_loan && r.loan_status && (
+                        <span className="muted">{r.loan_status}</span>
+                      )}
                     </div>
                   </div>
                 </Link>
@@ -248,6 +257,8 @@ function NewLead({ roster, onCancel, onCreated }: {
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [agentId, setAgentId] = useState('')
+  const [wantsBuying, setWantsBuying] = useState(true)
+  const [wantsLoan, setWantsLoan] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -257,6 +268,7 @@ function NewLead({ roster, onCancel, onCreated }: {
       setErr('There’s no database connected yet, so this can’t save a real lead.')
       return
     }
+    if (!wantsBuying && !wantsLoan) { setErr('Pick at least one — buying, a loan, or both.'); return }
     setBusy(true); setErr(null)
 
     const { data: me } = await supabase.from('profiles')
@@ -270,6 +282,8 @@ function NewLead({ roster, onCancel, onCreated }: {
         phone: phone || null,
         email: email || null,
         realtor_member_id: agentId || null,
+        wants_buying: wantsBuying,
+        wants_loan: wantsLoan,
       })
       .select('id').single()
 
@@ -279,14 +293,31 @@ function NewLead({ roster, onCancel, onCreated }: {
 
   return (
     <form className="card setcard newtx" onSubmit={create}>
-      <h2>New active buyer</h2>
+      <h2>New active client</h2>
       <p className="sethelp">
         Just their name to start — everything else you fill in on their page.
       </p>
 
+      <div className="field">
+        <label>What do they need?</label>
+        <div className="tabs">
+          <button type="button" className={`tab${wantsBuying ? ' on' : ''}`}
+                  onClick={() => setWantsBuying((v) => !v)}>
+            Buying a home
+          </button>
+          <button type="button" className={`tab${wantsLoan ? ' on' : ''}`}
+                  onClick={() => setWantsLoan((v) => !v)}>
+            A loan
+          </button>
+        </div>
+        <p className="sethelp" style={{ margin: '6px 0 0' }}>
+          Pick either or both — their page only shows the sections that apply.
+        </p>
+      </div>
+
       <div className="field2">
         <div className="field">
-          <label>Buyer's name</label>
+          <label>Client's name</label>
           <input value={fullName} autoFocus required
                  onChange={(e) => setFullName(e.target.value)}
                  placeholder="Marcus Webb" />

@@ -4,7 +4,7 @@ import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { Lead, LeadAppointment, LeadHome, LeadMaybeHome, LeadPriority, LeadPersonalNote, LeadReferral, LeadNote, TeamMember } from '../lib/types'
 import {
   leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL, REFERRAL_SOURCES, BUDGET_RANGES,
-  parseAddressFromListingUrl,
+  parseAddressFromListingUrl, LOAN_TYPES, LOAN_STATUSES,
 } from '../lib/types'
 import AdminNav from '../components/AdminNav'
 import './Admin.css'
@@ -338,12 +338,12 @@ export default function AdminLead() {
     <div className="admin">
       <header className="adminbar">
         <span className="wordmark" style={{ fontSize: 15 }}>
-          <Link to="/admin/leads" className="muted" style={{ textDecoration: 'none' }}>Active Buyers</Link>
+          <Link to="/admin/leads" className="muted" style={{ textDecoration: 'none' }}>Active Clients</Link>
           {' / '}{lead.full_name || 'Unnamed buyer'}
         </span>
         <nav className="adminnav">
           {saveFlash && <span className="muted" style={{ fontSize: 12.5 }}>Saved</span>}
-          <Link className="btn" to="/admin/leads">← Active Buyers</Link>
+          <Link className="btn" to="/admin/leads">← Active Clients</Link>
           <button className="btn" onClick={copyLink}>{copied ? 'Copied' : 'Copy client link'}</button>
           {lead.converted_transaction_id ? (
             <Link className="btn primary" to={`/admin/t/${lead.converted_transaction_id}`}>
@@ -475,53 +475,95 @@ export default function AdminLead() {
           <p className="sethelp" style={{ margin: '8px 0 0' }}>
             Photos are uploaded by the client themselves from their own page.
           </p>
-          <div className="field">
-            <label>Timeframe to buy</label>
-            <div className="tabs">
-              {(['0-3', '3-6', '6+'] as const).map((b) => {
-                const bandForButton = b === '0-3' ? 'green' : b === '3-6' ? 'yellow' : 'orange'
-                const on = lead.timeframe_bucket === b
-                const color = TIMEFRAME_BAND_COLOR[bandForButton]
-                return (
-                  <button key={b} type="button" className="tab"
-                          style={on ? { background: `${color}22`, borderColor: color, color } : undefined}
-                          onClick={() => patchLead({ timeframe_bucket: b })}>
-                    {b === '0-3' ? 'Ready now / 0–3 mo' : b === '3-6' ? '3–6 months' : '6+ months'}
-                  </button>
-                )
-              })}
-            </div>
-            {lead.timeframe_bucket && (() => {
-              const band = leadTimeframeBand(lead)!
-              return (
-                <p className="sethelp" style={{ margin: '8px 0 0', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{
-                    display: 'inline-block', width: 10, height: 10, borderRadius: '50%',
-                    background: TIMEFRAME_BAND_COLOR[band],
-                  }} />
-                  Currently showing as {TIMEFRAME_BAND_LABEL[band]} on your list — updates on its own as time passes.
-                </p>
-              )
-            })()}
-          </div>
-          <div className="checkline">
-            <input type="checkbox" checked={lead.buyer_broker_signed}
-                   onChange={(e) => patchLead({ buyer_broker_signed: e.target.checked })} />
-            <span className="cl">Buyer broker agreement signed</span>
-          </div>
-          <div className="field2" style={{ maxWidth: 460 }}>
-            <div className="field">
-              <label>Buyer broker signed on</label>
-              <input type="date" value={lead.buyer_broker_signed_date ?? ''}
-                     onChange={(e) => patchLead({ buyer_broker_signed_date: e.target.value || null })} />
-            </div>
-            <div className="field">
-              <label>Buyer broker expires</label>
-              <input type="date" value={lead.buyer_broker_expires ?? ''}
-                     onChange={(e) => patchLead({ buyer_broker_expires: e.target.value || null })} />
-            </div>
-          </div>
+          {lead.wants_buying && (
+            <>
+              <div className="field">
+                <label>Timeframe to buy</label>
+                <div className="tabs">
+                  {(['0-3', '3-6', '6+'] as const).map((b) => {
+                    const bandForButton = b === '0-3' ? 'green' : b === '3-6' ? 'yellow' : 'orange'
+                    const on = lead.timeframe_bucket === b
+                    const color = TIMEFRAME_BAND_COLOR[bandForButton]
+                    return (
+                      <button key={b} type="button" className="tab"
+                              style={on ? { background: `${color}22`, borderColor: color, color } : undefined}
+                              onClick={() => patchLead({ timeframe_bucket: b })}>
+                        {b === '0-3' ? 'Ready now / 0–3 mo' : b === '3-6' ? '3–6 months' : '6+ months'}
+                      </button>
+                    )
+                  })}
+                </div>
+                {lead.timeframe_bucket && (() => {
+                  const band = leadTimeframeBand(lead)!
+                  return (
+                    <p className="sethelp" style={{ margin: '8px 0 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{
+                        display: 'inline-block', width: 10, height: 10, borderRadius: '50%',
+                        background: TIMEFRAME_BAND_COLOR[band],
+                      }} />
+                      Currently showing as {TIMEFRAME_BAND_LABEL[band]} on your list — updates on its own as time passes.
+                    </p>
+                  )
+                })()}
+              </div>
+              <div className="checkline">
+                <input type="checkbox" checked={lead.buyer_broker_signed}
+                       onChange={(e) => patchLead({ buyer_broker_signed: e.target.checked })} />
+                <span className="cl">Buyer broker agreement signed</span>
+              </div>
+              <div className="field2" style={{ maxWidth: 460 }}>
+                <div className="field">
+                  <label>Buyer broker signed on</label>
+                  <input type="date" value={lead.buyer_broker_signed_date ?? ''}
+                         onChange={(e) => patchLead({ buyer_broker_signed_date: e.target.value || null })} />
+                </div>
+                <div className="field">
+                  <label>Buyer broker expires</label>
+                  <input type="date" value={lead.buyer_broker_expires ?? ''}
+                         onChange={(e) => patchLead({ buyer_broker_expires: e.target.value || null })} />
+                </div>
+              </div>
+            </>
+          )}
         </div>
+
+        {lead.wants_loan && (
+          <div className="card setcard">
+            <h2>Loan Info</h2>
+            <div className="field2">
+              <div className="field">
+                <label>Loan type</label>
+                <select value={lead.loan_type ?? ''}
+                        onChange={(e) => patchLead({ loan_type: (e.target.value || null) as Lead['loan_type'] })}>
+                  <option value="">Not set</option>
+                  {LOAN_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="field">
+                <label>Application status</label>
+                <select value={lead.loan_status ?? ''}
+                        onChange={(e) => patchLead({ loan_status: (e.target.value || null) as Lead['loan_status'] })}>
+                  <option value="">Not set</option>
+                  {LOAN_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="field" style={{ maxWidth: 220 }}>
+              <label>Estimated loan amount</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span className="muted">$</span>
+                <input type="number" step="0.01" min="0" style={{ flex: 1 }}
+                       value={lead.estimated_loan_amount ?? ''}
+                       onChange={(e) => patchLead({
+                         estimated_loan_amount: e.target.value === '' ? null : Number(e.target.value),
+                       })} />
+              </div>
+            </div>
+            <p className="sethelp" style={{ margin: '6px 0 0' }}>
+              Loan type and status show on the client's page — the estimated amount stays just for you.
+            </p>
+          </div>
+        )}
 
         <div className="card setcard">
           <h2>Agent transaction info</h2>
@@ -653,6 +695,7 @@ export default function AdminLead() {
           )}
         </div>
 
+        {lead.wants_buying && (
         <div className="card setcard">
           <h2>Qualification</h2>
           <p className="sethelp">Visible to the client on their page.</p>
@@ -706,7 +749,9 @@ export default function AdminLead() {
             </div>
           )}
         </div>
+        )}
 
+        {lead.wants_buying && (
         <div className="card setcard">
           <h2>Preferences</h2>
           <p className="sethelp">Areas and general taste — the ranked list below is for specific must-haves.</p>
@@ -728,7 +773,9 @@ export default function AdminLead() {
             </div>
           </div>
         </div>
+        )}
 
+        {lead.wants_buying && (
         <div className="card setcard">
           <h2>Wants &amp; needs</h2>
           <p className="sethelp">In order of importance — top of the list matters most.</p>
@@ -742,8 +789,10 @@ export default function AdminLead() {
           ))}
           <div className="savebar"><button className="btn" onClick={addPriority}>+ Add</button></div>
         </div>
+        )}
         </div>
 
+        {lead.wants_buying && (
         <div className="leadcol">
         <div className="card setcard">
           <h2>Appointments</h2>
@@ -1004,6 +1053,7 @@ export default function AdminLead() {
           <div className="savebar"><button className="btn" onClick={addHome}>+ Add home</button></div>
         </div>
         </div>
+        )}
         </div>
 
         <div className="card setcard">

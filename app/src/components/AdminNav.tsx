@@ -27,7 +27,7 @@ export default function AdminNav({ current }: {
 
   const items: { key: typeof current; label: string; to: string }[] = [
     { key: 'transactions', label: 'Transactions', to: '/admin' },
-    { key: 'leads', label: 'Active Buyers', to: '/admin/leads' },
+    { key: 'leads', label: 'Active Clients', to: '/admin/leads' },
     { key: 'closed', label: 'Closed', to: '/admin/closed' },
     ...(canSeeRolodex ? [{ key: 'rolodex' as const, label: 'Rolodex', to: '/admin/rolodex' }] : []),
     { key: 'settings', label: 'Settings', to: '/admin/settings' },

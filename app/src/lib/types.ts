@@ -224,6 +224,14 @@ export type ReferralSource =
 export const REFERRAL_SOURCES: ReferralSource[] =
   ['EPIC provided', 'Personal Referral', 'Agent Referral', 'Lead IO', 'Realtor.com']
 
+export type LoanType = 'Conventional' | 'FHA' | 'VA' | 'USDA' | 'Jumbo' | 'Other'
+export const LOAN_TYPES: LoanType[] = ['Conventional', 'FHA', 'VA', 'USDA', 'Jumbo', 'Other']
+
+export type LoanStatus =
+  | 'Not started' | 'Application submitted' | 'In underwriting' | 'Clear to close' | 'Denied'
+export const LOAN_STATUSES: LoanStatus[] =
+  ['Not started', 'Application submitted', 'In underwriting', 'Clear to close', 'Denied']
+
 /**
  * An active buyer who hasn't found (or gone under contract on) a home yet.
  * Lighter than a Transaction on purpose — no address, no closing date, no
@@ -237,6 +245,15 @@ export interface Lead {
   full_name: string
   /** Second buyer's name — a couple is the common case. Optional. */
   full_name_2: string | null
+  /** Independent — a client can want either, or both. All the pre-contract
+   *  house-hunting sections (timeframe, homes, appointments, etc.) only
+   *  matter when wants_buying is true; the Loan Info section only shows
+   *  when wants_loan is true. One record either way, never two to merge. */
+  wants_buying: boolean
+  wants_loan: boolean
+  loan_type: LoanType | null
+  estimated_loan_amount: number | null
+  loan_status: LoanStatus | null
   phone: string | null
   email: string | null
   phone_2: string | null
@@ -478,6 +495,10 @@ export interface SharedLeadPayload {
   lead: {
     id: string; full_name: string; full_name_2: string | null
     client_photo_url: string | null; client_photo_url_2: string | null
+    wants_buying: boolean
+    wants_loan: boolean
+    loan_type: LoanType | null
+    loan_status: LoanStatus | null
     preapproval_on_file: boolean
     budget: BudgetRange | null
     purchase_type: 'investment' | 'personal' | null

@@ -152,7 +152,10 @@ export default function ClientLeadView() {
         {logo
           ? <img src={logo} alt={brand?.name || ''} />
           : <span className="wordmark">{brand?.wordmark_text || brand?.name || 'Your Company'}</span>}
-        <span className="viewnote">Home Search · {lead.full_name}</span>
+        <span className="viewnote">
+          {lead.wants_buying && lead.wants_loan ? 'Home Search & Loan' : lead.wants_loan ? 'Loan Update' : 'Home Search'}
+          {' · '}{lead.full_name}
+        </span>
       </div>
 
       <div style={{
@@ -183,7 +186,17 @@ export default function ClientLeadView() {
           </div>
         )}
 
-        {(lead.preapproval_on_file || lead.budget || lead.purchase_type || lead.funding_type || lead.has_house_to_sell) && (
+        {lead.wants_loan && (lead.loan_type || lead.loan_status) && (
+          <div className="card" style={{ padding: 16 }}>
+            <h3 className="eyebrow">Loan Status</h3>
+            <div className="notelist">
+              {lead.loan_type && <p className="notebody">Loan type: {lead.loan_type}</p>}
+              {lead.loan_status && <p className="notebody">Status: {lead.loan_status}</p>}
+            </div>
+          </div>
+        )}
+
+        {lead.wants_buying && (lead.preapproval_on_file || lead.budget || lead.purchase_type || lead.funding_type || lead.has_house_to_sell) && (
           <div className="card" style={{ padding: 16 }}>
             <h3 className="eyebrow">Qualification</h3>
             <div className="notelist">
@@ -204,7 +217,7 @@ export default function ClientLeadView() {
           </div>
         )}
 
-        {appointments.length > 0 && (
+        {lead.wants_buying && appointments.length > 0 && (
           <div className="card" style={{ padding: 16 }}>
             <h3 className="eyebrow">Appointments</h3>
             <div className="notelist">
@@ -229,7 +242,7 @@ export default function ClientLeadView() {
           </div>
         )}
 
-        {maybeHomes.length > 0 && (
+        {lead.wants_buying && maybeHomes.length > 0 && (
           <div className="card" style={{ padding: 16 }}>
             <h3 className="eyebrow">Homes you may like</h3>
             <div className="notelist">
@@ -252,7 +265,7 @@ export default function ClientLeadView() {
           </div>
         )}
 
-        {homes.length > 0 && (
+        {lead.wants_buying && homes.length > 0 && (
           <div className="card" style={{ padding: 16 }}>
             <h3 className="eyebrow">Homes shown</h3>
             <div className="notelist">
@@ -277,7 +290,7 @@ export default function ClientLeadView() {
           </div>
         )}
 
-        {priorities.length > 0 && (
+        {lead.wants_buying && priorities.length > 0 && (
           <div className="card" style={{ padding: 16 }}>
             <h3 className="eyebrow">What you're looking for</h3>
             <ol style={{ margin: '8px 0 0', paddingLeft: 20, lineHeight: 1.8 }}>

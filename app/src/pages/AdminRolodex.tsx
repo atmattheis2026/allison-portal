@@ -78,8 +78,8 @@ export default function AdminRolodex() {
         name: l.full_name,
         phone: l.phone,
         email: l.email,
-        roleLabel: 'Active buyer',
-        context: 'Active Buyers',
+        roleLabel: 'Active client',
+        context: 'Active Clients',
         href: `/admin/leads/${l.id}`,
       }))
 
