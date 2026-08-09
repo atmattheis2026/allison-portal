@@ -411,9 +411,19 @@ export function leadTimeframeBand(lead: Pick<Lead, 'created_at' | 'timeframe_buc
   if (!lead.timeframe_bucket) return null
   const readyBy = new Date(lead.created_at)
   readyBy.setMonth(readyBy.getMonth() + TIMEFRAME_BUCKET_MONTHS[lead.timeframe_bucket])
-  const monthsLeft = (readyBy.getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30.44)
-  if (monthsLeft <= 3) return 'green'
-  if (monthsLeft <= 6) return 'yellow'
+
+  // Compare against calendar-month marks, not a days/30.44 average — mixing
+  // setMonth() (which lands on real calendar dates of varying length) with a
+  // fixed day-average caused a freshly-picked "3–6 months" bucket to land on
+  // "orange" instead of "yellow" whenever the actual 6-month span happened
+  // to be longer than 30.44*6 days (i.e. most of the time).
+  const threeMonthMark = new Date()
+  threeMonthMark.setMonth(threeMonthMark.getMonth() + 3)
+  const sixMonthMark = new Date()
+  sixMonthMark.setMonth(sixMonthMark.getMonth() + 6)
+
+  if (readyBy <= threeMonthMark) return 'green'
+  if (readyBy <= sixMonthMark) return 'yellow'
   return 'orange'
 }
 
