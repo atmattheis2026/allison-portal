@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { Lead, TeamMember } from '../lib/types'
@@ -10,6 +10,18 @@ interface ClosedTx {
   id: string
   address_line: string
   city_state_zip: string
+}
+
+/** "Marcus Webb" -> "Webb, Marcus" — names are stored as one free-text
+ *  field, so this just splits on the last space. Multi-word last names
+ *  (van der Berg, etc.) won't split perfectly, but it's close enough for
+ *  sorting and lookup. */
+function lastNameFirst(fullName: string): string {
+  const trimmed = fullName.trim()
+  if (!trimmed) return 'Unnamed buyer'
+  const parts = trimmed.split(/\s+/)
+  if (parts.length === 1) return parts[0]
+  return `${parts[parts.length - 1]}, ${parts.slice(0, -1).join(' ')}`
 }
 
 /**
@@ -25,6 +37,7 @@ export default function AdminClosed() {
   const [roster, setRoster] = useState<TeamMember[]>([])
   const [txById, setTxById] = useState<Record<string, ClosedTx>>({})
   const [openId, setOpenId] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
   const nav = useNavigate()
 
   useEffect(() => {
@@ -64,6 +77,23 @@ export default function AdminClosed() {
     return roster.find((m) => m.id === memberId)?.full_name ?? null
   }
 
+  const visibleRows = useMemo(() => {
+    if (!rows) return null
+    const q = search.trim().toLowerCase()
+    const filtered = q
+      ? rows.filter((r) => {
+          const tx = r.converted_transaction_id ? txById[r.converted_transaction_id] : undefined
+          const haystack = [
+            r.full_name, r.full_name_2, tx?.address_line, tx?.city_state_zip,
+            agentName(r.realtor_member_id),
+          ].filter(Boolean).join(' ').toLowerCase()
+          return haystack.includes(q)
+        })
+      : rows
+    return [...filtered].sort((a, b) =>
+      lastNameFirst(a.full_name || '').localeCompare(lastNameFirst(b.full_name || '')))
+  }, [rows, search, txById, roster])
+
   const isDatabaseManager = useIsDatabaseManager()
 
   async function deleteLead(r: Lead) {
@@ -89,6 +119,16 @@ export default function AdminClosed() {
       </header>
       <AdminNav current="closed" />
 
+      {rows.length > 0 && (
+        <div style={{ padding: '0 24px 12px' }}>
+          <input
+            type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by client name, address, or agent…"
+            style={{ width: '100%', maxWidth: 420 }}
+          />
+        </div>
+      )}
+
       {rows.length === 0 ? (
         <div className="centered">
           <div style={{ maxWidth: 360 }}>
@@ -98,9 +138,13 @@ export default function AdminClosed() {
             </p>
           </div>
         </div>
+      ) : visibleRows && visibleRows.length === 0 ? (
+        <div className="centered">
+          <p className="muted">No closed clients match "{search}".</p>
+        </div>
       ) : (
         <div className="txlist">
-          {rows.map((r) => {
+          {visibleRows!.map((r) => {
             const tx = r.converted_transaction_id ? txById[r.converted_transaction_id] : undefined
             const open = openId === r.id
             const addressLabel = tx
@@ -117,9 +161,10 @@ export default function AdminClosed() {
                       ▶
                     </span>
                     <div className="txinfo">
-                      <div className="txaddr">{addressLabel}</div>
-                      <div className="txcity">{r.full_name} · {agentName(r.realtor_member_id) ?? 'No agent assigned'}</div>
+                      <div className="txaddr">{lastNameFirst(r.full_name || '')}</div>
+                      <div className="txcity">{addressLabel}</div>
                       <div className="txmeta">
+                        <span className="muted">{agentName(r.realtor_member_id) ?? 'No agent assigned'}</span>
                         <span className="tag" style={{ borderColor: '#2ecc40', color: '#2ecc40' }}>Closed</span>
                         {r.closed_date && (
                           <span className="muted">
