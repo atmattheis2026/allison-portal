@@ -375,7 +375,24 @@ export default function AdminLead() {
 
       <div style={{ display: 'grid', gap: 18, maxWidth: 1040, margin: '0 auto' }}>
         <div className="card setcard">
-          <div className="field2">
+          <div className="field">
+            <label>What do they need?</label>
+            <div className="tabs">
+              <button type="button" className={`tab${lead.wants_buying ? ' on' : ''}`}
+                      onClick={() => patchLead({ wants_buying: !lead.wants_buying })}>
+                Buying a home
+              </button>
+              <button type="button" className={`tab${lead.wants_loan ? ' on' : ''}`}
+                      onClick={() => patchLead({ wants_loan: !lead.wants_loan })}>
+                A loan
+              </button>
+            </div>
+            <p className="sethelp" style={{ margin: '6px 0 0' }}>
+              Turning one on or off shows or hides its sections below — nothing already
+              entered gets deleted.
+            </p>
+          </div>
+          <div className="field2" style={{ marginTop: 12 }}>
             <div className="field">
               <label>Assigned agent</label>
               <select value={lead.realtor_member_id ?? ''}
