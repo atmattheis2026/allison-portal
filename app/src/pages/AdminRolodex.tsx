@@ -12,6 +12,10 @@ interface Row {
   roleLabel: string
   context: string
   href: string
+  /** Set when this row traces back to a closed lead — shows the
+   *  "Client returning to active" button, since that's the only state
+   *  where reactivating actually makes sense. */
+  closedLeadId?: string
 }
 
 /**
@@ -30,63 +34,88 @@ export default function AdminRolodex() {
   const [rows, setRows] = useState<Row[] | null>(null)
   const [q, setQ] = useState('')
   const [dupesOnly, setDupesOnly] = useState(false)
+  const [reactivatingId, setReactivatingId] = useState<string | null>(null)
   const nav = useNavigate()
 
-  useEffect(() => {
+  async function load() {
     if (DEMO_MODE || !supabase) { setRows([]); return }
 
-    async function load() {
-      const { data: auth } = await supabase!.auth.getUser()
-      if (!auth.user) { nav('/login'); return }
+    const { data: auth } = await supabase.auth.getUser()
+    if (!auth.user) { nav('/login'); return }
 
-      const { data: contactRows } = await supabase!
-        .from('contacts')
-        .select('id, name, phone, email, role_label, transaction_id, transactions(address_line, city_state_zip)')
-        .eq('group_key', 'people')
-        .not('name', 'is', null)
-        .neq('name', '')
+    const { data: contactRows } = await supabase
+      .from('contacts')
+      .select('id, name, phone, email, role_label, transaction_id, transactions(address_line, city_state_zip)')
+      .eq('group_key', 'people')
+      .not('name', 'is', null)
+      .neq('name', '')
 
-      // Once a lead converts, their Buyers/Sellers contact card on the
-      // transaction is the canonical entry for this person — leaving the
-      // lead in here too (it stays visible on purpose, see Active Buyers/
-      // Closed) would flag every single converted client as a "duplicate"
-      // of themselves forever.
-      const { data: leadRows } = await supabase!
-        .from('leads')
-        .select('id, full_name, phone, email')
-        .is('archived_at', null)
-        .is('converted_transaction_id', null)
+    // Once a lead converts, their Buyers/Sellers contact card on the
+    // transaction is the canonical entry for this person — leaving the
+    // lead in here too (it stays visible on purpose, see Active Buyers/
+    // Closed) would flag every single converted client as a "duplicate"
+    // of themselves forever.
+    const { data: leadRows } = await supabase
+      .from('leads')
+      .select('id, full_name, phone, email')
+      .is('archived_at', null)
+      .is('converted_transaction_id', null)
 
-      const fromContacts: Row[] = ((contactRows ?? []) as unknown as Array<{
-        id: string; name: string; phone: string | null; email: string | null
-        role_label: string; transaction_id: string
-        transactions: { address_line: string; city_state_zip: string } | null
-      }>).map((c) => ({
-        key: `c-${c.id}`,
-        name: c.name,
-        phone: c.phone,
-        email: c.email,
-        roleLabel: c.role_label,
-        context: c.transactions?.address_line || 'Untitled transaction',
-        href: `/admin/t/${c.transaction_id}`,
-      }))
-
-      const fromLeads: Row[] = ((leadRows ?? []) as Array<{
-        id: string; full_name: string; phone: string | null; email: string | null
-      }>).filter((l) => l.full_name?.trim()).map((l) => ({
-        key: `l-${l.id}`,
-        name: l.full_name,
-        phone: l.phone,
-        email: l.email,
-        roleLabel: 'Active client',
-        context: 'Active Clients',
-        href: `/admin/leads/${l.id}`,
-      }))
-
-      setRows([...fromContacts, ...fromLeads])
+    // Traces each transaction contact back to a closed lead (if any), so
+    // "Reactivate for a new deal" can show up right on that contact's row —
+    // a lead's whole history lives in lead_transactions now, not just its
+    // current transaction.
+    const { data: historyRows } = await supabase
+      .from('lead_transactions')
+      .select('transaction_id, leads(id, lead_status)')
+    const closedLeadByTx = new Map<string, string>()
+    for (const h of (historyRows ?? []) as unknown as Array<{
+      transaction_id: string; leads: { id: string; lead_status: string } | null
+    }>) {
+      if (h.leads?.lead_status === 'closed') closedLeadByTx.set(h.transaction_id, h.leads.id)
     }
-    load()
-  }, [nav])
+
+    const fromContacts: Row[] = ((contactRows ?? []) as unknown as Array<{
+      id: string; name: string; phone: string | null; email: string | null
+      role_label: string; transaction_id: string
+      transactions: { address_line: string; city_state_zip: string } | null
+    }>).map((c) => ({
+      key: `c-${c.id}`,
+      name: c.name,
+      phone: c.phone,
+      email: c.email,
+      roleLabel: c.role_label,
+      context: c.transactions?.address_line || 'Untitled transaction',
+      href: `/admin/t/${c.transaction_id}`,
+      closedLeadId: closedLeadByTx.get(c.transaction_id),
+    }))
+
+    const fromLeads: Row[] = ((leadRows ?? []) as Array<{
+      id: string; full_name: string; phone: string | null; email: string | null
+    }>).filter((l) => l.full_name?.trim()).map((l) => ({
+      key: `l-${l.id}`,
+      name: l.full_name,
+      phone: l.phone,
+      email: l.email,
+      roleLabel: 'Active client',
+      context: 'Active Clients',
+      href: `/admin/leads/${l.id}`,
+    }))
+
+    setRows([...fromContacts, ...fromLeads])
+  }
+
+  useEffect(() => { load() }, [nav])
+
+  async function reactivate(r: Row) {
+    if (!r.closedLeadId || !supabase || reactivatingId) return
+    if (!confirm(`Reactivate ${r.name} for a new deal? Their past transaction history stays on file.`)) return
+    setReactivatingId(r.key)
+    const { error } = await supabase.rpc('reactivate_lead', { p_lead_id: r.closedLeadId })
+    setReactivatingId(null)
+    if (error) { alert(error.message); return }
+    nav(`/admin/leads/${r.closedLeadId}`)
+  }
 
   const dupeKeys = useMemo(() => {
     if (!rows) return new Set<string>()
@@ -159,10 +188,19 @@ export default function AdminRolodex() {
                     <span className="notewhen" style={{ color: 'var(--danger)' }}>Possible duplicate</span>
                   )}
                 </div>
-                <p className="notebody">
-                  {[r.phone, r.email].filter(Boolean).join(' · ') || <span className="muted">No contact info</span>}
-                  {' — '}
-                  <Link to={r.href}>{r.context}</Link>
+                <p className="notebody" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <span>
+                    {[r.phone, r.email].filter(Boolean).join(' · ') || <span className="muted">No contact info</span>}
+                    {' — '}
+                    <Link to={r.href}>{r.context}</Link>
+                  </span>
+                  {r.closedLeadId && (
+                    <button type="button" className="btn" style={{ flex: 'none' }}
+                            disabled={reactivatingId === r.key}
+                            onClick={() => reactivate(r)}>
+                      {reactivatingId === r.key ? 'Reactivating…' : 'Reactivate for a new deal →'}
+                    </button>
+                  )}
                 </p>
               </div>
             ))}
