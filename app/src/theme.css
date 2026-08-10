@@ -149,3 +149,21 @@ input:focus, select, textarea:focus { outline: none; border-color: var(--gold-so
   text-align: center;
   letter-spacing: .02em;
 }
+
+/* Shown when someone else has changed this same file — a passive nudge,
+   never an auto-reload, so it never fights with whatever's mid-edit. */
+.updatebar {
+  background: #0d1a2b;
+  border-bottom: 1px solid #3b82f6;
+  color: #8fb8f5;
+  font-size: 12px;
+  padding: 8px 16px;
+  text-align: center;
+  letter-spacing: .02em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.updatebar .btn { flex: none; padding: 3px 10px; font-size: 11.5px; }

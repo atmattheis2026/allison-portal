@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { Lead, LeadAppointment, LeadHome, LeadMaybeHome, LeadPriority, LeadPersonalNote, LeadReferral, LeadDocument, LeadNote, TeamMember } from '../lib/types'
@@ -76,6 +76,13 @@ export default function AdminLead() {
   const [noteDraft, setNoteDraft] = useState('')
   const [saveFlash, setSaveFlash] = useState(false)
   const [fetchingId, setFetchingId] = useState<string | null>(null)
+  const [remoteUpdate, setRemoteUpdate] = useState(false)
+  // Set on every local write so the realtime listener can tell "I just saved
+  // this myself" apart from "someone else changed it" and skip the banner
+  // for your own edits — most of them happen on every keystroke via
+  // patchLead, and popping a banner on every character would be worse than
+  // not having this at all.
+  const justSavedRef = useRef(0)
 
   // Every field on this page saves the instant it changes — there's no Save
   // button to click. This just gives a brief visible confirmation so that's
@@ -125,7 +132,36 @@ export default function AdminLead() {
 
   useEffect(() => { loadAll() }, [id])
 
+  // Another agent or the lender can have this same client's file open at the
+  // same time. Rather than auto-reload (which fought with fields that save
+  // on every keystroke — see the revert of that approach), just flag that
+  // something changed and let whoever's looking choose when to refresh.
+  useEffect(() => {
+    if (DEMO_MODE || !supabase || !id) return
+    const channel = supabase.channel(`lead-${id}`)
+    function onRemoteChange() {
+      if (Date.now() - justSavedRef.current < 2500) return
+      setRemoteUpdate(true)
+    }
+    const leadChildTables = [
+      'lead_appointments', 'lead_homes', 'lead_maybe_homes', 'lead_priorities',
+      'lead_personal_notes', 'lead_referrals', 'lead_documents', 'lead_notes', 'lead_transactions',
+    ]
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'leads', filter: `id=eq.${id}` }, onRemoteChange)
+    for (const table of leadChildTables) {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table, filter: `lead_id=eq.${id}` }, onRemoteChange)
+    }
+    channel.subscribe()
+    return () => { supabase!.removeChannel(channel) }
+  }, [id])
+
+  function refreshFromRemote() {
+    loadAll()
+    setRemoteUpdate(false)
+  }
+
   async function patchLead(values: Partial<Lead>) {
+    justSavedRef.current = Date.now()
     setLead((cur) => (cur ? { ...cur, ...values } : cur))
     if (DEMO_MODE || !supabase || !id) return
     await supabase.from('leads').update(values).eq('id', id)
@@ -340,6 +376,7 @@ export default function AdminLead() {
     if (data) setPersonalNotes((cur) => [...cur, data as LeadPersonalNote])
   }
   async function patchPersonalNote(pnId: string, values: Partial<LeadPersonalNote>) {
+    justSavedRef.current = Date.now()
     setPersonalNotes((cur) => cur.map((p) => (p.id === pnId ? { ...p, ...values } : p)))
     if (supabase) await supabase.from('lead_personal_notes').update(values).eq('id', pnId)
     flashSaved()
@@ -357,6 +394,7 @@ export default function AdminLead() {
     if (data) setReferrals((cur) => [...cur, data as LeadReferral])
   }
   async function patchReferral(rId: string, values: Partial<LeadReferral>) {
+    justSavedRef.current = Date.now()
     setReferrals((cur) => cur.map((r) => (r.id === rId ? { ...r, ...values } : r)))
     if (supabase) await supabase.from('lead_referrals').update(values).eq('id', rId)
     flashSaved()
@@ -413,7 +451,15 @@ export default function AdminLead() {
   if (!lead) return <div className="centered"><div className="spinner" /></div>
 
   return (
-    <div className="admin">
+    <>
+      {remoteUpdate && (
+        <div className="updatebar">
+          This client's file was updated elsewhere.
+          <button type="button" className="btn" onClick={refreshFromRemote}>Refresh</button>
+          <button type="button" className="btn" onClick={() => setRemoteUpdate(false)}>Dismiss</button>
+        </div>
+      )}
+      <div className="admin">
       <header className="adminbar">
         <span className="wordmark" style={{ fontSize: 15 }}>
           <Link to="/admin/leads" className="muted" style={{ textDecoration: 'none' }}>Active Clients</Link>
@@ -1270,6 +1316,7 @@ export default function AdminLead() {
                     style={{ width: '100%' }} />
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }

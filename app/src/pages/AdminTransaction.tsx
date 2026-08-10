@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Dashboard from '../components/Dashboard'
 import { DEMO_MODE, supabase } from '../lib/supabase'
@@ -31,6 +31,12 @@ export default function AdminTransaction() {
   // so they need their own fetch straight from the table (same admin-only
   // story as roster/assignedIds above).
   const [internalContacts, setInternalContacts] = useState<Contact[]>([])
+  const [remoteUpdate, setRemoteUpdate] = useState(false)
+  // Every write on this page goes through write()/toggleAssignee()/
+  // ensureAssignee() — this timestamp lets the realtime listener tell "I just
+  // saved this myself" apart from "someone else changed it," so it doesn't
+  // pop the banner up after your own edit.
+  const justSavedRef = useRef(0)
 
   function loadAll() {
     if (DEMO_MODE || !supabase) {
@@ -70,7 +76,32 @@ export default function AdminTransaction() {
 
   useEffect(() => { loadAll() }, [id])
 
+  // Same file, more than one person: an agent and a lender (or two agents)
+  // can have this same transaction open together. Rather than silently
+  // reload (which fights with fields that save on every keystroke), just
+  // flag that something changed and let whoever's looking choose to refresh.
+  useEffect(() => {
+    if (DEMO_MODE || !supabase || !id) return
+    const channel = supabase.channel(`transaction-${id}`)
+    function onRemoteChange() {
+      if (Date.now() - justSavedRef.current < 2500) return
+      setRemoteUpdate(true)
+    }
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `id=eq.${id}` }, onRemoteChange)
+    for (const table of ['contacts', 'milestones', 'doc_lines', 'notes', 'transaction_assignees']) {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table, filter: `transaction_id=eq.${id}` }, onRemoteChange)
+    }
+    channel.subscribe()
+    return () => { supabase!.removeChannel(channel) }
+  }, [id])
+
+  function refreshFromRemote() {
+    loadAll()
+    setRemoteUpdate(false)
+  }
+
   async function toggleAssignee(memberId: string) {
+    justSavedRef.current = Date.now()
     const isOn = assignedIds.has(memberId)
     setAssignedIds((cur) => {
       const next = new Set(cur)
@@ -94,6 +125,7 @@ export default function AdminTransaction() {
   // the transaction themselves.
   async function ensureAssignee(memberId: string | null) {
     if (!memberId || assignedIds.has(memberId)) return
+    justSavedRef.current = Date.now()
     setAssignedIds((cur) => new Set(cur).add(memberId))
     if (DEMO_MODE || !supabase || !id) return
     await supabase.from('transaction_assignees')
@@ -105,6 +137,7 @@ export default function AdminTransaction() {
   }
 
   async function write(table: string, rowId: string, values: Record<string, unknown>) {
+    justSavedRef.current = Date.now()
     if (DEMO_MODE || !supabase) return
     const { error } = await supabase.from(table).update(values).eq('id', rowId)
     if (error) console.error(`${table} update failed`, error)
@@ -198,6 +231,7 @@ export default function AdminTransaction() {
     },
 
     onAddNote: async (side: Side, body: string) => {
+      justSavedRef.current = Date.now()
       if (DEMO_MODE || !supabase || !id) {
         patch((d) => ({
           ...d,
@@ -343,6 +377,7 @@ export default function AdminTransaction() {
     },
 
     onAddInternalContact: async () => {
+      justSavedRef.current = Date.now()
       if (DEMO_MODE || !supabase || !id) {
         setInternalContacts((cur) => [...cur, {
           id: `local-${Date.now()}`, group_key: 'people', role_label: 'Contact',
@@ -362,6 +397,7 @@ export default function AdminTransaction() {
     },
 
     onRemoveInternalContact: async (contactId: string) => {
+      justSavedRef.current = Date.now()
       setInternalContacts((cur) => cur.filter((c) => c.id !== contactId))
       if (DEMO_MODE || !supabase) return
       const { error } = await supabase.from('contacts').delete().eq('id', contactId)
@@ -427,6 +463,13 @@ export default function AdminTransaction() {
       {DEMO_MODE && (
         <div className="demobar">
           Demo data — no database connected yet. Your changes look real but aren’t saved.
+        </div>
+      )}
+      {remoteUpdate && (
+        <div className="updatebar">
+          This transaction was updated elsewhere.
+          <button type="button" className="btn" onClick={refreshFromRemote}>Refresh</button>
+          <button type="button" className="btn" onClick={() => setRemoteUpdate(false)}>Dismiss</button>
         </div>
       )}
       <div className="admin" style={{ paddingTop: 16, paddingBottom: 0 }}>
