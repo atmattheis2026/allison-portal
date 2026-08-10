@@ -70,22 +70,6 @@ export default function AdminTransaction() {
 
   useEffect(() => { loadAll() }, [id])
 
-  // Same file, more than one person: an agent and a lender (or two agents)
-  // can have this same transaction open together. Reload everything on any
-  // change to any of the tables that make up this page, rather than trying
-  // to patch each field in from the wire individually.
-  useEffect(() => {
-    if (DEMO_MODE || !supabase || !id) return
-    const channel = supabase.channel(`transaction-${id}`)
-    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `id=eq.${id}` }, loadAll)
-    for (const table of ['contacts', 'milestones', 'doc_lines', 'notes', 'transaction_assignees']) {
-      channel.on('postgres_changes', { event: '*', schema: 'public', table, filter: `transaction_id=eq.${id}` }, loadAll)
-    }
-    channel.subscribe()
-    return () => { supabase!.removeChannel(channel) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id])
-
   async function toggleAssignee(memberId: string) {
     const isOn = assignedIds.has(memberId)
     setAssignedIds((cur) => {
