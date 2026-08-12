@@ -2,24 +2,24 @@ import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { TeamMember } from '../lib/types'
-import { useIsDatabaseManager } from '../lib/useIsDatabaseManager'
+import { useCanSeeHomePage } from '../lib/useCanSeeHomePage'
 
 /**
  * Consistent quick-jump links shown at the top of every admin page, so
  * getting from a transaction to the Rolodex (say) doesn't mean clicking
  * back through the list first. Rolodex is hidden from anyone who doesn't
  * already see the whole book — same gate AdminList used before this
- * existed as its own component. Home Page (the old "Resources" page) is
- * hidden the same way, but strictly to Database Managers (see migration
- * 065) — unlike Rolodex it's not shown to anyone with "sees every
- * transaction." It's first in the list on purpose — it's also where a
- * Database Manager lands when they sign in, see AdminList.tsx.
+ * existed as its own component. Home Page (the old "Resources" page) shows
+ * for a Database Manager always, and for anyone else only once a Database
+ * Manager has granted them access to at least one folder on it (migration
+ * 066) — see useCanSeeHomePage(). It's first in the list on purpose — it's
+ * also where a Database Manager lands when they sign in, see AdminList.tsx.
  */
 export default function AdminNav({ current }: {
   current: 'transactions' | 'leads' | 'closed' | 'rolodex' | 'network' | 'resources' | 'settings'
 }) {
   const [canSeeRolodex, setCanSeeRolodex] = useState(DEMO_MODE)
-  const isDatabaseManager = useIsDatabaseManager()
+  const canSeeHomePage = useCanSeeHomePage()
 
   useEffect(() => {
     if (DEMO_MODE || !supabase) return
@@ -32,7 +32,7 @@ export default function AdminNav({ current }: {
   }, [])
 
   const items: { key: typeof current; label: string; to: string }[] = [
-    ...(isDatabaseManager ? [{ key: 'resources' as const, label: 'Home Page', to: '/admin/resources' }] : []),
+    ...(canSeeHomePage ? [{ key: 'resources' as const, label: 'Home Page', to: '/admin/resources' }] : []),
     { key: 'transactions', label: 'Transactions', to: '/admin' },
     { key: 'leads', label: 'Active Clients', to: '/admin/leads' },
     { key: 'closed', label: 'Closed', to: '/admin/closed' },

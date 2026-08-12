@@ -185,6 +185,33 @@ just another item in the row.
 `lead_documents` — see the migration file for why that's an intentional
 match to existing precedent rather than a weaker security choice.
 
+**Folders, added 2026-08-13 (migration `066_resource_folders.sql`).** Each
+section can now have folders, and a Database Manager can grant a SPECIFIC
+PERSON (not a role — Allison was explicit about this) access to one folder.
+That person can then view and add/remove files inside that one folder, from
+the same `/admin/resources` page, but can't create/rename/delete the folder
+or see/change who else has access to it. Key points for whoever touches this
+next:
+
+- A grant is to a `team_members` row OR a `mentors` row, never both — see
+  `resource_folder_access`'s check constraint. Mentors aren't team_members
+  (migration 064), so the ACL has to span both.
+- `can_access_resource_folder()` is the one function both `resource_folders`'
+  select policy and `resources`' grant-based policy call — change the rule
+  there, not in two places.
+- Unfiled resources (`folder_id` null) are UNCHANGED: still strictly
+  Database-Manager-only, exactly as migration 065 left them. Folders are a
+  new, narrower door — not a widening of the old one.
+- **The nav link and the redirect are two different gates, don't conflate
+  them.** `useCanSeeHomePage()` (Database Manager OR has any folder grant)
+  controls whether "Home Page" shows up in `AdminNav` and on `MentorHome`.
+  The once-per-session landing redirect in `AdminList.tsx` is still
+  Database-Manager-only — a granted agent or mentor can reach the page via
+  the nav link, but doesn't get auto-landed there at sign-in.
+- Mentors reach it via a "Home Page" link on `MentorHome.tsx`, shown only
+  when `useCanSeeHomePage()` is true for them — most mentors will never see
+  it, since most won't have a grant.
+
 ## Still to do
 
 - Both company logos — she uploads them in Settings › Branding

@@ -1,7 +1,7 @@
 import type {
   SharedPayload, Milestone, DocLine, Contact, TeamMember, SavedContact,
   Mentor, NetworkAgent, NetworkChecklistItem, NetworkChecklistTemplate,
-  Resource,
+  Resource, ResourceFolder, ResourceFolderAccess,
 } from './types'
 
 /**
@@ -465,29 +465,52 @@ export const NETWORK_CHECKLIST_ITEMS: Record<string, NetworkChecklistItem[]> = {
 
 // -------------------------------------------------------------- resources
 
+export const RESOURCE_FOLDERS: ResourceFolder[] = [
+  { id: 'fold-1', category: 'agents', name: "New agent starter pack", sort_order: 10, created_at: '2026-08-01T00:00:00Z' },
+  { id: 'fold-2', category: 'transactions', name: 'Title company documents', sort_order: 10, created_at: '2026-08-01T00:00:00Z' },
+]
+
+// Marcus Webb (a realtor, tm-marcus) and Derek Alvarez (a mentor, mn-derek)
+// each have access to the starter-pack folder — one team member, one
+// mentor, to show both kinds of grant working side by side.
+export const RESOURCE_FOLDER_ACCESS: ResourceFolderAccess[] = [
+  { id: 'acc-1', folder_id: 'fold-1', team_member_id: 'tm-marcus', mentor_id: null },
+  { id: 'acc-2', folder_id: 'fold-1', team_member_id: null, mentor_id: 'mn-derek' },
+]
+
 export const RESOURCES: Resource[] = [
   {
-    id: 'res-1', category: 'agents', title: 'New agent onboarding checklist (PDF)',
+    id: 'res-1', category: 'agents', folder_id: null, title: 'New agent onboarding checklist (PDF)',
     description: 'Hand this to anyone starting training.', url: null,
     file_url: null, file_name: 'onboarding-checklist.pdf', sort_order: 10, created_at: '2026-07-01T00:00:00Z',
   },
   {
-    id: 'res-2', category: 'agents', title: 'eXp Cap & revenue share explainer',
+    id: 'res-2', category: 'agents', folder_id: null, title: 'eXp Cap & revenue share explainer',
     description: null, url: 'https://example.com/exp-cap-explainer',
     file_url: null, file_name: null, sort_order: 20, created_at: '2026-07-05T00:00:00Z',
   },
   {
-    id: 'res-3', category: 'transactions', title: 'Buyer broker agreement template',
+    id: 'res-6', category: 'agents', folder_id: 'fold-1', title: 'Welcome letter template',
+    description: null, url: null,
+    file_url: null, file_name: 'welcome-letter.docx', sort_order: 10, created_at: '2026-08-01T00:00:00Z',
+  },
+  {
+    id: 'res-3', category: 'transactions', folder_id: null, title: 'Buyer broker agreement template',
     description: 'Blank template — fill in and have signed before showings.', url: null,
     file_url: null, file_name: 'buyer-broker-template.pdf', sort_order: 10, created_at: '2026-06-15T00:00:00Z',
   },
   {
-    id: 'res-4', category: 'transactions', title: 'Title company contact sheet',
+    id: 'res-4', category: 'transactions', folder_id: null, title: 'Title company contact sheet',
     description: null, url: 'https://example.com/title-contacts',
     file_url: null, file_name: null, sort_order: 20, created_at: '2026-06-20T00:00:00Z',
   },
   {
-    id: 'res-5', category: 'general', title: 'Office phone / Slack directory',
+    id: 'res-7', category: 'transactions', folder_id: 'fold-2', title: 'Summit Title wire instructions',
+    description: null, url: null,
+    file_url: null, file_name: 'summit-wire-instructions.pdf', sort_order: 10, created_at: '2026-08-01T00:00:00Z',
+  },
+  {
+    id: 'res-5', category: 'general', folder_id: null, title: 'Office phone / Slack directory',
     description: null, url: 'https://example.com/directory',
     file_url: null, file_name: null, sort_order: 10, created_at: '2026-05-01T00:00:00Z',
   },

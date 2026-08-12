@@ -510,12 +510,13 @@ export const RESOURCE_CATEGORY_LABEL: Record<ResourceCategory, string> = {
   general: 'General',
 }
 
-/** A doc or link kept handy on the Database Manager's Resources page — not
- *  tied to any one transaction or lead. Database-Manager-only, both to view
- *  and to edit (Allison's choice 2026-08-12). */
+/** A doc or link kept handy on the Home Page. Unfiled (`folder_id` null)
+ *  stays Database-Manager-only, same as before folders existed. Filed into a
+ *  folder, it's visible/editable by whoever that folder is granted to. */
 export interface Resource {
   id: string
   category: ResourceCategory
+  folder_id: string | null
   title: string
   description: string | null
   url: string | null
@@ -523,6 +524,27 @@ export interface Resource {
   file_name: string | null
   sort_order: number
   created_at: string
+}
+
+/** A folder inside one Home Page section — created and deleted only by a
+ *  Database Manager (see migration 066), but can be opened up to specific
+ *  people via ResourceFolderAccess. */
+export interface ResourceFolder {
+  id: string
+  category: ResourceCategory
+  name: string
+  sort_order: number
+  created_at: string
+}
+
+/** One grant of folder access to a specific person — a team member OR a
+ *  mentor, never both. Only a Database Manager can see the full list for a
+ *  folder; anyone else can only see their own grant rows. */
+export interface ResourceFolderAccess {
+  id: string
+  folder_id: string
+  team_member_id: string | null
+  mentor_id: string | null
 }
 
 // -------------------------------------------------------------- agent network

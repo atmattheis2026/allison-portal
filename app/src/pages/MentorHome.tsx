@@ -4,6 +4,7 @@ import { DEMO_MODE, supabase } from '../lib/supabase'
 import { MENTORS, NETWORK_AGENTS } from '../lib/demoData'
 import type { NetworkAgent, NetworkAgentStatus } from '../lib/types'
 import { NETWORK_AGENT_STATUS_LABEL } from '../lib/types'
+import { useCanSeeHomePage } from '../lib/useCanSeeHomePage'
 import './Admin.css'
 
 const STATUS_COLOR: Record<NetworkAgentStatus, string> = {
@@ -15,13 +16,16 @@ const STATUS_COLOR: Record<NetworkAgentStatus, string> = {
 
 /**
  * What a mentor sees after signing in — only the agents assigned to them.
- * No AdminNav here on purpose: mentors have exactly two pages (this list and
- * an agent's page), nothing else in the app is theirs to reach.
+ * No AdminNav here on purpose: mentors have no business in the rest of the
+ * app. The one exception is Home Page, and only if a Database Manager has
+ * specifically granted them a folder there (migration 066) — see
+ * useCanSeeHomePage().
  */
 export default function MentorHome() {
   const [rows, setRows] = useState<NetworkAgent[] | null>(null)
   const [mentorName, setMentorName] = useState<string | null>(null)
   const nav = useNavigate()
+  const canSeeHomePage = useCanSeeHomePage()
 
   useEffect(() => {
     if (DEMO_MODE || !supabase) {
@@ -71,6 +75,7 @@ export default function MentorHome() {
           My agents{mentorName ? ` — ${mentorName}` : ''}
         </span>
         <nav className="adminnav">
+          {canSeeHomePage && <Link className="btn" to="/admin/resources">Home Page</Link>}
           <button className="btn" onClick={signOut}>Sign out</button>
         </nav>
       </header>
