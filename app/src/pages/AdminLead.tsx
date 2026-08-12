@@ -193,12 +193,27 @@ export default function AdminLead() {
 
   async function convert(homeId?: string) {
     if (!id || !supabase || converting) return
+
+    // The generic "Convert to transaction" button (in the header) has no
+    // specific home attached. Guessing wrong would silently attach the
+    // wrong address/photo, so: exactly one home in Homes shown carries over
+    // automatically; zero or several means asking her to use the "Went
+    // under contract" button under the specific home instead, rather than
+    // converting with a blank address like it used to.
+    let resolvedHomeId = homeId
+    if (!resolvedHomeId && homes.length === 1) {
+      resolvedHomeId = homes[0].id
+    } else if (!resolvedHomeId && homes.length > 1) {
+      alert('This buyer has more than one home in "Homes shown." Use the "Went under contract" button under the specific home instead, so the address and photo carry over correctly.')
+      return
+    }
+
     if (!confirm('Convert this buyer to a full transaction? Use this once they’re under contract.')) return
 
     // The transaction page shows city/state/zip on its own line — if this
     // home never got one (common, since it's usually filled in from a
     // parsed listing link), ask once now rather than leaving it blank.
-    const home = homeId ? homes.find((h) => h.id === homeId) : undefined
+    const home = resolvedHomeId ? homes.find((h) => h.id === resolvedHomeId) : undefined
     if (home && !home.city_state_zip?.trim()) {
       const csz = prompt('City, state, zip for this home?', '')
       if (csz && csz.trim()) await patchHome(home.id, { city_state_zip: csz.trim() })
@@ -206,7 +221,7 @@ export default function AdminLead() {
 
     setConverting(true)
     const { data: txId, error } = await supabase.rpc('convert_lead_to_transaction', {
-      p_lead_id: id, p_home_id: homeId ?? null,
+      p_lead_id: id, p_home_id: resolvedHomeId ?? null,
     })
     setConverting(false)
     if (error || !txId) { alert(error?.message ?? 'Could not convert this lead.'); return }
