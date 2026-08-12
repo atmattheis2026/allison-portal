@@ -53,6 +53,106 @@ function Thumb({ src }: { src: string | null }) {
   )
 }
 
+/**
+ * Shown when "Convert to transaction" is clicked — asks which home this is,
+ * rather than guessing or silently leaving the address blank. Picking one
+ * of "Homes shown" carries over its address, photo, and listing link
+ * automatically; typing it in by hand covers the case where the home under
+ * contract was never added there at all. Either way, a listing link on file
+ * triggers a best-effort lookup of HOA, property tax, school district, and
+ * county — same disclaimer as everywhere else this data shows up.
+ */
+function ConvertPicker({ homes, busy, onCancel, onConvertWithHome, onConvertManual }: {
+  homes: LeadHome[]
+  busy: boolean
+  onCancel: () => void
+  onConvertWithHome: (homeId: string) => void
+  onConvertManual: (values: { address: string; cityStateZip: string; listingUrl: string }) => void
+}) {
+  const [mode, setMode] = useState<'pick' | 'manual'>(homes.length > 0 ? 'pick' : 'manual')
+  const [selectedHomeId, setSelectedHomeId] = useState<string | null>(homes[0]?.id ?? null)
+  const [address, setAddress] = useState('')
+  const [cityStateZip, setCityStateZip] = useState('')
+  const [listingUrl, setListingUrl] = useState('')
+
+  return (
+    <div className="card setcard newtx" style={{ maxWidth: 560, margin: '0 auto 18px' }}>
+      <h2>Convert to transaction</h2>
+      <p className="sethelp">
+        Which home is this? Picking one carries over the address, photo, and listing
+        link automatically.
+      </p>
+
+      {homes.length > 0 && (
+        <div className="tabs" style={{ marginBottom: 14 }}>
+          <button type="button" className={`tab${mode === 'pick' ? ' on' : ''}`} onClick={() => setMode('pick')}>
+            One of the homes shown
+          </button>
+          <button type="button" className={`tab${mode === 'manual' ? ' on' : ''}`} onClick={() => setMode('manual')}>
+            Type it in myself
+          </button>
+        </div>
+      )}
+
+      {mode === 'pick' ? (
+        <div style={{ display: 'grid', gap: 8 }}>
+          {homes.map((h) => (
+            <label key={h.id} className="cl" style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
+              background: 'var(--panel-2)', border: '1px solid var(--line)', borderRadius: 'var(--r-md)',
+              cursor: 'pointer',
+            }}>
+              <input type="radio" name="convert-home" checked={selectedHomeId === h.id}
+                     onChange={() => setSelectedHomeId(h.id)} />
+              <Thumb src={h.photo_url} />
+              <div>
+                <div>{h.address_line || 'Untitled property'}</div>
+                <div className="muted" style={{ fontSize: 12 }}>{h.city_state_zip}</div>
+              </div>
+            </label>
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className="field2">
+            <div className="field">
+              <label>Street address</label>
+              <input value={address} autoFocus onChange={(e) => setAddress(e.target.value)}
+                     placeholder="7859 Palmilla Ct" />
+            </div>
+            <div className="field">
+              <label>City, state, zip</label>
+              <input value={cityStateZip} onChange={(e) => setCityStateZip(e.target.value)}
+                     placeholder="Reunion, FL 34747" />
+            </div>
+          </div>
+          <div className="field">
+            <label>Listing link (optional)</label>
+            <input value={listingUrl} onChange={(e) => setListingUrl(e.target.value)} placeholder="https://…" />
+            <p className="sethelp" style={{ margin: '6px 0 0' }}>
+              Paste one and HOA fees, property tax, school district, and county get
+              looked up automatically — best-effort, always worth double-checking.
+            </p>
+          </div>
+        </>
+      )}
+
+      <div className="savebar">
+        <button
+          type="button" className="btn primary"
+          disabled={busy || (mode === 'pick' ? !selectedHomeId : !address.trim())}
+          onClick={() => mode === 'pick'
+            ? onConvertWithHome(selectedHomeId!)
+            : onConvertManual({ address, cityStateZip, listingUrl })}
+        >
+          {busy ? 'Converting…' : 'Convert'}
+        </button>
+        <button type="button" className="btn" onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminLead() {
   const { id } = useParams<{ id: string }>()
   const nav = useNavigate()
@@ -72,6 +172,7 @@ export default function AdminLead() {
   const [dealHistory, setDealHistory] = useState<DealHistoryRow[]>([])
   const [copied, setCopied] = useState(false)
   const [converting, setConverting] = useState(false)
+  const [showConvertPicker, setShowConvertPicker] = useState(false)
   const [reactivating, setReactivating] = useState(false)
   const [noteDraft, setNoteDraft] = useState('')
   const [saveFlash, setSaveFlash] = useState(false)
@@ -191,29 +292,34 @@ export default function AdminLead() {
     setTimeout(() => setCopied(false), 1800)
   }
 
-  async function convert(homeId?: string) {
+  // After a transaction exists, best-effort fetches HOA, property tax,
+  // school district, and county from the listing link — same lookup and
+  // same "needs to be verified" disclaimer already on the transaction's own
+  // Home Info section (see fetch-link-preview and Dashboard.tsx). Only
+  // fills photo_url if the transaction doesn't already have one from the
+  // home it was converted from.
+  async function fillHomeFactsFromListing(txId: string, listingUrl: string, hasPhotoAlready: boolean) {
+    if (!supabase) return
+    const { data: preview } = await supabase.functions.invoke('fetch-link-preview', { body: { url: listingUrl } })
+    if (!preview) return
+    const values: Record<string, unknown> = {}
+    if (preview.photo_url && !hasPhotoAlready) values.photo_url = preview.photo_url
+    if (preview.hoa_fee) values.hoa_fee = preview.hoa_fee
+    if (preview.property_tax) values.property_tax = preview.property_tax
+    if (preview.school_district) values.school_district = preview.school_district
+    if (preview.county) values.county = preview.county
+    if (Object.keys(values).length === 0) return
+    await supabase.from('transactions').update(values).eq('id', txId)
+  }
+
+  // Converts using one specific home from "Homes shown" — unambiguous, so
+  // no picker needed. Used by the "Went under contract" button under each
+  // home, and by the picker (below) when she selects one from the list.
+  async function convert(homeId: string) {
     if (!id || !supabase || converting) return
-
-    // The generic "Convert to transaction" button (in the header) has no
-    // specific home attached. Guessing wrong would silently attach the
-    // wrong address/photo, so: exactly one home in Homes shown carries over
-    // automatically; zero or several means asking her to use the "Went
-    // under contract" button under the specific home instead, rather than
-    // converting with a blank address like it used to.
-    let resolvedHomeId = homeId
-    if (!resolvedHomeId && homes.length === 1) {
-      resolvedHomeId = homes[0].id
-    } else if (!resolvedHomeId && homes.length > 1) {
-      alert('This buyer has more than one home in "Homes shown." Use the "Went under contract" button under the specific home instead, so the address and photo carry over correctly.')
-      return
-    }
-
     if (!confirm('Convert this buyer to a full transaction? Use this once they’re under contract.')) return
 
-    // The transaction page shows city/state/zip on its own line — if this
-    // home never got one (common, since it's usually filled in from a
-    // parsed listing link), ask once now rather than leaving it blank.
-    const home = resolvedHomeId ? homes.find((h) => h.id === resolvedHomeId) : undefined
+    const home = homes.find((h) => h.id === homeId)
     if (home && !home.city_state_zip?.trim()) {
       const csz = prompt('City, state, zip for this home?', '')
       if (csz && csz.trim()) await patchHome(home.id, { city_state_zip: csz.trim() })
@@ -221,10 +327,34 @@ export default function AdminLead() {
 
     setConverting(true)
     const { data: txId, error } = await supabase.rpc('convert_lead_to_transaction', {
-      p_lead_id: id, p_home_id: resolvedHomeId ?? null,
+      p_lead_id: id, p_home_id: homeId,
     })
+    if (error || !txId) { setConverting(false); alert(error?.message ?? 'Could not convert this lead.'); return }
+    if (home?.url) await fillHomeFactsFromListing(txId, home.url, Boolean(home.photo_url))
     setConverting(false)
-    if (error || !txId) { alert(error?.message ?? 'Could not convert this lead.'); return }
+    setShowConvertPicker(false)
+    nav(`/admin/t/${txId}`)
+  }
+
+  // Converts with an address typed in by hand — for when the home under
+  // contract was never added to "Homes shown" at all.
+  async function convertManual(values: { address: string; cityStateZip: string; listingUrl: string }) {
+    if (!id || !supabase || converting) return
+    setConverting(true)
+    const { data: txId, error } = await supabase.rpc('convert_lead_to_transaction', {
+      p_lead_id: id, p_home_id: null,
+    })
+    if (error || !txId) { setConverting(false); alert(error?.message ?? 'Could not convert this lead.'); return }
+
+    await supabase.from('transactions').update({
+      address_line: values.address,
+      city_state_zip: values.cityStateZip || null,
+      listing_url: values.listingUrl || null,
+    }).eq('id', txId)
+
+    if (values.listingUrl) await fillHomeFactsFromListing(txId, values.listingUrl, false)
+    setConverting(false)
+    setShowConvertPicker(false)
     nav(`/admin/t/${txId}`)
   }
 
@@ -489,13 +619,22 @@ export default function AdminLead() {
               View transaction →
             </Link>
           ) : (
-            <button className="btn primary" onClick={() => convert()} disabled={converting}>
+            <button className="btn primary" onClick={() => setShowConvertPicker(true)} disabled={converting}>
               {converting ? 'Converting…' : 'Convert to transaction'}
             </button>
           )}
         </nav>
       </header>
       <AdminNav current="leads" />
+
+      {showConvertPicker && (
+        <ConvertPicker
+          homes={homes} busy={converting}
+          onCancel={() => setShowConvertPicker(false)}
+          onConvertWithHome={convert}
+          onConvertManual={convertManual}
+        />
+      )}
 
       {lead.lead_status !== 'active' && (
         <div style={{
