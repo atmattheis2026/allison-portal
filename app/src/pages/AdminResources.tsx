@@ -46,7 +46,7 @@ export default function AdminResources() {
   }, [rows, isDatabaseManager, nav])
 
   async function removeResource(id: string) {
-    if (!confirm('Remove this from the resources page?')) return
+    if (!confirm('Remove this from the home page?')) return
     setRows((cur) => cur?.filter((r) => r.id !== id) ?? cur)
     if (DEMO_MODE || !supabase) return
     await supabase.from('resources').delete().eq('id', id)
@@ -68,7 +68,7 @@ export default function AdminResources() {
       )}
 
       <header className="adminbar">
-        <span className="wordmark" style={{ fontSize: 15 }}>Resources</span>
+        <span className="wordmark" style={{ fontSize: 15 }}>Home Page</span>
       </header>
       <AdminNav current="resources" />
 

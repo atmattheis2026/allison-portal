@@ -149,13 +149,17 @@ functions (`join_team_with_code` vs `join_as_mentor`). The code someone is given
 is what decides their role — not a checkbox they tick themselves. Never merge
 these into one code with a role picker in the UI.
 
-## Resources (Database Manager reference page)
+## Home Page / Resources (Database Manager reference page)
 
-Added 2026-08-12, migration `065_resources.sql`. A private page — Database
-Managers only, both to view and to edit — for docs and links worth keeping
-handy about agents and transactions (forms, saved links, policy docs), not
-tied to any one transaction or lead. Gated with `is_database_manager()`,
-which already existed (migration 052, for deleting a transaction).
+Added 2026-08-12, migration `065_resources.sql`, relabeled "Home Page" and
+moved to the front of the nav the same day — `AdminResources.tsx` and the
+`resources` table/route are still named for what it stores, but every
+user-visible label says "Home Page," not "Resources." A private page —
+Database Managers only, both to view and to edit — for docs and links worth
+keeping handy about agents and transactions (forms, saved links, policy
+docs), not tied to any one transaction or lead. Gated with
+`is_database_manager()`, which already existed (migration 052, for deleting
+a transaction).
 
 **It's also the landing page for Database Managers**, once per browser tab:
 `AdminList.tsx` (the `/admin` transactions list) redirects a Database Manager
@@ -166,7 +170,11 @@ rest of the session — including the "Transactions" nav link, which also
 points at `/admin`. **Do not make this redirect unconditional** (e.g. check
 role on every `/admin` load with no session flag) — that would turn
 "Transactions" in the nav into a trap that always bounces a Database Manager
-straight back to Resources, since both links point at the same URL.
+straight back to Home Page, since both links point at the same URL.
+
+**It's first in `AdminNav`'s item list, before Transactions** — Allison's
+choice, so it reads as the true home base for a Database Manager rather than
+just another item in the row.
 
 **File uploads reuse the existing `media` storage bucket**, same as
 `lead_documents` — see the migration file for why that's an intentional

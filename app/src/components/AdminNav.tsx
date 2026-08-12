@@ -9,9 +9,11 @@ import { useIsDatabaseManager } from '../lib/useIsDatabaseManager'
  * getting from a transaction to the Rolodex (say) doesn't mean clicking
  * back through the list first. Rolodex is hidden from anyone who doesn't
  * already see the whole book — same gate AdminList used before this
- * existed as its own component. Resources is hidden the same way, but
- * strictly to Database Managers (see migration 065) — unlike Rolodex it's
- * not shown to anyone with "sees every transaction."
+ * existed as its own component. Home Page (the old "Resources" page) is
+ * hidden the same way, but strictly to Database Managers (see migration
+ * 065) — unlike Rolodex it's not shown to anyone with "sees every
+ * transaction." It's first in the list on purpose — it's also where a
+ * Database Manager lands when they sign in, see AdminList.tsx.
  */
 export default function AdminNav({ current }: {
   current: 'transactions' | 'leads' | 'closed' | 'rolodex' | 'network' | 'resources' | 'settings'
@@ -30,12 +32,12 @@ export default function AdminNav({ current }: {
   }, [])
 
   const items: { key: typeof current; label: string; to: string }[] = [
+    ...(isDatabaseManager ? [{ key: 'resources' as const, label: 'Home Page', to: '/admin/resources' }] : []),
     { key: 'transactions', label: 'Transactions', to: '/admin' },
     { key: 'leads', label: 'Active Clients', to: '/admin/leads' },
     { key: 'closed', label: 'Closed', to: '/admin/closed' },
     ...(canSeeRolodex ? [{ key: 'rolodex' as const, label: 'Rolodex', to: '/admin/rolodex' }] : []),
     { key: 'network', label: 'Agent Network', to: '/admin/network' },
-    ...(isDatabaseManager ? [{ key: 'resources' as const, label: 'Resources', to: '/admin/resources' }] : []),
     { key: 'settings', label: 'Settings', to: '/admin/settings' },
   ]
 
