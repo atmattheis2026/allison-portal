@@ -38,6 +38,7 @@ allison-portal/
         AdminSettings.tsx  branding + checklist editor /admin/settings
         AdminNetworkLeads.tsx  Agent Network list      /admin/network
         MentorHome.tsx    a mentor's own filtered list /mentor
+        AdminResources.tsx  Database Manager reference page /admin/resources
         Login.tsx         magic-link sign in          /login
       components/
         NetworkAgentDetail.tsx  agent page, shared by staff (/admin/network/:id)
@@ -147,6 +148,29 @@ of those policies. If you add a *new* team-wide table later, it needs the same
 functions (`join_team_with_code` vs `join_as_mentor`). The code someone is given
 is what decides their role — not a checkbox they tick themselves. Never merge
 these into one code with a role picker in the UI.
+
+## Resources (Database Manager reference page)
+
+Added 2026-08-12, migration `065_resources.sql`. A private page — Database
+Managers only, both to view and to edit — for docs and links worth keeping
+handy about agents and transactions (forms, saved links, policy docs), not
+tied to any one transaction or lead. Gated with `is_database_manager()`,
+which already existed (migration 052, for deleting a transaction).
+
+**It's also the landing page for Database Managers**, once per browser tab:
+`AdminList.tsx` (the `/admin` transactions list) redirects a Database Manager
+to `/admin/resources` the first time they load `/admin` in a session
+(tracked with a `sessionStorage` flag, not by changing where the magic-link
+email points). After that first bounce, `/admin` behaves normally for the
+rest of the session — including the "Transactions" nav link, which also
+points at `/admin`. **Do not make this redirect unconditional** (e.g. check
+role on every `/admin` load with no session flag) — that would turn
+"Transactions" in the nav into a trap that always bounces a Database Manager
+straight back to Resources, since both links point at the same URL.
+
+**File uploads reuse the existing `media` storage bucket**, same as
+`lead_documents` — see the migration file for why that's an intentional
+match to existing precedent rather than a weaker security choice.
 
 ## Still to do
 

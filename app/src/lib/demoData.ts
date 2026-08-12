@@ -1,6 +1,7 @@
 import type {
   SharedPayload, Milestone, DocLine, Contact, TeamMember, SavedContact,
   Mentor, NetworkAgent, NetworkChecklistItem, NetworkChecklistTemplate,
+  Resource,
 } from './types'
 
 /**
@@ -461,3 +462,33 @@ export const NETWORK_CHECKLIST_ITEMS: Record<string, NetworkChecklistItem[]> = {
   'na-2': demoChecklist('na-2', 3),
   'na-3': demoChecklist('na-3', 9),
 }
+
+// -------------------------------------------------------------- resources
+
+export const RESOURCES: Resource[] = [
+  {
+    id: 'res-1', category: 'agents', title: 'New agent onboarding checklist (PDF)',
+    description: 'Hand this to anyone starting training.', url: null,
+    file_url: null, file_name: 'onboarding-checklist.pdf', sort_order: 10, created_at: '2026-07-01T00:00:00Z',
+  },
+  {
+    id: 'res-2', category: 'agents', title: 'eXp Cap & revenue share explainer',
+    description: null, url: 'https://example.com/exp-cap-explainer',
+    file_url: null, file_name: null, sort_order: 20, created_at: '2026-07-05T00:00:00Z',
+  },
+  {
+    id: 'res-3', category: 'transactions', title: 'Buyer broker agreement template',
+    description: 'Blank template — fill in and have signed before showings.', url: null,
+    file_url: null, file_name: 'buyer-broker-template.pdf', sort_order: 10, created_at: '2026-06-15T00:00:00Z',
+  },
+  {
+    id: 'res-4', category: 'transactions', title: 'Title company contact sheet',
+    description: null, url: 'https://example.com/title-contacts',
+    file_url: null, file_name: null, sort_order: 20, created_at: '2026-06-20T00:00:00Z',
+  },
+  {
+    id: 'res-5', category: 'general', title: 'Office phone / Slack directory',
+    description: null, url: 'https://example.com/directory',
+    file_url: null, file_name: null, sort_order: 10, created_at: '2026-05-01T00:00:00Z',
+  },
+]

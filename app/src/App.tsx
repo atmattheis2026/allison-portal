@@ -11,6 +11,7 @@ import AdminSettings from './pages/AdminSettings'
 import AdminNetworkLeads from './pages/AdminNetworkLeads'
 import NetworkAgentDetail from './components/NetworkAgentDetail'
 import MentorHome from './pages/MentorHome'
+import AdminResources from './pages/AdminResources'
 import Login from './pages/Login'
 import './theme.css'
 
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/admin/rolodex" element={<AdminRolodex />} />
         <Route path="/admin/network" element={<AdminNetworkLeads />} />
         <Route path="/admin/network/:id" element={<NetworkAgentDetail viewer="staff" />} />
+        <Route path="/admin/resources" element={<AdminResources />} />
 
         {/* A mentor's own two pages — see migration 064 for why they're
             walled off from everything above. */}

@@ -501,6 +501,30 @@ export function parseAddressFromListingUrl(url: string): { street: string; cityS
   }
 }
 
+// -------------------------------------------------------------- resources
+
+export type ResourceCategory = 'agents' | 'transactions' | 'general'
+export const RESOURCE_CATEGORY_LABEL: Record<ResourceCategory, string> = {
+  agents: 'For agents',
+  transactions: 'For transactions',
+  general: 'General',
+}
+
+/** A doc or link kept handy on the Database Manager's Resources page — not
+ *  tied to any one transaction or lead. Database-Manager-only, both to view
+ *  and to edit (Allison's choice 2026-08-12). */
+export interface Resource {
+  id: string
+  category: ResourceCategory
+  title: string
+  description: string | null
+  url: string | null
+  file_url: string | null
+  file_name: string | null
+  sort_order: number
+  created_at: string
+}
+
 // -------------------------------------------------------------- agent network
 
 /** A referring/sponsoring agent who mentors people in network_agents. A
