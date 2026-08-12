@@ -36,7 +36,12 @@ allison-portal/
         AdminList.tsx     her list of transactions    /admin
         AdminTransaction.tsx  her editing view        /admin/t/<id>
         AdminSettings.tsx  branding + checklist editor /admin/settings
+        AdminNetworkLeads.tsx  Agent Network list      /admin/network
+        MentorHome.tsx    a mentor's own filtered list /mentor
         Login.tsx         magic-link sign in          /login
+      components/
+        NetworkAgentDetail.tsx  agent page, shared by staff (/admin/network/:id)
+                                 and mentors (/mentor/:id) via a `viewer` prop
       lib/
         types.ts          the shape of the data
         supabase.ts       database connection + demo mode
@@ -114,6 +119,34 @@ Inputs are styled invisible until focused (`.inlineEdit`). Don't build a separat
 DOM: once inside the photo (phone) and once beside it (desktop), with CSS hiding
 one. Both are editable. If you add a new editable field, check it isn't living only
 inside `.headline`, which is `display:none` on a phone.
+
+## Agent Network (recruiting/training/mentorship)
+
+Added 2026-08-12, migration `064_agent_network.sql`. This is a *second* walled-off
+area inside the same app — for tracking people she's recruiting or mentoring into
+the business, separate from her real estate clients. Three pieces:
+
+- **`network_agents`** — the primary list (Settings-adjacent nav link "Agent
+  Network"). One row per person, lifecycle tracked by `status` (lead → training →
+  active → inactive), not separate tables — same reasoning as `leads`.
+- **Mentors** are their own roster (`mentors` table), *not* `team_members`. A
+  mentor is not necessarily one of her five office people.
+- **A mentor gets their own login**, scoped to only the agent(s) assigned to
+  them — never her transactions, clients, or the rest of her staff roster.
+
+**Do not put a mentor in `team_members`.** That table (and `brands`,
+`saved_lenders`, the checklist templates, `saved_contacts`) has always used one
+flat "anyone on the team can read/write this" policy. A mentor sharing the same
+`team_id` as her real staff would get the run of all of it unless walled off —
+migration 064 does that by excluding `profiles.role = 'mentor'` from every one
+of those policies. If you add a *new* team-wide table later, it needs the same
+`and not is_mentor()` treatment, or a mentor signing in sees more than intended.
+
+**Two separate invite codes, on purpose.** `teams.invite_code` (staff) and
+`teams.mentor_invite_code` (mentors) are different columns, checked by different
+functions (`join_team_with_code` vs `join_as_mentor`). The code someone is given
+is what decides their role — not a checkbox they tick themselves. Never merge
+these into one code with a role picker in the UI.
 
 ## Still to do
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { DEMO_MODE, supabase } from '../lib/supabase'
-import { TEAM_MEMBERS } from '../lib/demoData'
-import { ROLE_LABEL, type BrandKind, type DealType, type Side, type TeamMember, type TeamRole } from '../lib/types'
+import { TEAM_MEMBERS, MENTORS, NETWORK_CHECKLIST_TEMPLATE } from '../lib/demoData'
+import { ROLE_LABEL, type BrandKind, type DealType, type Side, type TeamMember, type TeamRole, type Mentor, type NetworkChecklistTemplate } from '../lib/types'
 import AdminNav from '../components/AdminNav'
 import './Admin.css'
 
@@ -16,7 +16,7 @@ import './Admin.css'
  * has to send someone.
  */
 export default function AdminSettings() {
-  const [tab, setTab] = useState<'branding' | 'checklists' | 'team'>('branding')
+  const [tab, setTab] = useState<'branding' | 'checklists' | 'team' | 'network'>('branding')
 
   return (
     <div className="admin">
@@ -41,9 +41,15 @@ export default function AdminSettings() {
         <button className={`tab${tab === 'team' ? ' on' : ''}`} onClick={() => setTab('team')}>
           Team
         </button>
+        <button className={`tab${tab === 'network' ? ' on' : ''}`} onClick={() => setTab('network')}>
+          Agent Network
+        </button>
       </div>
 
-      {tab === 'branding' ? <Branding /> : tab === 'checklists' ? <Checklists /> : <Team />}
+      {tab === 'branding' ? <Branding />
+        : tab === 'checklists' ? <Checklists />
+        : tab === 'team' ? <Team />
+        : <AgentNetwork />}
     </div>
   )
 }
@@ -733,6 +739,221 @@ function Team() {
         {saveError && (
           <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 10 }}>{saveError}</p>
         )}
+      </div>
+    </div>
+  )
+}
+
+/* ============================================================ agent network */
+
+let tmplId = 0
+const newTemplateRow = (order: number): NetworkChecklistTemplate =>
+  ({ id: `new-${++tmplId}`, label: '', sort_order: order })
+
+let mentorRowId = 0
+const newMentorRow = (order: number): Mentor =>
+  ({ id: `new-${++mentorRowId}`, full_name: '', email: null, phone: null, sort_order: order, profile_id: null })
+
+/**
+ * Settings for the Agent Network feature (migration 064): the master
+ * training checklist new leads get stamped with, her mentor roster, and the
+ * mentor invite code — a separate code from the general staff one, since
+ * that's what actually keeps a mentor walled off from the rest of the app
+ * (see the migration file for why).
+ */
+function AgentNetwork() {
+  const [rows, setRows] = useState<NetworkChecklistTemplate[]>(DEMO_MODE ? NETWORK_CHECKLIST_TEMPLATE : [])
+  const [removedTemplateIds, setRemovedTemplateIds] = useState<string[]>([])
+  const [templateBusy, setTemplateBusy] = useState(false)
+  const [templateSaved, setTemplateSaved] = useState(false)
+
+  const [mentors, setMentors] = useState<Mentor[]>(DEMO_MODE ? MENTORS : [])
+  const [removedMentorIds, setRemovedMentorIds] = useState<string[]>([])
+  const [mentorBusy, setMentorBusy] = useState(false)
+  const [mentorSaved, setMentorSaved] = useState(false)
+
+  const [mentorCode, setMentorCode] = useState<string | null>(DEMO_MODE ? 'MENTOR12' : null)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (DEMO_MODE || !supabase) return
+    supabase.from('network_checklist_templates').select('*').order('sort_order')
+      .then(({ data }) => setRows((data as NetworkChecklistTemplate[]) ?? []))
+    supabase.from('mentors').select('*').order('sort_order')
+      .then(({ data }) => setMentors((data as Mentor[]) ?? []))
+    supabase.auth.getUser().then(async ({ data: auth }) => {
+      const { data: me } = await supabase!.from('profiles')
+        .select('team_id').eq('id', auth.user?.id).single()
+      if (!me?.team_id) return
+      const { data: team } = await supabase!.from('teams')
+        .select('mentor_invite_code').eq('id', me.team_id).single()
+      setMentorCode(team?.mentor_invite_code ?? null)
+    })
+  }, [])
+
+  function copyCode() {
+    if (!mentorCode) return
+    navigator.clipboard.writeText(mentorCode)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1800)
+  }
+
+  // ---- checklist template ----
+  const updateRow = (id: string, patch: Partial<NetworkChecklistTemplate>) =>
+    setRows(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)))
+  const removeRow = (id: string) => {
+    setRows(rows.filter((r) => r.id !== id))
+    if (!id.startsWith('new-')) setRemovedTemplateIds([...removedTemplateIds, id])
+  }
+  const addRow = () => setRows([...rows, newTemplateRow((rows.at(-1)?.sort_order ?? 0) + 10)])
+  const moveRow = (id: string, dir: -1 | 1) => {
+    const i = rows.findIndex((r) => r.id === id)
+    const j = i + dir
+    if (i < 0 || j < 0 || j >= rows.length) return
+    const next = [...rows]
+    ;[next[i], next[j]] = [next[j], next[i]]
+    setRows(next.map((r, k) => ({ ...r, sort_order: (k + 1) * 10 })))
+  }
+
+  async function saveTemplate() {
+    if (DEMO_MODE || !supabase) return
+    setTemplateBusy(true)
+    const { data: auth } = await supabase.auth.getUser()
+    const { data: me } = await supabase.from('profiles').select('team_id').eq('id', auth.user?.id).single()
+    const teamId = me?.team_id
+    if (!teamId) { setTemplateBusy(false); return }
+
+    for (const id of removedTemplateIds) {
+      await supabase.from('network_checklist_templates').delete().eq('id', id)
+    }
+    setRemovedTemplateIds([])
+
+    for (const r of rows) {
+      if (!r.label.trim()) continue
+      const row = { team_id: teamId, label: r.label, sort_order: r.sort_order }
+      if (r.id.startsWith('new-')) {
+        const { data } = await supabase.from('network_checklist_templates').insert(row).select('id').single()
+        if (data) updateRow(r.id, { id: data.id })
+      } else {
+        await supabase.from('network_checklist_templates').update(row).eq('id', r.id)
+      }
+    }
+    setTemplateBusy(false)
+    setTemplateSaved(true)
+    setTimeout(() => setTemplateSaved(false), 1800)
+  }
+
+  // ---- mentors ----
+  const updateMentor = (id: string, patch: Partial<Mentor>) =>
+    setMentors(mentors.map((m) => (m.id === id ? { ...m, ...patch } : m)))
+  const removeMentor = (id: string) => {
+    setMentors(mentors.filter((m) => m.id !== id))
+    if (!id.startsWith('new-')) setRemovedMentorIds([...removedMentorIds, id])
+  }
+  const addMentor = () => setMentors([...mentors, newMentorRow((mentors.at(-1)?.sort_order ?? 0) + 10)])
+
+  async function saveMentors() {
+    if (DEMO_MODE || !supabase) return
+    setMentorBusy(true)
+    const { data: auth } = await supabase.auth.getUser()
+    const { data: me } = await supabase.from('profiles').select('team_id').eq('id', auth.user?.id).single()
+    const teamId = me?.team_id
+    if (!teamId) { setMentorBusy(false); return }
+
+    for (const id of removedMentorIds) {
+      await supabase.from('mentors').delete().eq('id', id)
+    }
+    setRemovedMentorIds([])
+
+    for (const m of mentors) {
+      if (!m.full_name.trim()) continue
+      const row = { team_id: teamId, full_name: m.full_name, email: m.email, phone: m.phone, sort_order: m.sort_order }
+      if (m.id.startsWith('new-')) {
+        const { data } = await supabase.from('mentors').insert(row).select('id').single()
+        if (data) updateMentor(m.id, { id: data.id })
+      } else {
+        await supabase.from('mentors').update(row).eq('id', m.id)
+      }
+    }
+    setMentorBusy(false)
+    setMentorSaved(true)
+    setTimeout(() => setMentorSaved(false), 1800)
+  }
+
+  return (
+    <div className="settings">
+      <div className="card setcard">
+        <h2>Training checklist</h2>
+        <p className="sethelp">
+          What a new lead's checklist starts with — editing here changes what gets
+          copied onto <strong>new</strong> leads, it won't rewrite one already in progress.
+        </p>
+        {rows.map((r) => (
+          <div className="tmplrow" key={r.id}>
+            <button className="grip" onClick={() => moveRow(r.id, -1)} title="Move up">↑</button>
+            <button className="grip" onClick={() => moveRow(r.id, 1)} title="Move down">↓</button>
+            <input type="text" value={r.label} placeholder="Name this step"
+                   onChange={(e) => updateRow(r.id, { label: e.target.value })} />
+            <button className="del" onClick={() => removeRow(r.id)} title="Delete">×</button>
+          </div>
+        ))}
+        <div className="savebar">
+          <button className="btn" onClick={addRow}>+ Add a step</button>
+          <button className="btn primary" disabled={DEMO_MODE || templateBusy} onClick={saveTemplate}>
+            {templateBusy ? 'Saving…' : templateSaved ? 'Saved' : 'Save checklist'}
+          </button>
+          {DEMO_MODE && <span className="muted" style={{ fontSize: 12 }}>Saving needs the database connected.</span>}
+        </div>
+      </div>
+
+      <div className="card setcard">
+        <h2>Mentors</h2>
+        <p className="sethelp">
+          Add a mentor here first (name and email), then send them the invite code
+          below. When they sign in with that code, this row gets linked to their
+          login automatically — same as inviting a team member, but with its own
+          code so a mentor never gets the run of your whole workspace. Assign
+          mentors to individual leads from each lead's own page.
+        </p>
+        {mentors.map((m) => (
+          <div className="tmplrow" key={m.id}>
+            <input type="text" value={m.full_name} placeholder="Name" style={{ flex: 1 }}
+                   onChange={(e) => updateMentor(m.id, { full_name: e.target.value })} />
+            <input type="email" value={m.email ?? ''} placeholder="Email" style={{ flex: 1 }}
+                   onChange={(e) => updateMentor(m.id, { email: e.target.value || null })} />
+            <input type="text" value={m.phone ?? ''} placeholder="Phone" style={{ flex: 'none', width: 150 }}
+                   onChange={(e) => updateMentor(m.id, { phone: e.target.value || null })} />
+            {m.profile_id && <span className="tag" style={{ flex: 'none' }}>Signed in</span>}
+            <button className="del" onClick={() => removeMentor(m.id)} title="Delete">×</button>
+          </div>
+        ))}
+        <div className="savebar">
+          <button className="btn" onClick={addMentor}>+ Add a mentor</button>
+          <button className="btn primary" disabled={DEMO_MODE || mentorBusy} onClick={saveMentors}>
+            {mentorBusy ? 'Saving…' : mentorSaved ? 'Saved' : 'Save mentors'}
+          </button>
+          {DEMO_MODE && <span className="muted" style={{ fontSize: 12 }}>Saving needs the database connected.</span>}
+        </div>
+
+        <div style={{
+          marginTop: 18, padding: '14px 16px', background: 'var(--panel-2)',
+          border: '1px solid var(--line)', borderRadius: 'var(--r-md)',
+        }}>
+          <label className="eyebrow" style={{ display: 'block', marginBottom: 6 }}>Mentor invite code</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontFamily: 'var(--mono, monospace)', fontSize: 18, letterSpacing: '.05em' }}>
+              {mentorCode ?? '—'}
+            </span>
+            <button type="button" className="btn" onClick={copyCode} disabled={!mentorCode}>
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+          <p className="sethelp" style={{ margin: '8px 0 0' }}>
+            Give this to a mentor. They sign in at your login page, choose
+            "I'm a mentor," and enter this code — separate from your general
+            team invite code, and it only ever grants mentor access.
+          </p>
+        </div>
       </div>
     </div>
   )

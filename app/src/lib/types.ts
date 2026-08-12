@@ -501,6 +501,73 @@ export function parseAddressFromListingUrl(url: string): { street: string; cityS
   }
 }
 
+// -------------------------------------------------------------- agent network
+
+/** A referring/sponsoring agent who mentors people in network_agents. A
+ *  separate roster from TeamMember on purpose — a mentor isn't necessarily
+ *  one of Allison's office people, so they get their own login and their own
+ *  narrow slice of access (their assigned agents, nothing else). */
+export interface Mentor {
+  id: string
+  full_name: string
+  email: string | null
+  phone: string | null
+  sort_order: number
+  profile_id: string | null
+}
+
+export type NetworkAgentStatus = 'lead' | 'training' | 'active' | 'inactive'
+export const NETWORK_AGENT_STATUS_LABEL: Record<NetworkAgentStatus, string> = {
+  lead: 'Lead',
+  training: 'In training',
+  active: 'Active',
+  inactive: 'Inactive',
+}
+
+export type LicenseStatus = 'unlicensed' | 'in_progress' | 'licensed'
+export const LICENSE_STATUS_LABEL: Record<LicenseStatus, string> = {
+  unlicensed: 'Not licensed yet',
+  in_progress: 'License in progress',
+  licensed: 'Licensed',
+}
+
+/** Someone being recruited, trained, or mentored — the whole lifecycle from
+ *  first contact through active agent lives on one record (status moves it
+ *  along), same reasoning as Lead not splitting into separate tables. */
+export interface NetworkAgent {
+  id: string
+  team_id: string
+  full_name: string
+  email: string | null
+  phone: string | null
+  license_number: string | null
+  license_status: LicenseStatus
+  source: string | null
+  status: NetworkAgentStatus
+  mentor_id: string | null
+  strengths_notes: string
+  growth_notes: string
+  general_notes: string
+  photo_url: string | null
+  created_at: string
+  archived_at: string | null
+}
+
+export interface NetworkChecklistItem {
+  id: string
+  agent_id: string
+  label: string
+  is_complete: boolean
+  completed_at: string | null
+  sort_order: number
+}
+
+export interface NetworkChecklistTemplate {
+  id: string
+  label: string
+  sort_order: number
+}
+
 /** Exactly what get_shared_lead() returns. */
 export interface SharedLeadPayload {
   lead: {

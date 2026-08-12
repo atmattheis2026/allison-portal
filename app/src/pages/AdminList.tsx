@@ -86,8 +86,13 @@ export default function AdminList() {
       // A brand-new project has a signed-in user with no workspace yet. Say so
       // plainly instead of showing an empty list that looks like a bug.
       const { data: me } = await supabase!.from('profiles')
-        .select('team_id').eq('id', auth.user.id).maybeSingle()
+        .select('team_id, role').eq('id', auth.user.id).maybeSingle()
       if (!me?.team_id) { setNeedsSetup(true); setRows([]); return }
+
+      // A mentor has no business landing on the transactions list — RLS
+      // would show them nothing anyway (see migration 064), but bounce them
+      // straight to their own page rather than a confusing empty screen.
+      if (me.role === 'mentor') { nav('/mentor', { replace: true }); return }
 
       const { data, error } = await supabase!
         .from('transactions')
@@ -354,7 +359,7 @@ function AssignedChips({ names }: { names: string[] }) {
  * team, both brands, and every checklist template in one call.
  */
 function FirstRun({ onDone }: { onDone: () => void }) {
-  const [mode, setMode] = useState<'create' | 'join'>('create')
+  const [mode, setMode] = useState<'create' | 'join' | 'join_mentor'>('create')
   const [company, setCompany] = useState('')
   const [yourName, setYourName] = useState('')
   const [code, setCode] = useState('')
@@ -383,6 +388,21 @@ function FirstRun({ onDone }: { onDone: () => void }) {
     onDone()
   }
 
+  // Deliberately a different RPC from join() above, checked against a
+  // different code column (teams.mentor_invite_code) — this is what actually
+  // decides the role a new sign-in gets, not a choice they make themselves.
+  // See migration 064.
+  async function joinAsMentor(e: React.FormEvent) {
+    e.preventDefault()
+    if (!supabase) return
+    setBusy(true); setErr(null)
+    const { error } = await supabase.rpc('join_as_mentor', {
+      p_code: code, p_full_name: yourName,
+    })
+    if (error) { setErr(error.message); setBusy(false); return }
+    onDone()
+  }
+
   return (
     <div className="admin">
       <div className="card setcard" style={{ maxWidth: 560, margin: '48px auto' }}>
@@ -399,6 +419,10 @@ function FirstRun({ onDone }: { onDone: () => void }) {
           <button type="button" className={`tab${mode === 'join' ? ' on' : ''}`}
                   onClick={() => setMode('join')}>
             I have an invite code
+          </button>
+          <button type="button" className={`tab${mode === 'join_mentor' ? ' on' : ''}`}
+                  onClick={() => setMode('join_mentor')}>
+            I'm a mentor
           </button>
         </div>
 
@@ -430,7 +454,7 @@ function FirstRun({ onDone }: { onDone: () => void }) {
               </button>
             </div>
           </form>
-        ) : (
+        ) : mode === 'join' ? (
           <form onSubmit={join}>
             <p className="sethelp">
               Ask whoever runs your team for their invite code — it's in their
@@ -452,6 +476,33 @@ function FirstRun({ onDone }: { onDone: () => void }) {
             <div className="savebar">
               <button className="btn primary" disabled={busy}>
                 {busy ? 'Joining…' : 'Join the team'}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={joinAsMentor}>
+            <p className="sethelp">
+              Ask whoever invited you for their mentor code — it's in their
+              Settings › Agent Network page. This is a different code from the
+              general team invite code, and only gives you access to the
+              agents assigned to you.
+            </p>
+            <div className="field">
+              <label>Your name</label>
+              <input value={yourName} required autoFocus
+                     onChange={(e) => setYourName(e.target.value)}
+                     placeholder="Derek Alvarez" />
+            </div>
+            <div className="field">
+              <label>Mentor invite code</label>
+              <input value={code} required
+                     onChange={(e) => setCode(e.target.value.toUpperCase())}
+                     placeholder="A1B2C3D4" style={{ textTransform: 'uppercase' }} />
+            </div>
+            {err && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{err}</p>}
+            <div className="savebar">
+              <button className="btn primary" disabled={busy}>
+                {busy ? 'Joining…' : 'Join as mentor'}
               </button>
             </div>
           </form>

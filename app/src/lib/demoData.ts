@@ -1,4 +1,7 @@
-import type { SharedPayload, Milestone, DocLine, Contact, TeamMember, SavedContact } from './types'
+import type {
+  SharedPayload, Milestone, DocLine, Contact, TeamMember, SavedContact,
+  Mentor, NetworkAgent, NetworkChecklistItem, NetworkChecklistTemplate,
+} from './types'
 
 /**
  * Sample transaction used when no Supabase credentials are present.
@@ -391,3 +394,70 @@ export const SAVED_CONTACTS: SavedContact[] = [
   { id: 'sc-3', group_key: 'utilities', role_label: 'Power', name: 'Duke Energy', phone: '+18007002443', email: null, photo_url: null, sort_order: 10 },
   { id: 'sc-4', group_key: 'utilities', role_label: 'Water', name: 'Toho Water', phone: '+14079442000', email: null, photo_url: null, sort_order: 10 },
 ]
+
+// -------------------------------------------------------------- agent network
+
+export const NETWORK_CHECKLIST_TEMPLATE: NetworkChecklistTemplate[] = [
+  { id: 'nct-1', label: 'Signed agreement / paperwork on file', sort_order: 10 },
+  { id: 'nct-2', label: 'Onboarded to office systems & tools', sort_order: 20 },
+  { id: 'nct-3', label: 'Shadowed a listing or buyer appointment', sort_order: 30 },
+  { id: 'nct-4', label: 'Reviewed scripts & lead follow-up process', sort_order: 40 },
+  { id: 'nct-5', label: 'Completed first appointment on their own', sort_order: 50 },
+  { id: 'nct-6', label: 'First contract written', sort_order: 60 },
+  { id: 'nct-7', label: 'First closing', sort_order: 70 },
+  { id: 'nct-8', label: '30-day check-in complete', sort_order: 80 },
+  { id: 'nct-9', label: '90-day check-in complete', sort_order: 90 },
+]
+
+export const MENTORS: Mentor[] = [
+  { id: 'mn-derek', full_name: 'Derek Alvarez', email: 'derek@example.com', phone: '+14075550133', sort_order: 10, profile_id: 'demo-mentor-profile' },
+  { id: 'mn-priya', full_name: 'Priya Nair', email: 'priya@example.com', phone: '+14075550144', sort_order: 20, profile_id: null },
+]
+
+function demoChecklist(agentId: string, doneCount: number): NetworkChecklistItem[] {
+  return NETWORK_CHECKLIST_TEMPLATE.map((t, i) => ({
+    id: `${agentId}-item-${i}`,
+    agent_id: agentId,
+    label: t.label,
+    is_complete: i < doneCount,
+    completed_at: i < doneCount ? '2026-07-01T00:00:00Z' : null,
+    sort_order: t.sort_order,
+  }))
+}
+
+export const NETWORK_AGENTS: NetworkAgent[] = [
+  {
+    id: 'na-1', team_id: 'demo-team', full_name: 'Jordan Reyes',
+    email: 'jordan.reyes@example.com', phone: '+14075550111',
+    license_number: null, license_status: 'in_progress',
+    source: 'Referred by Marcus Webb', status: 'lead', mentor_id: null,
+    strengths_notes: '', growth_notes: '', general_notes: 'Met at the July office open house — very motivated, finishing pre-license course in September.',
+    photo_url: null, created_at: '2026-07-28T00:00:00Z', archived_at: null,
+  },
+  {
+    id: 'na-2', team_id: 'demo-team', full_name: 'Casey Nguyen',
+    email: 'casey.nguyen@example.com', phone: '+14075550122',
+    license_number: 'SL 3901244', license_status: 'licensed',
+    source: 'Personal referral', status: 'training', mentor_id: 'mn-derek',
+    strengths_notes: 'Great on the phone, very organized with follow-up.',
+    growth_notes: 'Still building confidence writing offers — wants to shadow two more before doing one solo.',
+    general_notes: '',
+    photo_url: null, created_at: '2026-06-10T00:00:00Z', archived_at: null,
+  },
+  {
+    id: 'na-3', team_id: 'demo-team', full_name: 'Morgan Blake',
+    email: 'morgan.blake@example.com', phone: '+14075550155',
+    license_number: 'SL 3844410', license_status: 'licensed',
+    source: 'EPIC provided', status: 'active', mentor_id: 'mn-priya',
+    strengths_notes: 'Closed 3 deals in first 4 months — strong negotiator.',
+    growth_notes: '',
+    general_notes: '',
+    photo_url: null, created_at: '2026-03-02T00:00:00Z', archived_at: null,
+  },
+]
+
+export const NETWORK_CHECKLIST_ITEMS: Record<string, NetworkChecklistItem[]> = {
+  'na-1': demoChecklist('na-1', 0),
+  'na-2': demoChecklist('na-2', 3),
+  'na-3': demoChecklist('na-3', 9),
+}
