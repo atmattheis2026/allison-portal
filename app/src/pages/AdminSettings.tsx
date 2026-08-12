@@ -42,7 +42,7 @@ export default function AdminSettings() {
           Team
         </button>
         <button className={`tab${tab === 'network' ? ' on' : ''}`} onClick={() => setTab('network')}>
-          Agent Network
+          Agent Recruiting
         </button>
       </div>
 
@@ -755,7 +755,7 @@ const newMentorRow = (order: number): Mentor =>
   ({ id: `new-${++mentorRowId}`, full_name: '', email: null, phone: null, sort_order: order, profile_id: null })
 
 /**
- * Settings for the Agent Network feature (migration 064): the master
+ * Settings for the Agent Recruiting feature (migration 064): the master
  * training checklist new leads get stamped with, her mentor roster, and the
  * mentor invite code — a separate code from the general staff one, since
  * that's what actually keeps a mentor walled off from the rest of the app

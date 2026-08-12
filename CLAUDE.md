@@ -36,7 +36,7 @@ allison-portal/
         AdminList.tsx     her list of transactions    /admin
         AdminTransaction.tsx  her editing view        /admin/t/<id>
         AdminSettings.tsx  branding + checklist editor /admin/settings
-        AdminNetworkLeads.tsx  Agent Network list      /admin/network
+        AdminNetworkLeads.tsx  Agent Recruiting list   /admin/network
         MentorHome.tsx    a mentor's own filtered list /mentor
         AdminResources.tsx  Database Manager reference page /admin/resources
         Login.tsx         magic-link sign in          /login
@@ -121,7 +121,12 @@ DOM: once inside the photo (phone) and once beside it (desktop), with CSS hiding
 one. Both are editable. If you add a new editable field, check it isn't living only
 inside `.headline`, which is `display:none` on a phone.
 
-## Agent Network (recruiting/training/mentorship)
+## Agent Recruiting (recruiting/training/mentorship)
+
+Labeled "Agent Network" until 2026-08-13 — every user-visible label now says
+"Agent Recruiting" (nav link, page header, Settings tab), matching the
+"Recruiting" category label on the Home Page. File/table names
+(`AdminNetworkLeads.tsx`, `network_agents`, `/admin/network`) are unchanged.
 
 Added 2026-08-12, migration `064_agent_network.sql`. This is a *second* walled-off
 area inside the same app — for tracking people she's recruiting or mentoring into

@@ -498,7 +498,7 @@ function FirstRun({ onDone }: { onDone: () => void }) {
           <form onSubmit={joinAsMentor}>
             <p className="sethelp">
               Ask whoever invited you for their mentor code — it's in their
-              Settings › Agent Network page. This is a different code from the
+              Settings › Agent Recruiting page. This is a different code from the
               general team invite code, and only gives you access to the
               agents assigned to you.
             </p>

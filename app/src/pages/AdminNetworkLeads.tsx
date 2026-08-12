@@ -17,7 +17,7 @@ const STATUS_COLOR: Record<NetworkAgentStatus, string> = {
 type SortMode = 'recent' | 'name' | 'status' | 'mentor'
 
 /**
- * Primary page for the Agent Network: everyone being recruited, trained, or
+ * Primary page for Agent Recruiting: everyone being recruited, trained, or
  * mentored, in one list, status shown as a colored dot the same way Active
  * Clients shows nurture urgency. Clicking a row opens their Agent page.
  */
@@ -97,7 +97,7 @@ export default function AdminNetworkLeads() {
       )}
 
       <header className="adminbar">
-        <span className="wordmark" style={{ fontSize: 15 }}>Agent Network</span>
+        <span className="wordmark" style={{ fontSize: 15 }}>Agent Recruiting</span>
         <nav className="adminnav">
           <button className="btn primary" onClick={() => setCreating(true)}>
             New lead

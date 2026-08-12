@@ -37,7 +37,7 @@ export default function AdminNav({ current }: {
     { key: 'leads', label: 'Active Clients', to: '/admin/leads' },
     { key: 'closed', label: 'Closed', to: '/admin/closed' },
     ...(canSeeRolodex ? [{ key: 'rolodex' as const, label: 'Rolodex', to: '/admin/rolodex' }] : []),
-    { key: 'network', label: 'Agent Network', to: '/admin/network' },
+    { key: 'network', label: 'Agent Recruiting', to: '/admin/network' },
     { key: 'settings', label: 'Settings', to: '/admin/settings' },
   ]
 

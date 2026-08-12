@@ -505,7 +505,7 @@ export function parseAddressFromListingUrl(url: string): { street: string; cityS
 
 export type ResourceCategory = 'agents' | 'transactions' | 'general'
 export const RESOURCE_CATEGORY_LABEL: Record<ResourceCategory, string> = {
-  agents: 'For agents',
+  agents: 'Recruiting',
   transactions: 'For transactions',
   general: 'General',
 }

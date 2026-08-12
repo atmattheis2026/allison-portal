@@ -79,7 +79,7 @@ export default function NetworkAgentDetail({ viewer }: { viewer: 'staff' | 'ment
   }
 
   const backTo = viewer === 'staff' ? '/admin/network' : '/mentor'
-  const backLabel = viewer === 'staff' ? 'Agent Network' : 'My agents'
+  const backLabel = viewer === 'staff' ? 'Agent Recruiting' : 'My agents'
 
   if (loadError) {
     return (
@@ -198,7 +198,7 @@ export default function NetworkAgentDetail({ viewer }: { viewer: 'staff' | 'ment
           <h2>Training checklist</h2>
           <p className="sethelp">
             {viewer === 'staff'
-              ? 'Steps come from your master list in Settings > Agent Network.'
+              ? 'Steps come from your master list in Settings > Agent Recruiting.'
               : 'Check off steps as they’re completed.'}
           </p>
           {items.length === 0 ? (
