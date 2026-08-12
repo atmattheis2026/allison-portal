@@ -279,20 +279,23 @@ export default function AdminTransaction() {
     // Best-effort: fills in whatever fetch-link-preview finds and leaves the
     // rest for her to type — most sites (Zillow especially) won't yield the
     // property facts since those load in client-side, after a plain fetch()
-    // already gave up.
+    // already gave up. Returns whether it actually found anything, so the
+    // "Look it up" button can tell her plainly instead of just doing nothing
+    // visibly when a site blocks the lookup.
     onFetchListingPreview: async (url: string) => {
-      if (DEMO_MODE || !supabase || !id) return
+      if (DEMO_MODE || !supabase || !id) return false
       const { data: preview } = await supabase.functions.invoke('fetch-link-preview', { body: { url } })
-      if (!preview) return
+      if (!preview) return false
       const values: Record<string, unknown> = {}
       if (preview.photo_url && !data?.transaction.photo_url) values.photo_url = preview.photo_url
       if (preview.hoa_fee) values.hoa_fee = preview.hoa_fee
       if (preview.property_tax) values.property_tax = preview.property_tax
       if (preview.school_district) values.school_district = preview.school_district
       if (preview.county) values.county = preview.county
-      if (Object.keys(values).length === 0) return
+      if (Object.keys(values).length === 0) return false
       patch((d) => ({ ...d, transaction: { ...d.transaction, ...values } }))
       write('transactions', id, values)
+      return true
     },
 
     onPickSavedContact: (contactId: string, savedId: string) => {

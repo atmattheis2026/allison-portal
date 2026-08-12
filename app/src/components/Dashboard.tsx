@@ -64,8 +64,9 @@ export interface DashboardHandlers {
   onPickLender?: (memberId: string) => void
   onAddNote?: (side: Side, body: string) => void
   /** Best-effort auto-fill of HOA/tax/school district/county from a pasted
-   *  listing link. Lives on the parent (needs Supabase access), not here. */
-  onFetchListingPreview?: (url: string) => void
+   *  listing link. Lives on the parent (needs Supabase access), not here.
+   *  Resolves to whether it actually found anything. */
+  onFetchListingPreview?: (url: string) => Promise<boolean>
   onPickSavedContact?: (contactId: string, savedId: string) => void
   onSaveContact?: (contact: Contact) => void
   onUploadContactPhoto?: (contactId: string, file: File) => void
@@ -324,10 +325,19 @@ function OfferDetailsSection({ tx, editable, onPatch }: {
 function HomeInfoSection({ tx, editable, onPatch, onFetchListingPreview }: {
   tx: Transaction; editable: boolean
   onPatch?: (v: Partial<Transaction>) => void
-  onFetchListingPreview?: (url: string) => void
+  onFetchListingPreview?: (url: string) => Promise<boolean>
 }) {
   const hasAnyFact = tx.hoa_fee || tx.property_tax || tx.school_district || tx.county || tx.listing_url
   if (!editable && !hasAnyFact) return null
+
+  const [lookupStatus, setLookupStatus] = useState<'idle' | 'loading' | 'found' | 'empty'>('idle')
+
+  async function lookUp(url: string) {
+    if (!url.trim() || !onFetchListingPreview) return
+    setLookupStatus('loading')
+    const found = await onFetchListingPreview(url)
+    setLookupStatus(found ? 'found' : 'empty')
+  }
 
   const inputStyle: React.CSSProperties = {
     width: '100%', background: 'var(--panel-2)', border: '1px solid var(--line)',
@@ -345,9 +355,27 @@ function HomeInfoSection({ tx, editable, onPatch, onFetchListingPreview }: {
         <div style={{ display: 'grid', gap: 10, marginTop: 8 }}>
           <div>
             <label style={labelStyle}>Listing link</label>
-            <input style={inputStyle} value={tx.listing_url ?? ''} placeholder="Paste the MLS/Zillow listing link"
-                   onChange={(e) => onPatch?.({ listing_url: e.target.value })}
-                   onBlur={(e) => { if (e.target.value) onFetchListingPreview?.(e.target.value) }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input style={inputStyle} value={tx.listing_url ?? ''} placeholder="Paste the MLS/Zillow listing link"
+                     onChange={(e) => { onPatch?.({ listing_url: e.target.value }); setLookupStatus('idle') }}
+                     onBlur={(e) => lookUp(e.target.value)} />
+              <button type="button" className="btn" style={{ flex: 'none' }}
+                      disabled={!tx.listing_url?.trim() || lookupStatus === 'loading'}
+                      onClick={() => lookUp(tx.listing_url ?? '')}>
+                {lookupStatus === 'loading' ? 'Looking…' : 'Look it up'}
+              </button>
+            </div>
+            {lookupStatus === 'empty' && (
+              <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                Couldn't find HOA, tax, school district, or county on that page automatically —
+                some sites (Zillow especially) block this. Enter what you have below.
+              </p>
+            )}
+            {lookupStatus === 'found' && (
+              <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                Found something below — worth a quick check against the listing.
+              </p>
+            )}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
