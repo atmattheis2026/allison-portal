@@ -298,6 +298,28 @@ export default function AdminTransaction() {
       return true
     },
 
+    // Fallback for when the listing link is blocked (or there isn't one at
+    // all) — searches the open web for the address instead of paying for a
+    // property-data API. Still best-effort: county tax pages in particular
+    // vary a lot in format, so this often finds less than fetch-link-preview
+    // would from a cooperative listing site.
+    onSearchHomeFacts: async () => {
+      if (DEMO_MODE || !supabase || !id || !data) return { found: false, sourceUrl: null }
+      const address = `${data.transaction.address_line} ${data.transaction.city_state_zip}`.trim()
+      if (!address) return { found: false, sourceUrl: null }
+      const { data: result } = await supabase.functions.invoke('search-home-facts', { body: { address } })
+      if (!result) return { found: false, sourceUrl: null }
+      const values: Record<string, unknown> = {}
+      if (result.hoa_fee) values.hoa_fee = result.hoa_fee
+      if (result.property_tax) values.property_tax = result.property_tax
+      if (result.school_district) values.school_district = result.school_district
+      if (result.county) values.county = result.county
+      if (Object.keys(values).length === 0) return { found: false, sourceUrl: null }
+      patch((d) => ({ ...d, transaction: { ...d.transaction, ...values } }))
+      write('transactions', id, values)
+      return { found: true, sourceUrl: result.source_url ?? null }
+    },
+
     onPickSavedContact: (contactId: string, savedId: string) => {
       const s = savedContacts.find((x) => x.id === savedId)
       if (!s) return

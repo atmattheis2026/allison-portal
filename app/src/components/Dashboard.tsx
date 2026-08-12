@@ -67,6 +67,11 @@ export interface DashboardHandlers {
    *  listing link. Lives on the parent (needs Supabase access), not here.
    *  Resolves to whether it actually found anything. */
   onFetchListingPreview?: (url: string) => Promise<boolean>
+  /** Fallback for when the listing link is blocked or there isn't one —
+   *  searches the open web for the transaction's address instead
+   *  (search-home-facts). Resolves with whether it found anything and,
+   *  if so, which page it came from, so that can be shown for verification. */
+  onSearchHomeFacts?: () => Promise<{ found: boolean; sourceUrl: string | null }>
   onPickSavedContact?: (contactId: string, savedId: string) => void
   onSaveContact?: (contact: Contact) => void
   onUploadContactPhoto?: (contactId: string, file: File) => void
@@ -188,7 +193,8 @@ export default function Dashboard({
           )}
           {showRealEstateCol && (
             <HomeInfoSection tx={tx} editable={editable} onPatch={h.onPatchTransaction}
-                             onFetchListingPreview={h.onFetchListingPreview} />
+                             onFetchListingPreview={h.onFetchListingPreview}
+                             onSearchHomeFacts={h.onSearchHomeFacts} />
           )}
           {showRealEstateCol && (
             <NotesBoard title="Real Estate Updates" side="real_estate" notes={notes}
@@ -317,27 +323,51 @@ function OfferDetailsSection({ tx, editable, onPatch }: {
 
 /**
  * Listing link + HOA/tax/school district/county. Pasting the link tries to
- * fill the rest in automatically (see fetch-link-preview) — best-effort,
- * since this data usually isn't in a simple meta tag the way a photo is.
- * Whatever doesn't come back gets typed in by hand, same as everything
- * else on this page.
+ * fill the rest in automatically — best-effort, since this data usually
+ * isn't in a simple meta tag the way a photo is, and several sites (Zillow
+ * especially) block a plain fetch of the link outright. When that happens,
+ * this falls back to searching the open web for the address instead
+ * (search-home-facts) — a county assessor page or another site that isn't
+ * blocked the same way. Whatever doesn't come back gets typed in by hand,
+ * same as everything else on this page.
  */
-function HomeInfoSection({ tx, editable, onPatch, onFetchListingPreview }: {
+function HomeInfoSection({ tx, editable, onPatch, onFetchListingPreview, onSearchHomeFacts }: {
   tx: Transaction; editable: boolean
   onPatch?: (v: Partial<Transaction>) => void
   onFetchListingPreview?: (url: string) => Promise<boolean>
+  onSearchHomeFacts?: () => Promise<{ found: boolean; sourceUrl: string | null }>
 }) {
   const hasAnyFact = tx.hoa_fee || tx.property_tax || tx.school_district || tx.county || tx.listing_url
   if (!editable && !hasAnyFact) return null
 
   const [lookupStatus, setLookupStatus] = useState<'idle' | 'loading' | 'found' | 'empty'>('idle')
+  const [foundSourceUrl, setFoundSourceUrl] = useState<string | null>(null)
 
-  async function lookUp(url: string) {
-    if (!url.trim() || !onFetchListingPreview) return
+  async function lookUp() {
     setLookupStatus('loading')
-    const found = await onFetchListingPreview(url)
+    setFoundSourceUrl(null)
+
+    let found = false
+    let sourceUrl: string | null = null
+
+    if (tx.listing_url?.trim() && onFetchListingPreview) {
+      found = await onFetchListingPreview(tx.listing_url)
+      if (found) sourceUrl = tx.listing_url
+    }
+    // The direct link either wasn't there or came back empty (a common
+    // firewall/bot-block case) — try searching the web for the address
+    // instead of giving up.
+    if (!found && onSearchHomeFacts) {
+      const result = await onSearchHomeFacts()
+      found = result.found
+      sourceUrl = result.sourceUrl
+    }
+
+    setFoundSourceUrl(sourceUrl)
     setLookupStatus(found ? 'found' : 'empty')
   }
+
+  const canLookUp = Boolean(tx.listing_url?.trim() || tx.address_line?.trim())
 
   const inputStyle: React.CSSProperties = {
     width: '100%', background: 'var(--panel-2)', border: '1px solid var(--line)',
@@ -358,22 +388,29 @@ function HomeInfoSection({ tx, editable, onPatch, onFetchListingPreview }: {
             <div style={{ display: 'flex', gap: 8 }}>
               <input style={inputStyle} value={tx.listing_url ?? ''} placeholder="Paste the MLS/Zillow listing link"
                      onChange={(e) => { onPatch?.({ listing_url: e.target.value }); setLookupStatus('idle') }}
-                     onBlur={(e) => lookUp(e.target.value)} />
+                     onBlur={() => { if (tx.listing_url?.trim()) lookUp() }} />
               <button type="button" className="btn" style={{ flex: 'none' }}
-                      disabled={!tx.listing_url?.trim() || lookupStatus === 'loading'}
-                      onClick={() => lookUp(tx.listing_url ?? '')}>
+                      disabled={!canLookUp || lookupStatus === 'loading'}
+                      onClick={lookUp}>
                 {lookupStatus === 'loading' ? 'Looking…' : 'Look it up'}
               </button>
             </div>
             {lookupStatus === 'empty' && (
               <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-                Couldn't find HOA, tax, school district, or county on that page automatically —
-                some sites (Zillow especially) block this. Enter what you have below.
+                Couldn't find HOA, tax, school district, or county automatically — some sites
+                (Zillow especially) block this, and a web search for the address didn't turn up
+                anything usable either. Enter what you have below.
               </p>
             )}
             {lookupStatus === 'found' && (
               <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-                Found something below — worth a quick check against the listing.
+                Found something below
+                {foundSourceUrl && (
+                  <> — from <a href={foundSourceUrl} target="_blank" rel="noreferrer">
+                    {(() => { try { return new URL(foundSourceUrl).hostname.replace(/^www\./, '') }
+                              catch { return 'that page' } })()}
+                  </a></>
+                )}, worth a quick check before trusting it.
               </p>
             )}
           </div>

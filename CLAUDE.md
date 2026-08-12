@@ -212,6 +212,36 @@ next:
   when `useCanSeeHomePage()` is true for them — most mentors will never see
   it, since most won't have a grant.
 
+## HOA / property tax lookup (Home Info)
+
+Two edge functions, deliberately layered rather than one:
+
+- **`fetch-link-preview`** — given the transaction's listing link, fetches
+  that one page and greps it for HOA/tax/school district/county
+  (`extractHomeFacts()`). Several sites (Zillow especially) block a plain
+  server fetch outright, so this often comes back empty.
+- **`search-home-facts`** — the fallback, added 2026-08-13. No listing link,
+  or the link came back without HOA/tax: searches the open web for the
+  transaction's address (DuckDuckGo's no-JS HTML results page, no API key,
+  no account, no cost — Allison was explicit about not wanting to pay for a
+  property-data API) and tries a few of the results instead of the one
+  blocked link. Still best-effort — county tax pages vary wildly in format,
+  so this often finds less than a human clicking around would.
+
+Both return through the same UI: `HomeInfoSection` in `Dashboard.tsx` has one
+"Look it up" button that tries `onFetchListingPreview` first (if there's a
+link) and falls back to `onSearchHomeFacts` automatically when that comes up
+empty. It shows which page a found value came from (`sourceUrl`) so she can
+click through and verify — same "needs to be verified" disclaimer either
+way. `AdminLead.tsx`'s `fillHomeFacts()` runs the identical two-step lookup
+automatically right after "Convert to transaction," not just on manual click.
+
+**Don't skip the fallback to save a request.** The direct-link fetch failing
+silently (empty result, no error) is indistinguishable from it succeeding
+with nothing to find — always try the web-search fallback when the direct
+fetch comes back without `hoa_fee`/`property_tax`, don't assume "no listing
+link" is the only case that needs it.
+
 ## Still to do
 
 - Both company logos — she uploads them in Settings › Branding

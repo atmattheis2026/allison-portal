@@ -293,21 +293,42 @@ export default function AdminLead() {
   }
 
   // After a transaction exists, best-effort fetches HOA, property tax,
-  // school district, and county from the listing link — same lookup and
-  // same "needs to be verified" disclaimer already on the transaction's own
-  // Home Info section (see fetch-link-preview and Dashboard.tsx). Only
-  // fills photo_url if the transaction doesn't already have one from the
-  // home it was converted from.
-  async function fillHomeFactsFromListing(txId: string, listingUrl: string, hasPhotoAlready: boolean) {
+  // school district, and county — same lookup and same "needs to be
+  // verified" disclaimer already on the transaction's own Home Info section
+  // (see Dashboard.tsx). Tries the listing link first if there is one; when
+  // that's missing, blocked, or comes back without HOA/tax (a common
+  // firewall case — Zillow especially), falls back to searching the open
+  // web for the address instead of leaving it blank. Only fills photo_url
+  // if the transaction doesn't already have one from the home it was
+  // converted from.
+  async function fillHomeFacts(
+    txId: string,
+    opts: { listingUrl: string | null; address: string; hasPhotoAlready: boolean },
+  ) {
     if (!supabase) return
-    const { data: preview } = await supabase.functions.invoke('fetch-link-preview', { body: { url: listingUrl } })
-    if (!preview) return
     const values: Record<string, unknown> = {}
-    if (preview.photo_url && !hasPhotoAlready) values.photo_url = preview.photo_url
-    if (preview.hoa_fee) values.hoa_fee = preview.hoa_fee
-    if (preview.property_tax) values.property_tax = preview.property_tax
-    if (preview.school_district) values.school_district = preview.school_district
-    if (preview.county) values.county = preview.county
+
+    if (opts.listingUrl) {
+      const { data: preview } = await supabase.functions.invoke('fetch-link-preview', { body: { url: opts.listingUrl } })
+      if (preview) {
+        if (preview.photo_url && !opts.hasPhotoAlready) values.photo_url = preview.photo_url
+        if (preview.hoa_fee) values.hoa_fee = preview.hoa_fee
+        if (preview.property_tax) values.property_tax = preview.property_tax
+        if (preview.school_district) values.school_district = preview.school_district
+        if (preview.county) values.county = preview.county
+      }
+    }
+
+    if (!values.hoa_fee && !values.property_tax && opts.address.trim()) {
+      const { data: result } = await supabase.functions.invoke('search-home-facts', { body: { address: opts.address } })
+      if (result) {
+        if (!values.hoa_fee && result.hoa_fee) values.hoa_fee = result.hoa_fee
+        if (!values.property_tax && result.property_tax) values.property_tax = result.property_tax
+        if (!values.school_district && result.school_district) values.school_district = result.school_district
+        if (!values.county && result.county) values.county = result.county
+      }
+    }
+
     if (Object.keys(values).length === 0) return
     await supabase.from('transactions').update(values).eq('id', txId)
   }
@@ -330,7 +351,11 @@ export default function AdminLead() {
       p_lead_id: id, p_home_id: homeId,
     })
     if (error || !txId) { setConverting(false); alert(error?.message ?? 'Could not convert this lead.'); return }
-    if (home?.url) await fillHomeFactsFromListing(txId, home.url, Boolean(home.photo_url))
+    await fillHomeFacts(txId, {
+      listingUrl: home?.url ?? null,
+      address: `${home?.address_line ?? ''} ${home?.city_state_zip ?? ''}`.trim(),
+      hasPhotoAlready: Boolean(home?.photo_url),
+    })
     setConverting(false)
     setShowConvertPicker(false)
     nav(`/admin/t/${txId}`)
@@ -352,7 +377,11 @@ export default function AdminLead() {
       listing_url: values.listingUrl || null,
     }).eq('id', txId)
 
-    if (values.listingUrl) await fillHomeFactsFromListing(txId, values.listingUrl, false)
+    await fillHomeFacts(txId, {
+      listingUrl: values.listingUrl || null,
+      address: `${values.address} ${values.cityStateZip}`.trim(),
+      hasPhotoAlready: false,
+    })
     setConverting(false)
     setShowConvertPicker(false)
     nav(`/admin/t/${txId}`)
