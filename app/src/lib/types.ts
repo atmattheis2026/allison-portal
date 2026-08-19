@@ -547,6 +547,19 @@ export interface ResourceFolderAccess {
   mentor_id: string | null
 }
 
+/** A free-typed note in a folder's own running log — same shape as the
+ *  Updates board on transactions/leads (see migration 067). `notified`
+ *  reflects whether the poster checked "notify people about this one" and
+ *  it actually sent, not just whether they asked to. */
+export interface ResourceFolderNote {
+  id: string
+  folder_id: string
+  author_name: string | null
+  body: string
+  notified: boolean
+  created_at: string
+}
+
 // -------------------------------------------------------------- agent network
 
 /** A referring/sponsoring agent who mentors people in network_agents. A

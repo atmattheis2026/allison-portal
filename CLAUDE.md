@@ -242,6 +242,31 @@ with nothing to find — always try the web-search fallback when the direct
 fetch comes back without `hoa_fee`/`property_tax`, don't assume "no listing
 link" is the only case that needs it.
 
+## Home Page folder notes + notifications
+
+Added 2026-08-19, migration `067_resource_folder_notes.sql`. Each folder gets
+its own free-typed running log (`resource_folder_notes`) — same shape and
+same `notelist`/`note`/`notemeta`/`noteauthor`/`notewhen`/`notebody`/`noteadd`
+CSS classes as the Updates board on transactions/leads (migrations 008, 056).
+Same access rule as everything else in a folder: `can_access_resource_folder()`.
+
+**Notifications are opt-in per note, not per person and not a digest.**
+Allison was explicit: notified, but not every time. She picked "whoever
+posts decides" over the other two options (a per-person subscribe toggle, or
+a daily digest) — there is no notification-preference table anywhere in this
+schema, on purpose. The person posting a note checks a box; if checked, the
+client calls the `notify-resource-folder-note` edge function right after the
+insert, which emails everyone in `resource_folder_access` for that folder
+(minus the poster) via Resend — same email-sending pattern as
+`notify-client`/`send-team-invite` (`RESEND_API_KEY` env var, HTML template
+inline in the function). **Do not build a scheduled digest or a
+per-person subscribe column for this without her asking again** — both were
+explicitly considered and turned down.
+
+`resource_folder_notes.notified` records whether a send actually happened
+(shown as a small "Notified" tag in the UI) — it's set by the edge function
+after sending, not by the client optimistically.
+
 ## Still to do
 
 - Both company logos — she uploads them in Settings › Branding

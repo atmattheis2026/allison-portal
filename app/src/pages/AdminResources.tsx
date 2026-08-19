@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
-import { RESOURCES, RESOURCE_FOLDERS, RESOURCE_FOLDER_ACCESS, TEAM_MEMBERS, MENTORS } from '../lib/demoData'
-import type { Resource, ResourceCategory, ResourceFolder, ResourceFolderAccess, TeamMember, Mentor } from '../lib/types'
+import { RESOURCES, RESOURCE_FOLDERS, RESOURCE_FOLDER_ACCESS, RESOURCE_FOLDER_NOTES, TEAM_MEMBERS, MENTORS } from '../lib/demoData'
+import type { Resource, ResourceCategory, ResourceFolder, ResourceFolderAccess, ResourceFolderNote, TeamMember, Mentor } from '../lib/types'
 import { RESOURCE_CATEGORY_LABEL } from '../lib/types'
 import AdminNav from '../components/AdminNav'
 import { useIsDatabaseManager } from '../lib/useIsDatabaseManager'
@@ -26,6 +26,7 @@ const CATEGORIES: ResourceCategory[] = ['agents', 'transactions', 'general']
 export default function AdminResources() {
   const [rows, setRows] = useState<Resource[] | null>(null)
   const [folders, setFolders] = useState<ResourceFolder[]>([])
+  const [folderNotes, setFolderNotes] = useState<ResourceFolderNote[]>([])
   const [isMentorViewer, setIsMentorViewer] = useState(false)
   const [addingTo, setAddingTo] = useState<{ category: ResourceCategory; folderId: string | null } | null>(null)
   const [creatingFolderIn, setCreatingFolderIn] = useState<ResourceCategory | null>(null)
@@ -37,6 +38,7 @@ export default function AdminResources() {
     if (DEMO_MODE || !supabase) {
       setRows(RESOURCES)
       setFolders(RESOURCE_FOLDERS)
+      setFolderNotes(RESOURCE_FOLDER_NOTES)
       return
     }
 
@@ -56,6 +58,11 @@ export default function AdminResources() {
         .from('resources').select('*').order('category').order('sort_order')
       if (error) console.error(error)
       setRows((data as Resource[]) ?? [])
+
+      const { data: noteData, error: noteError } = await supabase!
+        .from('resource_folder_notes').select('*').order('created_at', { ascending: false })
+      if (noteError) console.error(noteError)
+      setFolderNotes((noteData as ResourceFolderNote[]) ?? [])
     }
     load()
   }, [nav])
@@ -70,6 +77,10 @@ export default function AdminResources() {
     setRows((cur) => cur?.filter((r) => r.id !== id) ?? cur)
     if (DEMO_MODE || !supabase) return
     await supabase.from('resources').delete().eq('id', id)
+  }
+
+  function addedFolderNote(n: ResourceFolderNote) {
+    setFolderNotes((cur) => [n, ...cur])
   }
 
   function createdFolder(f: ResourceFolder) {
@@ -193,6 +204,12 @@ export default function AdminResources() {
                         </button>
                       </div>
                     )}
+
+                    <FolderNotesBoard
+                      folder={folder}
+                      notes={folderNotes.filter((n) => n.folder_id === folder.id)}
+                      onAdded={addedFolderNote}
+                    />
                   </div>
                 ))}
 
@@ -237,6 +254,90 @@ function ResourceList({ items, onRemove }: { items: Resource[]; onRemove: (id: s
           {r.description && <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>{r.description}</p>}
         </div>
       ))}
+    </div>
+  )
+}
+
+/**
+ * A folder's own running log — same shape as the Updates board on
+ * transactions/leads. Silent by default: notes don't email anyone unless
+ * the person posting checks the box, which then notifies everyone
+ * currently granted access to this folder (see migration 067 and the
+ * notify-resource-folder-note edge function) — not a digest, not a
+ * per-person setting, just "whoever posts decides" for that one note.
+ */
+function FolderNotesBoard({ folder, notes, onAdded }: {
+  folder: ResourceFolder; notes: ResourceFolderNote[]; onAdded: (n: ResourceFolderNote) => void
+}) {
+  const [draft, setDraft] = useState('')
+  const [notify, setNotify] = useState(false)
+  const [posting, setPosting] = useState(false)
+
+  async function post() {
+    const body = draft.trim()
+    if (!body) return
+
+    if (DEMO_MODE || !supabase) {
+      onAdded({
+        id: `demo-note-${Date.now()}`, folder_id: folder.id, author_name: 'You',
+        body, notified: notify, created_at: new Date().toISOString(),
+      })
+      setDraft(''); setNotify(false)
+      return
+    }
+
+    setPosting(true)
+    const { data: auth } = await supabase.auth.getUser()
+    const { data: me } = await supabase.from('profiles').select('full_name').eq('id', auth.user?.id).single()
+    const authorName = me?.full_name || null
+
+    const { data: row, error } = await supabase.from('resource_folder_notes')
+      .insert({ folder_id: folder.id, body, author_name: authorName })
+      .select('*').single()
+
+    if (error || !row) { setPosting(false); alert(error?.message ?? 'Could not post that.'); return }
+
+    if (notify) {
+      await supabase.functions.invoke('notify-resource-folder-note', { body: { folder_note_id: row.id } })
+      row.notified = true
+    }
+
+    setPosting(false)
+    onAdded(row as ResourceFolderNote)
+    setDraft(''); setNotify(false)
+  }
+
+  return (
+    <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--line-soft)' }}>
+      <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Notes</label>
+      {notes.length === 0 ? (
+        <p className="muted" style={{ fontSize: 12.5, marginBottom: 8 }}>No notes yet.</p>
+      ) : (
+        <div className="notelist">
+          {notes.map((n) => (
+            <div className="note" key={n.id}>
+              <div className="notemeta">
+                {n.author_name && <span className="noteauthor">{n.author_name}</span>}
+                <span className="notewhen">{new Date(n.created_at).toLocaleDateString('en-US', {
+                  month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+                })}</span>
+                {n.notified && <span className="tag" style={{ fontSize: 10, flex: 'none' }}>Notified</span>}
+              </div>
+              <p className="notebody">{n.body}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="noteadd">
+        <textarea rows={2} value={draft} placeholder="Type a note…" onChange={(e) => setDraft(e.target.value)} />
+        <label className="cl" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}>
+          <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+          Notify people with access to this folder
+        </label>
+        <button type="button" className="btn" onClick={post} disabled={!draft.trim() || posting}>
+          {posting ? 'Posting…' : 'Post'}
+        </button>
+      </div>
     </div>
   )
 }

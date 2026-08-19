@@ -1,7 +1,7 @@
 import type {
   SharedPayload, Milestone, DocLine, Contact, TeamMember, SavedContact,
   Mentor, NetworkAgent, NetworkChecklistItem, NetworkChecklistTemplate,
-  Resource, ResourceFolder, ResourceFolderAccess,
+  Resource, ResourceFolder, ResourceFolderAccess, ResourceFolderNote,
 } from './types'
 
 /**
@@ -476,6 +476,19 @@ export const RESOURCE_FOLDERS: ResourceFolder[] = [
 export const RESOURCE_FOLDER_ACCESS: ResourceFolderAccess[] = [
   { id: 'acc-1', folder_id: 'fold-1', team_member_id: 'tm-marcus', mentor_id: null },
   { id: 'acc-2', folder_id: 'fold-1', team_member_id: null, mentor_id: 'mn-derek' },
+]
+
+export const RESOURCE_FOLDER_NOTES: ResourceFolderNote[] = [
+  {
+    id: 'fnote-1', folder_id: 'fold-1', author_name: 'Allison Mattheis',
+    body: 'Added the updated welcome letter template — use this one going forward.',
+    notified: true, created_at: '2026-08-10T15:00:00Z',
+  },
+  {
+    id: 'fnote-2', folder_id: 'fold-1', author_name: 'Derek Alvarez',
+    body: 'Thanks — printed a few copies for the new agents starting next week.',
+    notified: false, created_at: '2026-08-11T09:30:00Z',
+  },
 ]
 
 export const RESOURCES: Resource[] = [
