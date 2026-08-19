@@ -503,10 +503,11 @@ export function parseAddressFromListingUrl(url: string): { street: string; cityS
 
 // -------------------------------------------------------------- resources
 
-export type ResourceCategory = 'agents' | 'transactions' | 'general'
+export type ResourceCategory = 'agents' | 'transactions' | 'loans' | 'general'
 export const RESOURCE_CATEGORY_LABEL: Record<ResourceCategory, string> = {
   agents: 'Recruiting',
   transactions: 'For transactions',
+  loans: 'Loans',
   general: 'General',
 }
 

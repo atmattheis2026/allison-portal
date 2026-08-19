@@ -156,6 +156,15 @@ these into one code with a role picker in the UI.
 
 ## Home Page / Resources (Database Manager reference page)
 
+Four sections as of 2026-08-19 (migration `068_loans_category.sql` added
+`loans` as its own `ResourceCategory` — Allison wanted it separate from
+`general` so loan folders don't get buried among unrelated docs): Recruiting
+(`agents`), For Transactions (`transactions`), Loans (`loans`), General
+(`general`). Adding a fifth category means widening the check constraint on
+BOTH `resources.category` and `resource_folders.category` (they're separate
+constraints, easy to update one and miss the other) plus `ResourceCategory`
+in `types.ts` and the `CATEGORIES` array in `AdminResources.tsx`.
+
 Added 2026-08-12, migration `065_resources.sql`, relabeled "Home Page" and
 moved to the front of the nav the same day — `AdminResources.tsx` and the
 `resources` table/route are still named for what it stores, but every

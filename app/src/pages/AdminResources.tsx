@@ -8,7 +8,7 @@ import AdminNav from '../components/AdminNav'
 import { useIsDatabaseManager } from '../lib/useIsDatabaseManager'
 import './Admin.css'
 
-const CATEGORIES: ResourceCategory[] = ['agents', 'transactions', 'general']
+const CATEGORIES: ResourceCategory[] = ['agents', 'transactions', 'loans', 'general']
 
 /**
  * The Home Page — Database Managers manage it, and can open individual
