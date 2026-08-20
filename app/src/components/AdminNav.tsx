@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { TeamMember } from '../lib/types'
@@ -20,6 +20,13 @@ export default function AdminNav({ current }: {
 }) {
   const [canSeeRolodex, setCanSeeRolodex] = useState(DEMO_MODE)
   const canSeeHomePage = useCanSeeHomePage()
+  const nav = useNavigate()
+
+  async function signOut() {
+    if (DEMO_MODE || !supabase) return
+    await supabase.auth.signOut()
+    nav('/login')
+  }
 
   useEffect(() => {
     if (DEMO_MODE || !supabase) return
@@ -42,12 +49,17 @@ export default function AdminNav({ current }: {
   ]
 
   return (
-    <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '12px 0', borderBottom: '1px solid var(--line-soft)', marginBottom: 18 }}>
+    <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--line-soft)', marginBottom: 18 }}>
       {items.map((it) => (
         it.key === current
           ? <span key={it.key} className="btn" style={{ opacity: .5, pointerEvents: 'none' }}>{it.label}</span>
           : <Link key={it.key} className="btn" to={it.to}>{it.label}</Link>
       ))}
+      {!DEMO_MODE && (
+        <button type="button" className="btn" style={{ marginLeft: 'auto' }} onClick={signOut}>
+          Sign out
+        </button>
+      )}
     </nav>
   )
 }
