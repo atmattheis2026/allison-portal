@@ -31,6 +31,7 @@ export default function AdminResources() {
   const [addingTo, setAddingTo] = useState<{ category: ResourceCategory; folderId: string | null } | null>(null)
   const [creatingFolderIn, setCreatingFolderIn] = useState<ResourceCategory | null>(null)
   const [managingAccessFor, setManagingAccessFor] = useState<string | null>(null)
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set())
   const nav = useNavigate()
   const isDatabaseManager = useIsDatabaseManager()
 
@@ -86,6 +87,14 @@ export default function AdminResources() {
   function createdFolder(f: ResourceFolder) {
     setFolders((cur) => [...cur, f])
     setCreatingFolderIn(null)
+  }
+
+  function toggleFolderCollapsed(folderId: string) {
+    setCollapsedFolders((cur) => {
+      const next = new Set(cur)
+      if (next.has(folderId)) next.delete(folderId); else next.add(folderId)
+      return next
+    })
   }
 
   async function deleteFolder(folder: ResourceFolder) {
@@ -168,12 +177,20 @@ export default function AdminResources() {
                   )
                 )}
 
-                {catFolders.map((folder) => (
+                {catFolders.map((folder) => {
+                  const isCollapsed = collapsedFolders.has(folder.id)
+                  return (
                   <div key={folder.id} style={{
                     marginTop: 16, background: 'var(--panel-2)', border: '1px solid var(--line)',
                     borderRadius: 'var(--r-md)', padding: '12px 14px',
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: isCollapsed ? 0 : 8 }}>
+                      <button type="button" className="btn" style={{ flex: 'none', padding: '4px 8px' }}
+                              onClick={() => toggleFolderCollapsed(folder.id)}
+                              title={isCollapsed ? 'Open folder' : 'Minimize folder'}
+                              aria-label={isCollapsed ? 'Open folder' : 'Minimize folder'}>
+                        {isCollapsed ? '▸' : '▾'}
+                      </button>
                       <strong style={{ flex: 1 }}>{folder.name}</strong>
                       {isDatabaseManager && (
                         <>
@@ -189,29 +206,34 @@ export default function AdminResources() {
                       )}
                     </div>
 
-                    {isDatabaseManager && managingAccessFor === folder.id && (
-                      <FolderAccessEditor folder={folder} />
+                    {!isCollapsed && (
+                      <>
+                        {isDatabaseManager && managingAccessFor === folder.id && (
+                          <FolderAccessEditor folder={folder} />
+                        )}
+
+                        <ResourceList items={rows.filter((r) => r.folder_id === folder.id)} onRemove={removeResource} />
+
+                        {addingTo?.category === cat && addingTo.folderId === folder.id ? (
+                          <AddResource category={cat} folderId={folder.id} onCancel={() => setAddingTo(null)} onAdded={addedResource} />
+                        ) : (
+                          <div className="savebar">
+                            <button className="btn" onClick={() => setAddingTo({ category: cat, folderId: folder.id })}>
+                              + Add a doc or link
+                            </button>
+                          </div>
+                        )}
+
+                        <FolderNotesBoard
+                          folder={folder}
+                          notes={folderNotes.filter((n) => n.folder_id === folder.id)}
+                          onAdded={addedFolderNote}
+                        />
+                      </>
                     )}
-
-                    <ResourceList items={rows.filter((r) => r.folder_id === folder.id)} onRemove={removeResource} />
-
-                    {addingTo?.category === cat && addingTo.folderId === folder.id ? (
-                      <AddResource category={cat} folderId={folder.id} onCancel={() => setAddingTo(null)} onAdded={addedResource} />
-                    ) : (
-                      <div className="savebar">
-                        <button className="btn" onClick={() => setAddingTo({ category: cat, folderId: folder.id })}>
-                          + Add a doc or link
-                        </button>
-                      </div>
-                    )}
-
-                    <FolderNotesBoard
-                      folder={folder}
-                      notes={folderNotes.filter((n) => n.folder_id === folder.id)}
-                      onAdded={addedFolderNote}
-                    />
                   </div>
-                ))}
+                  )
+                })}
 
                 {isDatabaseManager && (
                   creatingFolderIn === cat ? (
