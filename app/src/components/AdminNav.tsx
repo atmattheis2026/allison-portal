@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { TeamMember } from '../lib/types'
 import { useCanSeeHomePage } from '../lib/useCanSeeHomePage'
+import { useIsDatabaseManager } from '../lib/useIsDatabaseManager'
 
 /**
  * Consistent quick-jump links shown at the top of every admin page, so
@@ -18,8 +19,10 @@ import { useCanSeeHomePage } from '../lib/useCanSeeHomePage'
 export default function AdminNav({ current }: {
   current: 'transactions' | 'leads' | 'closed' | 'rolodex' | 'network' | 'resources' | 'settings'
 }) {
-  const [canSeeRolodex, setCanSeeRolodex] = useState(DEMO_MODE)
+  const [seesAllTransactions, setSeesAllTransactions] = useState(DEMO_MODE)
   const canSeeHomePage = useCanSeeHomePage()
+  const isDatabaseManager = useIsDatabaseManager()
+  const canSeeRolodex = seesAllTransactions || isDatabaseManager
   const nav = useNavigate()
 
   async function signOut() {
@@ -34,7 +37,7 @@ export default function AdminNav({ current }: {
       if (!auth.user) return
       const { data: members } = await supabase!.from('team_members').select('*')
       const mine = (members as TeamMember[] | null)?.find((m) => m.profile_id === auth.user!.id)
-      setCanSeeRolodex(Boolean(mine?.sees_all_transactions || mine?.roles.includes('admin')))
+      setSeesAllTransactions(Boolean(mine?.sees_all_transactions))
     })
   }, [])
 
