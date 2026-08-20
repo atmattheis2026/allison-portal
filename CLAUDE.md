@@ -71,6 +71,19 @@ every client's transaction to every other client.
 **Do not remove RLS policies.** Every table is locked to the user's team. Turning
 that off means her whole business is readable by anyone with the app's public key.
 
+**Client-side "can they see this" checks must account for `is_platform_admin`,
+not just team_members roles.** Found and fixed 2026-08-19: `useIsDatabaseManager()`
+and the Rolodex check in `AdminNav.tsx` only checked `team_members.roles`/
+`sees_all_transactions`, never `profiles.is_platform_admin` — but RLS policies
+almost everywhere OR in `is_platform_admin()` as a full bypass. Allison's own
+account has the flag but no `admin` team role, so for her specifically the
+database was willing to let her do things (create a Home Page folder, see
+Rolodex) that the UI simply never showed her the door to. Any new "should I
+show this button/link" check needs the same OR, or it'll silently diverge
+from what RLS actually allows — and it'll look like "the page is missing,"
+not like a permissions bug, which makes it much harder to diagnose from a
+bug report alone.
+
 **Milestones are rows, not code.** To add or remove a checklist step, she does it in
 Settings › Checklists. Do not hard-code checklist items into components.
 
