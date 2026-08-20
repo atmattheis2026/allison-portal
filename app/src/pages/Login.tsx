@@ -210,6 +210,9 @@ export default function Login() {
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="At least 6 characters"
             />
+            <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+              Needs to be at least 6 characters.
+            </p>
             <label className="eyebrow" style={{ display: 'block', margin: '14px 0 8px' }}>
               Confirm passcode
             </label>
