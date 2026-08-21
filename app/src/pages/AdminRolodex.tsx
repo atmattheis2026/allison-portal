@@ -7,7 +7,7 @@ import './Admin.css'
 
 interface Row {
   key: string
-  kind: 'contact' | 'lead' | 'saved'
+  kind: 'contact' | 'lead' | 'saved' | 'folder'
   id: string
   name: string
   phone: string | null
@@ -35,9 +35,14 @@ interface Row {
  *                         attached to that deal — same rule the transaction
  *                         itself enforces (see migration 060).
  *  Professional Contacts  Agents, lenders, vendors — pulled from every
- *                         transaction's contacts PLUS the team's saved
- *                         contacts list, which anyone can add straight to
- *                         and everyone on the team can see, deal or no deal.
+ *                         transaction's contacts, the team's saved contacts
+ *                         list (visible to everyone, deal or no deal), and
+ *                         every Home Page folder's contacts list. That last
+ *                         source relies entirely on `resource_folder_contacts`'
+ *                         own RLS (`can_access_resource_folder`) to decide who
+ *                         sees what — a person only sees a folder contact here
+ *                         if they can already see that folder on the Home
+ *                         Page, so a grant on the folder is all it takes.
  *
  * RLS already decides what comes back for whoever's signed in — this page
  * just renders whatever it gets.
@@ -84,6 +89,15 @@ export default function AdminRolodex() {
     const { data: savedRows } = await supabase
       .from('saved_contacts')
       .select('id, name, phone, email, role_label, address, business_name')
+
+    // RLS on resource_folder_contacts already restricts this to folders the
+    // signed-in person can access — no team-wide visibility here, unlike
+    // saved_contacts above.
+    const { data: folderContactRows } = await supabase
+      .from('resource_folder_contacts')
+      .select('id, name, phone, email, role_label, note, folder_id, resource_folders(name)')
+      .not('name', 'is', null)
+      .neq('name', '')
 
     // Traces each transaction contact back to a closed lead (if any), so
     // "Reactivate for a new deal" can show up right on that contact's row —
@@ -150,7 +164,24 @@ export default function AdminRolodex() {
       businessName: s.business_name,
     }))
 
-    setRows([...fromContacts, ...fromLeads, ...fromSaved])
+    const fromFolderContacts: Row[] = ((folderContactRows ?? []) as unknown as Array<{
+      id: string; name: string; phone: string | null; email: string | null
+      role_label: string | null; note: string | null; folder_id: string
+      resource_folders: { name: string } | null
+    }>).filter((c) => c.name?.trim()).map((c) => ({
+      key: `fc-${c.id}`,
+      kind: 'folder',
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+      email: c.email,
+      roleLabel: c.role_label || 'Contact',
+      context: c.resource_folders ? `Home Page — ${c.resource_folders.name}` : 'Home Page',
+      href: '/admin/resources',
+      isClient: false,
+    }))
+
+    setRows([...fromContacts, ...fromLeads, ...fromSaved, ...fromFolderContacts])
   }
 
   useEffect(() => { load() }, [nav])
@@ -172,7 +203,10 @@ export default function AdminRolodex() {
       : `Remove "${r.name || 'this contact'}"? This can't be undone.`
     if (!confirm(confirmMsg)) return
     setDeletingKey(r.key)
-    const table = r.kind === 'lead' ? 'leads' : r.kind === 'saved' ? 'saved_contacts' : 'contacts'
+    const table = r.kind === 'lead' ? 'leads'
+      : r.kind === 'saved' ? 'saved_contacts'
+      : r.kind === 'folder' ? 'resource_folder_contacts'
+      : 'contacts'
     const { error } = await supabase.from(table).delete().eq('id', r.id)
     setDeletingKey(null)
     if (error) { alert(`Couldn't delete it: ${error.message}`); return }

@@ -336,15 +336,40 @@ style icons you click to open, one folder's contents visible at a time.
   `buildCrumbs`, each non-current crumb clickable to jump straight back to
   that depth) above a gold-tinted panel (`rgba(201,164,76,0.06)` background,
   `var(--gold-soft)` border — the same wash used for "current step"
-  elsewhere in the app) containing a "← Back" button, the folder's own docs,
-  contacts, notes, and a row of `FolderTile`s for its subfolders. Only the
+  elsewhere in the app) containing a "← Back" button, then in order: the
+  folder's own docs, its subfolder `FolderTile`s (if any) + "+ New folder",
+  contacts (only if it has no subfolders — see below), then notes. Only the
   currently-open folder's contents render — never a parent's and a child's
   content at the same time.
+- **Contacts only render on a "leaf" folder** (`subfolders.length === 0`),
+  added 2026-08-21 per Allison's feedback. A category folder like "DSCR
+  loans" that just holds lender folders has no Contacts section — there's no
+  person to call for a loan *type*. A lender folder like "Summit Lending"
+  (no children) still shows Contacts, matching her original ask ("open their
+  folder, I can see documents, loan requirements, notes and the best contact
+  people"). This is computed live from `subfolders.length`, not a stored
+  flag — if she ever adds a subfolder to what was a leaf folder, its
+  Contacts section will disappear on next load. That's expected; don't
+  "fix" it without her asking.
 - Deleting the currently-open folder (`FolderDetail`'s "Delete folder"
   button) navigates back to its parent afterward — `deleteFolder` in
   `AdminResources.tsx` returns a boolean (true = actually deleted, false =
   the user cancelled the confirm) specifically so the caller knows whether
   to pop the path.
+
+**Folder contacts also show in the Rolodex, added 2026-08-21.**
+`AdminRolodex.tsx`'s `load()` now also queries `resource_folder_contacts`
+(joined to `resource_folders` for the folder's name, shown as context —
+e.g. "Home Page — Summit Lending") and merges those into Professional
+Contacts as a new row `kind: 'folder'`. No new access logic was needed: this
+table's own RLS (`can_access_resource_folder`) already restricts a `select`
+to folders the signed-in person can reach, so a person only sees a folder
+contact in their Rolodex if they could already see that folder on the Home
+Page — a grant on the folder is enough, nothing folder-contact-specific to
+maintain. Deleting a `kind: 'folder'` row from the Rolodex deletes straight
+from `resource_folder_contacts`. There's no deep link back to the specific
+folder (Home Page navigation is client-side path state, not a URL) — the
+row's link just goes to `/admin/resources`.
 
 ## Still to do
 
