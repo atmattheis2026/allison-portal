@@ -308,18 +308,43 @@ its own docs/notes/contacts.
   use this exact same function; there's no separate contacts permission.
 - **Known limitation, left alone on purpose:** granting a subfolder directly
   (skipping its parent) makes that subfolder selectable via RLS, but the UI
-  renders subfolders only by iterating through a *visible* parent
-  (`FolderCard` filters `allFolders` by `parent_folder_id`) — so a subfolder
-  granted without its parent won't render anywhere for that person. Recommend
-  granting the top-level folder instead. Don't build a fetch-orphaned-
-  subfolders-separately fix unless she specifically asks for that case.
-- `FolderCard` in `AdminResources.tsx` renders itself recursively for its own
-  subfolders via `{...props} folder={sf}` — if you add a new prop to
-  `FolderCardProps`, every recursive call already forwards it for free, but
-  double check any prop that's meant to vary by depth (none currently do).
+  only reaches a subfolder by drilling into a *visible* parent tile
+  (`FolderDetail` filters `allFolders` by `parent_folder_id` for its own
+  subfolder list) — so a subfolder granted without its parent won't be
+  reachable for that person. Recommend granting the top-level folder instead.
+  Don't build a fetch-orphaned-subfolders-separately fix unless she
+  specifically asks for that case.
 - Contacts are edited inline (create a blank row, then type into it) —
   same pattern as `lead_priorities`/appointments in `AdminLead.tsx`, not a
   separate add-then-save form like `AddResource` uses for docs/links.
+
+**Navigation UI, rebuilt 2026-08-21** — the first version showed every folder
+fully expanded, recursively, all at once (an accordion). Allison rejected it
+as "too busy... messy and hard to see what belongs where" and asked for
+something "familiar to all computer users": Explorer/Finder/Google-Drive-
+style icons you click to open, one folder's contents visible at a time.
+
+- `AdminResources.tsx` keeps `pathByCategory: Record<string, string[]>` —
+  one drill-down path per top-level category (agents/transactions/loans/
+  general), e.g. `{loans: ['fold-dscr', 'fold-summit']}`. An empty path means
+  "show the category's own top-level folders," not any folder's contents.
+- `FolderTile` renders one clickable gold folder icon (`FolderIcon`, inline
+  SVG, no icon library) + name; clicking it pushes that folder's id onto the
+  category's path. Used both for a category's top-level folders and for a
+  `FolderDetail`'s own subfolders — same component either way.
+- `FolderDetail` is the "opened folder" view: a breadcrumb row (built by
+  `buildCrumbs`, each non-current crumb clickable to jump straight back to
+  that depth) above a gold-tinted panel (`rgba(201,164,76,0.06)` background,
+  `var(--gold-soft)` border — the same wash used for "current step"
+  elsewhere in the app) containing a "← Back" button, the folder's own docs,
+  contacts, notes, and a row of `FolderTile`s for its subfolders. Only the
+  currently-open folder's contents render — never a parent's and a child's
+  content at the same time.
+- Deleting the currently-open folder (`FolderDetail`'s "Delete folder"
+  button) navigates back to its parent afterward — `deleteFolder` in
+  `AdminResources.tsx` returns a boolean (true = actually deleted, false =
+  the user cancelled the confirm) specifically so the caller knows whether
+  to pop the path.
 
 ## Still to do
 
