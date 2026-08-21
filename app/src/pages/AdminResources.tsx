@@ -467,18 +467,6 @@ function FolderDetail(props: FolderDetailProps) {
           </div>
         )}
 
-        <FolderContactsList
-          folder={folder}
-          contacts={folderContacts.filter((c) => c.folder_id === folder.id)}
-          onAdded={onAddedContact} onPatched={onPatchedContact} onRemoved={onRemovedContact}
-        />
-
-        <FolderNotesBoard
-          folder={folder}
-          notes={folderNotes.filter((n) => n.folder_id === folder.id)}
-          onAdded={onAddedFolderNote}
-        />
-
         {subfolders.length > 0 && (
           <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--line-soft)' }}>
             <label className="eyebrow" style={{ display: 'block', marginBottom: 4 }}>Folders</label>
@@ -502,6 +490,20 @@ function FolderDetail(props: FolderDetailProps) {
             </div>
           )
         )}
+
+        {subfolders.length === 0 && (
+          <FolderContactsList
+            folder={folder}
+            contacts={folderContacts.filter((c) => c.folder_id === folder.id)}
+            onAdded={onAddedContact} onPatched={onPatchedContact} onRemoved={onRemovedContact}
+          />
+        )}
+
+        <FolderNotesBoard
+          folder={folder}
+          notes={folderNotes.filter((n) => n.folder_id === folder.id)}
+          onAdded={onAddedFolderNote}
+        />
       </div>
     </div>
   )
