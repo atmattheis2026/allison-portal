@@ -289,6 +289,38 @@ explicitly considered and turned down.
 (shown as a small "Notified" tag in the UI) — it's set by the edge function
 after sending, not by the client optimistically.
 
+## Home Page nested folders + contacts
+
+Added 2026-08-19, migration `069_folder_nesting_and_contacts.sql` — built for
+Allison's Loans scenario: a top-level folder per loan type (DSCR,
+Conventional, ...), a subfolder per lender inside that, each folder holding
+its own docs/notes/contacts.
+
+- `resource_folders.parent_folder_id` is self-referencing, nullable — null
+  is top-level (every folder before this migration). `category` is still
+  set on every folder including subfolders, always inherited from the
+  top-level ancestor; it's only used for which section to render under.
+- **Access is inherited down the chain.** `can_access_resource_folder()`
+  walks up `parent_folder_id` (a recursive CTE) — a grant on any ancestor,
+  including the folder itself, is enough. Granting the top-level "DSCR
+  loans" folder gives someone every lender subfolder inside it automatically
+  — that's the point, not an accident. Contacts (`resource_folder_contacts`)
+  use this exact same function; there's no separate contacts permission.
+- **Known limitation, left alone on purpose:** granting a subfolder directly
+  (skipping its parent) makes that subfolder selectable via RLS, but the UI
+  renders subfolders only by iterating through a *visible* parent
+  (`FolderCard` filters `allFolders` by `parent_folder_id`) — so a subfolder
+  granted without its parent won't render anywhere for that person. Recommend
+  granting the top-level folder instead. Don't build a fetch-orphaned-
+  subfolders-separately fix unless she specifically asks for that case.
+- `FolderCard` in `AdminResources.tsx` renders itself recursively for its own
+  subfolders via `{...props} folder={sf}` — if you add a new prop to
+  `FolderCardProps`, every recursive call already forwards it for free, but
+  double check any prop that's meant to vary by depth (none currently do).
+- Contacts are edited inline (create a blank row, then type into it) —
+  same pattern as `lead_priorities`/appointments in `AdminLead.tsx`, not a
+  separate add-then-save form like `AddResource` uses for docs/links.
+
 ## Still to do
 
 - Both company logos — she uploads them in Settings › Branding

@@ -1,7 +1,7 @@
 import type {
   SharedPayload, Milestone, DocLine, Contact, TeamMember, SavedContact,
   Mentor, NetworkAgent, NetworkChecklistItem, NetworkChecklistTemplate,
-  Resource, ResourceFolder, ResourceFolderAccess, ResourceFolderNote,
+  Resource, ResourceFolder, ResourceFolderAccess, ResourceFolderNote, ResourceFolderContact,
 } from './types'
 
 /**
@@ -466,8 +466,12 @@ export const NETWORK_CHECKLIST_ITEMS: Record<string, NetworkChecklistItem[]> = {
 // -------------------------------------------------------------- resources
 
 export const RESOURCE_FOLDERS: ResourceFolder[] = [
-  { id: 'fold-1', category: 'agents', name: "New agent starter pack", sort_order: 10, created_at: '2026-08-01T00:00:00Z' },
-  { id: 'fold-2', category: 'transactions', name: 'Title company documents', sort_order: 10, created_at: '2026-08-01T00:00:00Z' },
+  { id: 'fold-1', category: 'agents', parent_folder_id: null, name: "New agent starter pack", sort_order: 10, created_at: '2026-08-01T00:00:00Z' },
+  { id: 'fold-2', category: 'transactions', parent_folder_id: null, name: 'Title company documents', sort_order: 10, created_at: '2026-08-01T00:00:00Z' },
+  // A loan type as a top-level Loans folder, with a lender as a subfolder
+  // inside it — the exact shape Allison asked for (migration 069).
+  { id: 'fold-3', category: 'loans', parent_folder_id: null, name: 'DSCR loans', sort_order: 10, created_at: '2026-08-19T00:00:00Z' },
+  { id: 'fold-4', category: 'loans', parent_folder_id: 'fold-3', name: 'Summit Lending', sort_order: 10, created_at: '2026-08-19T00:00:00Z' },
 ]
 
 // Marcus Webb (a realtor, tm-marcus) and Derek Alvarez (a mentor, mn-derek)
@@ -488,6 +492,19 @@ export const RESOURCE_FOLDER_NOTES: ResourceFolderNote[] = [
     id: 'fnote-2', folder_id: 'fold-1', author_name: 'Derek Alvarez',
     body: 'Thanks — printed a few copies for the new agents starting next week.',
     notified: false, created_at: '2026-08-11T09:30:00Z',
+  },
+  {
+    id: 'fnote-3', folder_id: 'fold-3', author_name: 'Allison Mattheis',
+    body: 'General reminder: most DSCR lenders want a 680+ credit score and 1.0+ debt service coverage ratio minimum. Varies by lender — check each one\'s folder for specifics.',
+    notified: false, created_at: '2026-08-18T14:00:00Z',
+  },
+]
+
+export const RESOURCE_FOLDER_CONTACTS: ResourceFolderContact[] = [
+  {
+    id: 'fcontact-1', folder_id: 'fold-4', name: 'Rich Surek', role_label: 'Loan Officer',
+    phone: '+14075550166', email: 'rich@gouslending.com',
+    note: 'Fastest turnaround on DSCR — call first.', sort_order: 10,
   },
 ]
 
@@ -526,5 +543,10 @@ export const RESOURCES: Resource[] = [
     id: 'res-5', category: 'general', folder_id: null, title: 'Office phone / Slack directory',
     description: null, url: 'https://example.com/directory',
     file_url: null, file_name: null, sort_order: 10, created_at: '2026-05-01T00:00:00Z',
+  },
+  {
+    id: 'res-8', category: 'loans', folder_id: 'fold-4', title: 'DSCR loan requirements — Summit Lending',
+    description: 'Min 680 credit, 1.0 DSCR, 20% down.', url: null,
+    file_url: null, file_name: 'summit-dscr-requirements.pdf', sort_order: 10, created_at: '2026-08-19T00:00:00Z',
   },
 ]

@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
-import { RESOURCES, RESOURCE_FOLDERS, RESOURCE_FOLDER_ACCESS, RESOURCE_FOLDER_NOTES, TEAM_MEMBERS, MENTORS } from '../lib/demoData'
-import type { Resource, ResourceCategory, ResourceFolder, ResourceFolderAccess, ResourceFolderNote, TeamMember, Mentor } from '../lib/types'
+import {
+  RESOURCES, RESOURCE_FOLDERS, RESOURCE_FOLDER_ACCESS, RESOURCE_FOLDER_NOTES, RESOURCE_FOLDER_CONTACTS,
+  TEAM_MEMBERS, MENTORS,
+} from '../lib/demoData'
+import type {
+  Resource, ResourceCategory, ResourceFolder, ResourceFolderAccess, ResourceFolderNote, ResourceFolderContact,
+  TeamMember, Mentor,
+} from '../lib/types'
 import { RESOURCE_CATEGORY_LABEL } from '../lib/types'
 import AdminNav from '../components/AdminNav'
 import { useIsDatabaseManager } from '../lib/useIsDatabaseManager'
@@ -23,13 +29,21 @@ const CATEGORIES: ResourceCategory[] = ['agents', 'transactions', 'loans', 'gene
  * a Database Manager sees everything. See useCanSeeHomePage() for how the
  * nav link itself decides whether to show up for someone.
  */
+/** Every folder id nested (at any depth) under `folderId`. */
+function getDescendantFolderIds(folderId: string, allFolders: ResourceFolder[]): string[] {
+  const children = allFolders.filter((f) => f.parent_folder_id === folderId)
+  return children.flatMap((c) => [c.id, ...getDescendantFolderIds(c.id, allFolders)])
+}
+
 export default function AdminResources() {
   const [rows, setRows] = useState<Resource[] | null>(null)
   const [folders, setFolders] = useState<ResourceFolder[]>([])
   const [folderNotes, setFolderNotes] = useState<ResourceFolderNote[]>([])
+  const [folderContacts, setFolderContacts] = useState<ResourceFolderContact[]>([])
   const [isMentorViewer, setIsMentorViewer] = useState(false)
   const [addingTo, setAddingTo] = useState<{ category: ResourceCategory; folderId: string | null } | null>(null)
-  const [creatingFolderIn, setCreatingFolderIn] = useState<ResourceCategory | null>(null)
+  const [creatingFolderIn, setCreatingFolderIn] =
+    useState<{ category: ResourceCategory; parentFolderId: string | null } | null>(null)
   const [managingAccessFor, setManagingAccessFor] = useState<string | null>(null)
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set())
   const nav = useNavigate()
@@ -40,6 +54,7 @@ export default function AdminResources() {
       setRows(RESOURCES)
       setFolders(RESOURCE_FOLDERS)
       setFolderNotes(RESOURCE_FOLDER_NOTES)
+      setFolderContacts(RESOURCE_FOLDER_CONTACTS)
       return
     }
 
@@ -64,6 +79,11 @@ export default function AdminResources() {
         .from('resource_folder_notes').select('*').order('created_at', { ascending: false })
       if (noteError) console.error(noteError)
       setFolderNotes((noteData as ResourceFolderNote[]) ?? [])
+
+      const { data: contactData, error: contactError } = await supabase!
+        .from('resource_folder_contacts').select('*').order('sort_order')
+      if (contactError) console.error(contactError)
+      setFolderContacts((contactData as ResourceFolderContact[]) ?? [])
     }
     load()
   }, [nav])
@@ -84,6 +104,22 @@ export default function AdminResources() {
     setFolderNotes((cur) => [n, ...cur])
   }
 
+  function addedFolderContact(c: ResourceFolderContact) {
+    setFolderContacts((cur) => [...cur, c])
+  }
+
+  async function patchedFolderContact(id: string, values: Partial<ResourceFolderContact>) {
+    setFolderContacts((cur) => cur.map((c) => (c.id === id ? { ...c, ...values } : c)))
+    if (DEMO_MODE || !supabase) return
+    await supabase.from('resource_folder_contacts').update(values).eq('id', id)
+  }
+
+  async function removedFolderContact(id: string) {
+    setFolderContacts((cur) => cur.filter((c) => c.id !== id))
+    if (DEMO_MODE || !supabase) return
+    await supabase.from('resource_folder_contacts').delete().eq('id', id)
+  }
+
   function createdFolder(f: ResourceFolder) {
     setFolders((cur) => [...cur, f])
     setCreatingFolderIn(null)
@@ -98,13 +134,20 @@ export default function AdminResources() {
   }
 
   async function deleteFolder(folder: ResourceFolder) {
-    const count = rows?.filter((r) => r.folder_id === folder.id).length ?? 0
-    const warning = count > 0
-      ? `Delete "${folder.name}" and everything in it (${count} file${count === 1 ? '' : 's'})? This can't be undone.`
+    const descendantIds = getDescendantFolderIds(folder.id, folders)
+    const allIds = [folder.id, ...descendantIds]
+    const fileCount = rows?.filter((r) => r.folder_id && allIds.includes(r.folder_id)).length ?? 0
+    const parts: string[] = []
+    if (descendantIds.length > 0) parts.push(`${descendantIds.length} subfolder${descendantIds.length === 1 ? '' : 's'}`)
+    if (fileCount > 0) parts.push(`${fileCount} file${fileCount === 1 ? '' : 's'}`)
+    const warning = parts.length > 0
+      ? `Delete "${folder.name}" and everything in it (${parts.join(' and ')})? This can't be undone.`
       : `Delete "${folder.name}"? This can't be undone.`
     if (!confirm(warning)) return
-    setFolders((cur) => cur.filter((f) => f.id !== folder.id))
-    setRows((cur) => cur?.filter((r) => r.folder_id !== folder.id) ?? cur)
+    setFolders((cur) => cur.filter((f) => !allIds.includes(f.id)))
+    setRows((cur) => cur?.filter((r) => !r.folder_id || !allIds.includes(r.folder_id)) ?? cur)
+    setFolderNotes((cur) => cur.filter((n) => !allIds.includes(n.folder_id)))
+    setFolderContacts((cur) => cur.filter((c) => !allIds.includes(c.folder_id)))
     if (DEMO_MODE || !supabase) return
     await supabase.from('resource_folders').delete().eq('id', folder.id)
   }
@@ -150,8 +193,8 @@ export default function AdminResources() {
         <div style={{ display: 'grid', gap: 18, maxWidth: 780, margin: '0 auto' }}>
           {CATEGORIES.map((cat) => {
             const unfiled = rows.filter((r) => r.category === cat && !r.folder_id)
-            const catFolders = folders.filter((f) => f.category === cat)
-            if (!isDatabaseManager && unfiled.length === 0 && catFolders.length === 0) return null
+            const topFolders = folders.filter((f) => f.category === cat && !f.parent_folder_id)
+            if (!isDatabaseManager && unfiled.length === 0 && topFolders.length === 0) return null
 
             return (
               <div className="card setcard" key={cat}>
@@ -177,70 +220,44 @@ export default function AdminResources() {
                   )
                 )}
 
-                {catFolders.map((folder) => {
-                  const isCollapsed = collapsedFolders.has(folder.id)
-                  return (
-                  <div key={folder.id} style={{
-                    marginTop: 16, background: 'var(--panel-2)', border: '1px solid var(--line)',
-                    borderRadius: 'var(--r-md)', padding: '12px 14px',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: isCollapsed ? 0 : 8 }}>
-                      <button type="button" className="btn" style={{ flex: 'none', padding: '4px 8px' }}
-                              onClick={() => toggleFolderCollapsed(folder.id)}
-                              title={isCollapsed ? 'Open folder' : 'Minimize folder'}
-                              aria-label={isCollapsed ? 'Open folder' : 'Minimize folder'}>
-                        {isCollapsed ? '▸' : '▾'}
-                      </button>
-                      <strong style={{ flex: 1 }}>{folder.name}</strong>
-                      {isDatabaseManager && (
-                        <>
-                          <button type="button" className="btn"
-                                  onClick={() => setManagingAccessFor(managingAccessFor === folder.id ? null : folder.id)}>
-                            {managingAccessFor === folder.id ? 'Done' : 'Manage access'}
-                          </button>
-                          <button type="button" className="btn" style={{ color: 'var(--danger, #cc3311)' }}
-                                  onClick={() => deleteFolder(folder)}>
-                            Delete folder
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                    {!isCollapsed && (
-                      <>
-                        {isDatabaseManager && managingAccessFor === folder.id && (
-                          <FolderAccessEditor folder={folder} />
-                        )}
-
-                        <ResourceList items={rows.filter((r) => r.folder_id === folder.id)} onRemove={removeResource} />
-
-                        {addingTo?.category === cat && addingTo.folderId === folder.id ? (
-                          <AddResource category={cat} folderId={folder.id} onCancel={() => setAddingTo(null)} onAdded={addedResource} />
-                        ) : (
-                          <div className="savebar">
-                            <button className="btn" onClick={() => setAddingTo({ category: cat, folderId: folder.id })}>
-                              + Add a doc or link
-                            </button>
-                          </div>
-                        )}
-
-                        <FolderNotesBoard
-                          folder={folder}
-                          notes={folderNotes.filter((n) => n.folder_id === folder.id)}
-                          onAdded={addedFolderNote}
-                        />
-                      </>
-                    )}
-                  </div>
-                  )
-                })}
+                {topFolders.map((folder) => (
+                  <FolderCard
+                    key={folder.id}
+                    folder={folder}
+                    category={cat}
+                    allFolders={folders}
+                    rows={rows}
+                    folderNotes={folderNotes}
+                    folderContacts={folderContacts}
+                    isDatabaseManager={isDatabaseManager}
+                    collapsedFolders={collapsedFolders}
+                    toggleFolderCollapsed={toggleFolderCollapsed}
+                    addingTo={addingTo}
+                    setAddingTo={setAddingTo}
+                    creatingFolderIn={creatingFolderIn}
+                    setCreatingFolderIn={setCreatingFolderIn}
+                    managingAccessFor={managingAccessFor}
+                    setManagingAccessFor={setManagingAccessFor}
+                    onAddedResource={addedResource}
+                    onRemovedResource={removeResource}
+                    onAddedFolderNote={addedFolderNote}
+                    onCreatedFolder={createdFolder}
+                    onDeletedFolder={deleteFolder}
+                    onAddedContact={addedFolderContact}
+                    onPatchedContact={patchedFolderContact}
+                    onRemovedContact={removedFolderContact}
+                  />
+                ))}
 
                 {isDatabaseManager && (
-                  creatingFolderIn === cat ? (
-                    <NewFolder category={cat} onCancel={() => setCreatingFolderIn(null)} onCreated={createdFolder} />
+                  creatingFolderIn?.category === cat && creatingFolderIn.parentFolderId === null ? (
+                    <NewFolder category={cat} parentFolderId={null}
+                               onCancel={() => setCreatingFolderIn(null)} onCreated={createdFolder} />
                   ) : (
                     <div className="savebar" style={{ marginTop: 10 }}>
-                      <button className="btn" onClick={() => setCreatingFolderIn(cat)}>+ New folder</button>
+                      <button className="btn" onClick={() => setCreatingFolderIn({ category: cat, parentFolderId: null })}>
+                        + New folder
+                      </button>
                     </div>
                   )
                 )}
@@ -276,6 +293,214 @@ function ResourceList({ items, onRemove }: { items: Resource[]; onRemove: (id: s
           {r.description && <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>{r.description}</p>}
         </div>
       ))}
+    </div>
+  )
+}
+
+interface FolderCardProps {
+  folder: ResourceFolder
+  category: ResourceCategory
+  allFolders: ResourceFolder[]
+  rows: Resource[]
+  folderNotes: ResourceFolderNote[]
+  folderContacts: ResourceFolderContact[]
+  isDatabaseManager: boolean
+  collapsedFolders: Set<string>
+  toggleFolderCollapsed: (id: string) => void
+  addingTo: { category: ResourceCategory; folderId: string | null } | null
+  setAddingTo: (v: { category: ResourceCategory; folderId: string | null } | null) => void
+  creatingFolderIn: { category: ResourceCategory; parentFolderId: string | null } | null
+  setCreatingFolderIn: (v: { category: ResourceCategory; parentFolderId: string | null } | null) => void
+  managingAccessFor: string | null
+  setManagingAccessFor: (v: string | null) => void
+  onAddedResource: (r: Resource) => void
+  onRemovedResource: (id: string) => void
+  onAddedFolderNote: (n: ResourceFolderNote) => void
+  onCreatedFolder: (f: ResourceFolder) => void
+  onDeletedFolder: (f: ResourceFolder) => void
+  onAddedContact: (c: ResourceFolderContact) => void
+  onPatchedContact: (id: string, v: Partial<ResourceFolderContact>) => void
+  onRemovedContact: (id: string) => void
+}
+
+/**
+ * One folder, at any nesting depth — renders itself recursively for its own
+ * subfolders (migration 069). A person's access to a folder covers its
+ * docs, notes, AND contacts uniformly (one `can_access_resource_folder`
+ * check server-side), and cascades to every subfolder inside it, so a grant
+ * on "DSCR loans" is enough to see every lender folder underneath without a
+ * separate grant per lender.
+ */
+function FolderCard(props: FolderCardProps) {
+  const {
+    folder, category, allFolders, rows, folderNotes, folderContacts, isDatabaseManager,
+    collapsedFolders, toggleFolderCollapsed, addingTo, setAddingTo, creatingFolderIn, setCreatingFolderIn,
+    managingAccessFor, setManagingAccessFor,
+    onAddedResource, onRemovedResource, onAddedFolderNote, onCreatedFolder, onDeletedFolder,
+    onAddedContact, onPatchedContact, onRemovedContact,
+  } = props
+
+  const isCollapsed = collapsedFolders.has(folder.id)
+  const subfolders = allFolders.filter((f) => f.parent_folder_id === folder.id)
+
+  return (
+    <div style={{
+      marginTop: 16, background: 'var(--panel-2)', border: '1px solid var(--line)',
+      borderRadius: 'var(--r-md)', padding: '12px 14px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: isCollapsed ? 0 : 8 }}>
+        <button type="button" className="btn" style={{ flex: 'none', padding: '4px 8px' }}
+                onClick={() => toggleFolderCollapsed(folder.id)}
+                title={isCollapsed ? 'Open folder' : 'Minimize folder'}
+                aria-label={isCollapsed ? 'Open folder' : 'Minimize folder'}>
+          {isCollapsed ? '▸' : '▾'}
+        </button>
+        <strong style={{ flex: 1 }}>{folder.name}</strong>
+        {isDatabaseManager && (
+          <>
+            <button type="button" className="btn"
+                    onClick={() => setManagingAccessFor(managingAccessFor === folder.id ? null : folder.id)}>
+              {managingAccessFor === folder.id ? 'Done' : 'Manage access'}
+            </button>
+            <button type="button" className="btn" style={{ color: 'var(--danger, #cc3311)' }}
+                    onClick={() => onDeletedFolder(folder)}>
+              Delete folder
+            </button>
+          </>
+        )}
+      </div>
+
+      {!isCollapsed && (
+        <>
+          {isDatabaseManager && managingAccessFor === folder.id && (
+            <FolderAccessEditor folder={folder} />
+          )}
+
+          <ResourceList items={rows.filter((r) => r.folder_id === folder.id)} onRemove={onRemovedResource} />
+
+          {addingTo?.category === category && addingTo.folderId === folder.id ? (
+            <AddResource category={category} folderId={folder.id} onCancel={() => setAddingTo(null)} onAdded={onAddedResource} />
+          ) : (
+            <div className="savebar">
+              <button className="btn" onClick={() => setAddingTo({ category, folderId: folder.id })}>
+                + Add a doc or link
+              </button>
+            </div>
+          )}
+
+          <FolderContactsList
+            folder={folder}
+            contacts={folderContacts.filter((c) => c.folder_id === folder.id)}
+            onAdded={onAddedContact} onPatched={onPatchedContact} onRemoved={onRemovedContact}
+          />
+
+          <FolderNotesBoard
+            folder={folder}
+            notes={folderNotes.filter((n) => n.folder_id === folder.id)}
+            onAdded={onAddedFolderNote}
+          />
+
+          {subfolders.length > 0 && (
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--line-soft)' }}>
+              <label className="eyebrow" style={{ display: 'block', marginBottom: 4 }}>Folders</label>
+              {subfolders.map((sf) => (
+                <FolderCard key={sf.id} {...props} folder={sf} />
+              ))}
+            </div>
+          )}
+
+          {isDatabaseManager && (
+            creatingFolderIn?.parentFolderId === folder.id ? (
+              <NewFolder category={category} parentFolderId={folder.id}
+                         onCancel={() => setCreatingFolderIn(null)} onCreated={onCreatedFolder} />
+            ) : (
+              <div className="savebar" style={{ marginTop: 10 }}>
+                <button className="btn" onClick={() => setCreatingFolderIn({ category, parentFolderId: folder.id })}>
+                  + New folder
+                </button>
+              </div>
+            )
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Best people to call for this folder — e.g. the loan officer for a
+ * specific lender. Same access as everything else in the folder; anyone who
+ * can see the folder can add, edit, and remove contacts in it.
+ */
+function FolderContactsList({ folder, contacts, onAdded, onPatched, onRemoved }: {
+  folder: ResourceFolder
+  contacts: ResourceFolderContact[]
+  onAdded: (c: ResourceFolderContact) => void
+  onPatched: (id: string, values: Partial<ResourceFolderContact>) => void
+  onRemoved: (id: string) => void
+}) {
+  async function addContact() {
+    if (DEMO_MODE || !supabase) {
+      onAdded({
+        id: `demo-contact-${Date.now()}`, folder_id: folder.id, name: '', role_label: null,
+        phone: null, email: null, note: null, sort_order: contacts.length,
+      })
+      return
+    }
+    const { data, error } = await supabase.from('resource_folder_contacts')
+      .insert({ folder_id: folder.id, name: '', sort_order: contacts.length })
+      .select('*').single()
+    if (error || !data) { alert(error?.message ?? 'Could not add that.'); return }
+    onAdded(data as ResourceFolderContact)
+  }
+
+  return (
+    <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--line-soft)' }}>
+      <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Contacts</label>
+      {contacts.length === 0 && (
+        <p className="muted" style={{ fontSize: 12.5, marginBottom: 8 }}>No contacts yet.</p>
+      )}
+      {contacts.map((c) => (
+        <div key={c.id} style={{
+          background: 'var(--panel)', border: '1px solid var(--line-soft)', borderRadius: 'var(--r-sm)',
+          padding: '10px 12px', marginBottom: 8,
+        }}>
+          <div className="field2">
+            <div className="field">
+              <label>Name</label>
+              <input value={c.name} onChange={(e) => onPatched(c.id, { name: e.target.value })} placeholder="Name" />
+            </div>
+            <div className="field">
+              <label>Role</label>
+              <input value={c.role_label ?? ''} onChange={(e) => onPatched(c.id, { role_label: e.target.value || null })}
+                     placeholder="e.g. Loan officer" />
+            </div>
+          </div>
+          <div className="field2">
+            <div className="field">
+              <label>Phone</label>
+              <input value={c.phone ?? ''} onChange={(e) => onPatched(c.id, { phone: e.target.value || null })} />
+            </div>
+            <div className="field">
+              <label>Email</label>
+              <input value={c.email ?? ''} onChange={(e) => onPatched(c.id, { email: e.target.value || null })} />
+            </div>
+          </div>
+          <div className="field">
+            <label>Note</label>
+            <input value={c.note ?? ''} onChange={(e) => onPatched(c.id, { note: e.target.value || null })}
+                   placeholder="Best time to reach, specialty, etc." />
+          </div>
+          <div className="savebar" style={{ marginTop: 8 }}>
+            <button type="button" className="btn" style={{ color: 'var(--danger, #cc3311)' }} onClick={() => onRemoved(c.id)}>
+              Delete
+            </button>
+          </div>
+        </div>
+      ))}
+      <div className="savebar">
+        <button type="button" className="btn" onClick={addContact}>+ Add a contact</button>
+      </div>
     </div>
   )
 }
@@ -364,8 +589,9 @@ function FolderNotesBoard({ folder, notes, onAdded }: {
   )
 }
 
-function NewFolder({ category, onCancel, onCreated }: {
-  category: ResourceCategory; onCancel: () => void; onCreated: (f: ResourceFolder) => void
+function NewFolder({ category, parentFolderId, onCancel, onCreated }: {
+  category: ResourceCategory; parentFolderId: string | null
+  onCancel: () => void; onCreated: (f: ResourceFolder) => void
 }) {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
@@ -382,7 +608,7 @@ function NewFolder({ category, onCancel, onCreated }: {
     if (!me?.team_id) { setErr('Couldn’t work out which team you’re on.'); setBusy(false); return }
 
     const { data, error } = await supabase.from('resource_folders')
-      .insert({ team_id: me.team_id, category, name })
+      .insert({ team_id: me.team_id, category, name, parent_folder_id: parentFolderId })
       .select('*').single()
 
     setBusy(false)

@@ -529,10 +529,13 @@ export interface Resource {
 
 /** A folder inside one Home Page section — created and deleted only by a
  *  Database Manager (see migration 066), but can be opened up to specific
- *  people via ResourceFolderAccess. */
+ *  people via ResourceFolderAccess. `parent_folder_id` null means top-level;
+ *  set means it's a subfolder (migration 069) — access to a parent cascades
+ *  down to every subfolder inside it. */
 export interface ResourceFolder {
   id: string
   category: ResourceCategory
+  parent_folder_id: string | null
   name: string
   sort_order: number
   created_at: string
@@ -559,6 +562,20 @@ export interface ResourceFolderNote {
   body: string
   notified: boolean
   created_at: string
+}
+
+/** A person to call for this folder — e.g. the loan officer for a specific
+ *  lender's DSCR loans. Same access as everything else in the folder
+ *  (migration 069), no separate permission. */
+export interface ResourceFolderContact {
+  id: string
+  folder_id: string
+  name: string
+  role_label: string | null
+  phone: string | null
+  email: string | null
+  note: string | null
+  sort_order: number
 }
 
 // -------------------------------------------------------------- agent network
