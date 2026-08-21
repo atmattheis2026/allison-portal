@@ -314,9 +314,18 @@ its own docs/notes/contacts.
   reachable for that person. Recommend granting the top-level folder instead.
   Don't build a fetch-orphaned-subfolders-separately fix unless she
   specifically asks for that case.
-- Contacts are edited inline (create a blank row, then type into it) —
-  same pattern as `lead_priorities`/appointments in `AdminLead.tsx`, not a
-  separate add-then-save form like `AddResource` uses for docs/links.
+- **Contacts use an explicit Save/Cancel form, not auto-save-on-keystroke**
+  (changed 2026-08-21 — the original inline-edit pattern below is
+  superseded). A saved contact renders read-only (name/role/phone/email/
+  note as plain text) with Edit and Delete buttons; Edit opens that one
+  contact into a form (local draft state, nothing written until Save).
+  "+ Add a contact" works the same way — draft-only until Save inserts it.
+  Cancel on either discards the draft with no write. This was a direct fix
+  for "totally open to mistakes if someone accidentally changes something"
+  — the old version patched Supabase on every single keystroke via
+  `onPatched`, so a stray click into a field could silently overwrite real
+  data. See `ContactFields`/`ContactDraft`/`draftToPatch` in
+  `AdminResources.tsx`.
 
 **Navigation UI, rebuilt 2026-08-21** — the first version showed every folder
 fully expanded, recursively, all at once (an accordion). Allison rejected it

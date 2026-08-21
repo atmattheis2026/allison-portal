@@ -509,37 +509,127 @@ function FolderDetail(props: FolderDetailProps) {
   )
 }
 
+interface ContactDraft {
+  name: string
+  role_label: string
+  phone: string
+  email: string
+  note: string
+}
+
+const EMPTY_CONTACT_DRAFT: ContactDraft = { name: '', role_label: '', phone: '', email: '', note: '' }
+
+function draftFromContact(c: ResourceFolderContact): ContactDraft {
+  return { name: c.name, role_label: c.role_label ?? '', phone: c.phone ?? '', email: c.email ?? '', note: c.note ?? '' }
+}
+
+function ContactFields({ draft, setDraft }: { draft: ContactDraft; setDraft: (d: ContactDraft) => void }) {
+  return (
+    <>
+      <div className="field2">
+        <div className="field">
+          <label>Name</label>
+          <input value={draft.name} autoFocus onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Name" />
+        </div>
+        <div className="field">
+          <label>Role</label>
+          <input value={draft.role_label} onChange={(e) => setDraft({ ...draft, role_label: e.target.value })}
+                 placeholder="e.g. Loan officer" />
+        </div>
+      </div>
+      <div className="field2">
+        <div className="field">
+          <label>Phone</label>
+          <input value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} />
+        </div>
+        <div className="field">
+          <label>Email</label>
+          <input value={draft.email} onChange={(e) => setDraft({ ...draft, email: e.target.value })} />
+        </div>
+      </div>
+      <div className="field">
+        <label>Note</label>
+        <input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })}
+               placeholder="Best time to reach, specialty, etc." />
+      </div>
+    </>
+  )
+}
+
+function draftToPatch(draft: ContactDraft): Partial<ResourceFolderContact> {
+  return {
+    name: draft.name.trim(),
+    role_label: draft.role_label.trim() || null,
+    phone: draft.phone.trim() || null,
+    email: draft.email.trim() || null,
+    note: draft.note.trim() || null,
+  }
+}
+
 /**
  * Best people to call for this folder — e.g. the loan officer for a
  * specific lender. Same access as everything else in the folder; anyone who
  * can see the folder can add, edit, and remove contacts in it.
+ *
+ * Deliberately NOT auto-save-on-keystroke (that was the original design —
+ * changed 2026-08-21 after Allison flagged it as "totally open to mistakes
+ * if someone accidentally changes something"). A saved contact renders
+ * read-only; Edit opens it back into the form, Save/Cancel commit or
+ * discard, same pattern as adding a new one.
  */
 function FolderContactsList({ folder, contacts, onAdded, onPatched, onRemoved }: {
   folder: ResourceFolder
   contacts: ResourceFolderContact[]
   onAdded: (c: ResourceFolderContact) => void
-  onPatched: (id: string, values: Partial<ResourceFolderContact>) => void
+  onPatched: (id: string, values: Partial<ResourceFolderContact>) => Promise<void> | void
   onRemoved: (id: string) => void
 }) {
-  async function addContact() {
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState<ContactDraft>(EMPTY_CONTACT_DRAFT)
+  const [adding, setAdding] = useState(false)
+  const [addDraft, setAddDraft] = useState<ContactDraft>(EMPTY_CONTACT_DRAFT)
+  const [saving, setSaving] = useState(false)
+
+  function startEdit(c: ResourceFolderContact) {
+    setEditingId(c.id)
+    setEditDraft(draftFromContact(c))
+  }
+
+  async function saveEdit(id: string) {
+    if (!editDraft.name.trim()) return
+    setSaving(true)
+    await onPatched(id, draftToPatch(editDraft))
+    setSaving(false)
+    setEditingId(null)
+  }
+
+  function removeContact(c: ResourceFolderContact) {
+    if (!confirm(`Remove ${c.name || 'this contact'}?`)) return
+    if (editingId === c.id) setEditingId(null)
+    onRemoved(c.id)
+  }
+
+  async function saveNew() {
+    if (!addDraft.name.trim()) return
+    setSaving(true)
     if (DEMO_MODE || !supabase) {
-      onAdded({
-        id: `demo-contact-${Date.now()}`, folder_id: folder.id, name: '', role_label: null,
-        phone: null, email: null, note: null, sort_order: contacts.length,
-      })
-      return
+      onAdded({ id: `demo-contact-${Date.now()}`, folder_id: folder.id, sort_order: contacts.length, ...draftToPatch(addDraft) } as ResourceFolderContact)
+    } else {
+      const { data, error } = await supabase.from('resource_folder_contacts')
+        .insert({ folder_id: folder.id, sort_order: contacts.length, ...draftToPatch(addDraft) })
+        .select('*').single()
+      if (error || !data) { alert(error?.message ?? 'Could not add that.'); setSaving(false); return }
+      onAdded(data as ResourceFolderContact)
     }
-    const { data, error } = await supabase.from('resource_folder_contacts')
-      .insert({ folder_id: folder.id, name: '', sort_order: contacts.length })
-      .select('*').single()
-    if (error || !data) { alert(error?.message ?? 'Could not add that.'); return }
-    onAdded(data as ResourceFolderContact)
+    setSaving(false)
+    setAdding(false)
+    setAddDraft(EMPTY_CONTACT_DRAFT)
   }
 
   return (
     <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--line-soft)' }}>
       <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Contacts</label>
-      {contacts.length === 0 && (
+      {contacts.length === 0 && !adding && (
         <p className="muted" style={{ fontSize: 12.5, marginBottom: 8 }}>No contacts yet.</p>
       )}
       {contacts.map((c) => (
@@ -547,42 +637,57 @@ function FolderContactsList({ folder, contacts, onAdded, onPatched, onRemoved }:
           background: 'var(--panel)', border: '1px solid var(--line-soft)', borderRadius: 'var(--r-sm)',
           padding: '10px 12px', marginBottom: 8,
         }}>
-          <div className="field2">
-            <div className="field">
-              <label>Name</label>
-              <input value={c.name} onChange={(e) => onPatched(c.id, { name: e.target.value })} placeholder="Name" />
-            </div>
-            <div className="field">
-              <label>Role</label>
-              <input value={c.role_label ?? ''} onChange={(e) => onPatched(c.id, { role_label: e.target.value || null })}
-                     placeholder="e.g. Loan officer" />
-            </div>
-          </div>
-          <div className="field2">
-            <div className="field">
-              <label>Phone</label>
-              <input value={c.phone ?? ''} onChange={(e) => onPatched(c.id, { phone: e.target.value || null })} />
-            </div>
-            <div className="field">
-              <label>Email</label>
-              <input value={c.email ?? ''} onChange={(e) => onPatched(c.id, { email: e.target.value || null })} />
-            </div>
-          </div>
-          <div className="field">
-            <label>Note</label>
-            <input value={c.note ?? ''} onChange={(e) => onPatched(c.id, { note: e.target.value || null })}
-                   placeholder="Best time to reach, specialty, etc." />
-          </div>
+          {editingId === c.id ? (
+            <>
+              <ContactFields draft={editDraft} setDraft={setEditDraft} />
+              <div className="savebar" style={{ marginTop: 8 }}>
+                <button type="button" className="btn primary" disabled={saving || !editDraft.name.trim()}
+                        onClick={() => saveEdit(c.id)}>
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+                <button type="button" className="btn" onClick={() => setEditingId(null)}>Cancel</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+                <strong>{c.name || <span className="muted">Unnamed contact</span>}</strong>
+                {c.role_label && <span className="muted" style={{ fontSize: 12.5 }}>{c.role_label}</span>}
+              </div>
+              <p className="notebody" style={{ margin: '4px 0 0' }}>
+                {[c.phone, c.email].filter(Boolean).join(' · ') || <span className="muted">No contact info</span>}
+              </p>
+              {c.note && <p className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>{c.note}</p>}
+              <div className="savebar" style={{ marginTop: 8 }}>
+                <button type="button" className="btn" onClick={() => startEdit(c)}>Edit</button>
+                <button type="button" className="btn" style={{ color: 'var(--danger, #cc3311)' }} onClick={() => removeContact(c)}>
+                  Delete
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      ))}
+      {adding ? (
+        <div style={{
+          background: 'var(--panel)', border: '1px solid var(--line-soft)', borderRadius: 'var(--r-sm)',
+          padding: '10px 12px', marginBottom: 8,
+        }}>
+          <ContactFields draft={addDraft} setDraft={setAddDraft} />
           <div className="savebar" style={{ marginTop: 8 }}>
-            <button type="button" className="btn" style={{ color: 'var(--danger, #cc3311)' }} onClick={() => onRemoved(c.id)}>
-              Delete
+            <button type="button" className="btn primary" disabled={saving || !addDraft.name.trim()} onClick={saveNew}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+            <button type="button" className="btn" onClick={() => { setAdding(false); setAddDraft(EMPTY_CONTACT_DRAFT) }}>
+              Cancel
             </button>
           </div>
         </div>
-      ))}
-      <div className="savebar">
-        <button type="button" className="btn" onClick={addContact}>+ Add a contact</button>
-      </div>
+      ) : (
+        <div className="savebar">
+          <button type="button" className="btn" onClick={() => setAdding(true)}>+ Add a contact</button>
+        </div>
+      )}
     </div>
   )
 }
