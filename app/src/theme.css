@@ -12,26 +12,26 @@
    ============================================================= */
 
 :root {
-  --bg:         #0A0D13;
-  --panel:      #0E131B;
-  --panel-2:    #121822;
-  --line:       #1E2733;
-  --line-soft:  #182029;
+  --bg:         #FAF8F3;
+  --panel:      #FFFFFF;
+  --panel-2:    #F2EEE4;
+  --line:       #E1DACB;
+  --line-soft:  #EBE6D9;
 
-  --gold:        #C9A44C;
-  --gold-soft:   #8A7233;
-  --gold-bright: #E3C77E;
+  --gold:        #B08A34;
+  --gold-soft:   #C9A44C;
+  --gold-bright: #8C6B22;
 
-  --lend:        #7F9CB8;
+  --lend:        #4E6E8E;
   --lend-soft:   #3C5064;
-  --lend-bright: #A8C3DB;
+  --lend-bright: #2C4B63;
 
-  --ink:        #EDE7DA;
-  --ink-dim:    #9AA3AF;
-  --ink-faint:  #5E6874;
+  --ink:        #1C232C;
+  --ink-dim:    #4B5563;
+  --ink-faint:  #7C8593;
 
-  --danger:     #C4726A;
-  --ok:         #6FA98A;
+  --danger:     #B5453B;
+  --ok:         #3F8F68;
 
   --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
   --sans:  'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
@@ -120,7 +120,7 @@ input:focus, select, textarea:focus { outline: none; border-color: var(--gold-so
   color: #0A0D13;
   font-weight: 500;
 }
-.btn.primary:hover { background: var(--gold-bright); color: #0A0D13; }
+.btn.primary:hover { background: var(--gold-bright); color: #FAF8F3; }
 
 .spinner {
   width: 22px; height: 22px;
@@ -143,7 +143,7 @@ input:focus, select, textarea:focus { outline: none; border-color: var(--gold-so
 .demobar {
   background: #1A1508;
   border-bottom: 1px solid var(--gold-soft);
-  color: var(--gold-bright);
+  color: #E3C77E;
   font-size: 12px;
   padding: 8px 16px;
   text-align: center;
