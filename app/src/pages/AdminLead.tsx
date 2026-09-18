@@ -169,6 +169,7 @@ export default function AdminLead() {
   const [documents, setDocuments] = useState<LeadDocument[]>([])
   const [uploadingDoc, setUploadingDoc] = useState(false)
   const [notes, setNotes] = useState<LeadNote[]>([])
+  const [buyerOpen, setBuyerOpen] = useState(false)
   const [dealHistory, setDealHistory] = useState<DealHistoryRow[]>([])
   const [copied, setCopied] = useState(false)
   const [converting, setConverting] = useState(false)
@@ -656,6 +657,33 @@ export default function AdminLead() {
       </header>
       <AdminNav current="leads" />
 
+      <div className="card setcard" style={{ maxWidth: 1040, margin: '0 auto 18px' }}>
+        <div className="field">
+          <label>Agent — tap a name to assign</label>
+          <div className="tabs">
+            {roster.map((m) => (
+              <button key={m.id} type="button"
+                      className={`tab${lead.realtor_member_id === m.id ? ' on' : ''}`}
+                      onClick={() => patchLead({ realtor_member_id: m.id })}>
+                {m.full_name}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="field" style={{ marginBottom: 0 }}>
+          <label>Lender — tap a name to assign</label>
+          <div className="tabs">
+            {roster.map((m) => (
+              <button key={m.id} type="button"
+                      className={`tab${lead.lender_member_id === m.id ? ' on' : ''}`}
+                      onClick={() => patchLead({ lender_member_id: m.id })}>
+                {m.full_name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {showConvertPicker && (
         <ConvertPicker
           homes={homes} busy={converting}
@@ -761,8 +789,42 @@ export default function AdminLead() {
 
         <div className="leadgrid">
         <div className="leadcol">
+        <div className="card setcard buyerbar" onClick={() => setBuyerOpen((o) => !o)}>
+          <span className="buyerbar-tag">Buyer</span>
+          <span className="buyerbar-names">
+            {lead.full_name || 'Unnamed buyer'}{lead.full_name_2 ? ` & ${lead.full_name_2}` : ''}
+          </span>
+          <button type="button" className="btn"
+                  onClick={(e) => { e.stopPropagation(); setBuyerOpen((o) => !o) }}>
+            {buyerOpen ? 'Hide details' : 'Show details'}
+          </button>
+        </div>
+        {buyerOpen && (
         <div className="card setcard">
           <h2>Buyer info</h2>
+          <div className="field">
+            <label>Purchasing as</label>
+            <div className="tabs">
+              {(['individual', 'llc', 'trust'] as const).map((t) => (
+                <button key={t} type="button" className={`tab${lead.purchasing_entity === t ? ' on' : ''}`}
+                        onClick={() => patchLead({
+                          purchasing_entity: t,
+                          ...(t === 'individual' ? { purchasing_entity_name: null } : {}),
+                        })}>
+                  {t === 'individual' ? 'Individual' : t === 'llc' ? 'LLC' : 'Trust'}
+                </button>
+              ))}
+            </div>
+            {(lead.purchasing_entity === 'llc' || lead.purchasing_entity === 'trust') && (
+              <input style={{ marginTop: 8 }} value={lead.purchasing_entity_name ?? ''}
+                     placeholder={lead.purchasing_entity === 'llc' ? 'LLC name, for legal documents' : 'Trust name, for legal documents'}
+                     onChange={(e) => patchLead({ purchasing_entity_name: e.target.value || null })} />
+            )}
+            <p className="sethelp" style={{ margin: '8px 0 0' }}>
+              How title will be held — separate from the buyer's own name below, which is
+              still needed for calls, texts, and their client login.
+            </p>
+          </div>
           <div className="field2">
             <div className="field" style={{
               background: 'var(--panel-2)', border: '1px solid var(--line)',
@@ -859,6 +921,7 @@ export default function AdminLead() {
             </>
           )}
         </div>
+        )}
 
         {lead.wants_loan && (
           <div className="card setcard">

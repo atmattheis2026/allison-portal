@@ -115,6 +115,16 @@
 /* Lead detail page: data on the left, schedule/listings on the right. The
    right side carries photos now, so it gets the wider half. Collapses to
    one column on narrower screens rather than squeezing both. */
+.buyerbar {
+  display: flex; align-items: center; gap: 12px; padding: 12px 20px;
+  cursor: pointer; user-select: none;
+}
+.buyerbar-tag {
+  font-size: 11px; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--gold); font-weight: 500; flex: none;
+}
+.buyerbar-names { flex: 1; font-size: 14px; color: var(--ink); font-weight: 600; }
+
 .leadgrid {
   display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 18px; align-items: start;
 }

@@ -294,6 +294,10 @@ export interface Lead {
   dislikes: string | null
   purchase_type: 'investment' | 'personal' | null
   funding_type: 'cash' | 'financing' | null
+  /** How title will be held — separate from the buyer's own name/contact info. */
+  purchasing_entity: 'individual' | 'llc' | 'trust' | null
+  /** Only meaningful when purchasing_entity is 'llc' or 'trust' — its legal name. */
+  purchasing_entity_name: string | null
   has_house_to_sell: boolean
   why_selling: string | null
   general_notes: string | null
