@@ -79,7 +79,7 @@
 .person .role { font-size: 8.5px; letter-spacing: .18em; text-transform: uppercase;
                 color: var(--gold); margin-bottom: 2px; }
 .person.lend .role { color: var(--lend-bright); }
-.person .name { font-size: 12.5px; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; }
+.person .name { font-size: 13.5px; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; }
 .person .lic  { font-size: 10px; color: var(--ink-faint); margin-top: 1px; font-variant-numeric: tabular-nums; }
 
 /* ---------------- progress rail ---------------- */
@@ -99,7 +99,7 @@
 .vstep.done .node { background: var(--gold); border-color: var(--gold); color: #0A0D13; }
 .vstep.current .node { border-color: var(--gold); color: var(--gold-bright);
                        box-shadow: 0 0 0 4px rgba(201,164,76,.10); }
-.vstep .lbl { font-size: 14px; color: var(--ink-dim); line-height: 1.35; }
+.vstep .lbl { font-size: 15px; color: var(--ink-dim); line-height: 1.35; }
 .vstep.done .lbl { color: var(--ink); }
 .vstep.current .lbl { color: var(--gold-bright); }
 .vstep .dt { font-size: 11.5px; color: var(--ink-faint); font-variant-numeric: tabular-nums; margin-top: 1px; }
@@ -122,9 +122,9 @@
 .noteauthor { font-size: 11.5px; color: var(--gold-bright); }
 .notesboard.lending .noteauthor { color: var(--lend-bright); }
 .notewhen { font-size: 10.5px; color: var(--ink-faint); }
-.notebody { font-size: 13px; line-height: 1.55; color: var(--ink-dim); margin: 0; white-space: pre-wrap; }
+.notebody { font-size: 14px; line-height: 1.55; color: var(--ink-dim); margin: 0; white-space: pre-wrap; }
 .noteadd { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-.noteadd textarea { resize: vertical; font-size: 13px; }
+.noteadd textarea { resize: vertical; font-size: 14px; }
 .noteadd .btn { align-self: flex-end; }
 
 /* ---------------- sections ---------------- */
@@ -162,7 +162,7 @@
 }
 .chk.done .box { background: var(--gold); border-color: var(--gold); color: #0A0D13; }
 .sec.lending .chk.done .box { background: var(--lend); border-color: var(--lend); }
-.chk .txt { flex: 1; font-size: 14px; color: var(--ink-dim); line-height: 1.3; }
+.chk .txt { flex: 1; font-size: 15px; color: var(--ink-dim); line-height: 1.3; }
 .chk.done .txt { color: var(--ink); }
 .chk .date { font-size: 11.5px; color: var(--gold); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .chk .date.empty { color: var(--ink-faint); opacity: .45; }
@@ -175,7 +175,7 @@
 .fill .tick { font-size: 11px; width: 11px; color: var(--lend); flex: none; }
 .fill .tick.off { color: var(--ink-faint); opacity: .35; }
 .fill .line { flex: 1; border-bottom: 1px solid var(--line); padding-bottom: 3px;
-              font-size: 13px; color: var(--ink-dim); min-height: 19px; }
+              font-size: 14px; color: var(--ink-dim); min-height: 19px; }
 .fill input.line { background: none; border: none; border-bottom: 1px solid var(--line);
                    border-radius: 0; padding: 2px 0 3px; }
 .fill input.line:focus { border-bottom-color: var(--gold-soft); }
@@ -186,7 +186,7 @@
 .crow:last-child { border-bottom: none; }
 .crow .k { font-size: 12.5px; color: var(--ink-faint); white-space: nowrap; }
 .crow .rt { display: flex; align-items: center; gap: 10px; text-align: right; min-width: 0; }
-.crow .v { font-size: 13.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+.crow .v { font-size: 14.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
 .crow .v.blank { color: var(--ink-faint); opacity: .45; font-style: italic; }
 .tapicon {
   width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line);
@@ -212,9 +212,9 @@
 
 input.inlineEdit.address  { font-family: var(--serif); font-size: 32px; line-height: 1.1; margin: 0 0 2px -4px; }
 input.inlineEdit.cityline { font-family: var(--serif); font-size: 17px; color: var(--gold); margin-left: -4px; }
-input.inlineEdit.name { font-size: 12.5px; }
+input.inlineEdit.name { font-size: 13.5px; }
 input.inlineEdit.lic  { font-size: 10px; color: var(--ink-faint); }
-input.inlineEdit.v    { font-size: 13.5px; text-align: right; }
+input.inlineEdit.v    { font-size: 14.5px; text-align: right; }
 
 .photoSwap {
   position: absolute; left: 10px; top: 10px; z-index: 3; cursor: pointer;
