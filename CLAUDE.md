@@ -68,6 +68,14 @@ purpose. If a client needs to see a new field, add it to that function's JSON â€
 by granting table access to `anon`. Granting anon access to a table would expose
 every client's transaction to every other client.
 
+**`get_shared_lead` must never name columns directly (2026-09-24).** Her live
+database isn't guaranteed to have every migration's columns. plpgsql only checks
+column names when the function runs, so one missing column broke Heather's
+client page twice (071, 072). Migration 073 reads every row through `to_jsonb()`
+and guards each section with its own `exception` block. Keep it that way when
+adding fields: add a key to the matching `jsonb_build_object`, never
+`v_lead.<col>`.
+
 **Do not remove RLS policies.** Every table is locked to the user's team. Turning
 that off means her whole business is readable by anyone with the app's public key.
 
