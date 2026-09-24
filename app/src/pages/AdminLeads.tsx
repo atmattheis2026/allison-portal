@@ -216,7 +216,7 @@ export default function AdminLeads() {
       )}
 
       <header className="adminbar">
-        <span className="wordmark" style={{ fontSize: 15 }}>Active Clients</span>
+        <span className="wordmark" style={{ fontSize: 17.5 }}>Active Clients</span>
         <nav className="adminnav">
           <button className="btn primary" onClick={() => setCreating(true)}>
             New client
@@ -235,7 +235,7 @@ export default function AdminLeads() {
 
       {rows.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 24px 12px' }}>
-          <label className="muted" style={{ fontSize: 13 }}>Sort by</label>
+          <label className="muted" style={{ fontSize: 15.5 }}>Sort by</label>
           <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
             <option value="recent">Recently added</option>
             <option value="name">Name (A–Z)</option>
@@ -444,7 +444,7 @@ function NewLead({ roster, onCancel, onCreated }: {
         </div>
       </div>
 
-      {err && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{err}</p>}
+      {err && <p style={{ color: 'var(--danger)', fontSize: 15.5 }}>{err}</p>}
 
       <div className="savebar">
         <button className="btn primary" disabled={busy}>

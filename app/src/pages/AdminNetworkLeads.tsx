@@ -97,7 +97,7 @@ export default function AdminNetworkLeads() {
       )}
 
       <header className="adminbar">
-        <span className="wordmark" style={{ fontSize: 15 }}>Agent Recruiting</span>
+        <span className="wordmark" style={{ fontSize: 17.5 }}>Agent Recruiting</span>
         <nav className="adminnav">
           <button className="btn primary" onClick={() => setCreating(true)}>
             New lead
@@ -121,7 +121,7 @@ export default function AdminNetworkLeads() {
             style={{ flex: 1, minWidth: 220, maxWidth: 420 }}
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none', whiteSpace: 'nowrap' }}>
-            <label className="muted" style={{ fontSize: 13 }}>Sort by</label>
+            <label className="muted" style={{ fontSize: 15.5 }}>Sort by</label>
             <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
               <option value="recent">Recently added</option>
               <option value="name">Name (A–Z)</option>
@@ -247,7 +247,7 @@ function NewNetworkAgent({ onCancel, onCreated }: {
         </div>
       </div>
 
-      {err && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{err}</p>}
+      {err && <p style={{ color: 'var(--danger)', fontSize: 15.5 }}>{err}</p>}
 
       <div className="savebar">
         <button className="btn primary" disabled={busy}>

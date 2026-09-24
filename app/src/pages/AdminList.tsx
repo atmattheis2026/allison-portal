@@ -229,7 +229,7 @@ export default function AdminList() {
       )}
 
       <header className="adminbar">
-        <span className="wordmark" style={{ fontSize: 15 }}>Transactions</span>
+        <span className="wordmark" style={{ fontSize: 17.5 }}>Transactions</span>
         <nav className="adminnav">
           <button className="btn primary" onClick={() => setCreating(true)}>
             New transaction
@@ -253,7 +253,7 @@ export default function AdminList() {
             style={{ flex: 1, minWidth: 220, maxWidth: 420 }}
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none', whiteSpace: 'nowrap' }}>
-            <label className="muted" style={{ fontSize: 13 }}>Sort by</label>
+            <label className="muted" style={{ fontSize: 15.5 }}>Sort by</label>
             <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
               <option value="recent">Recently added</option>
               <option value="agent">Agent</option>
@@ -288,7 +288,7 @@ export default function AdminList() {
                 <div className="txthumb" style={r.closed_and_funded ? { filter: 'grayscale(1)', opacity: 0.5 } : undefined}>
                   {r.photo_url
                     ? <img src={r.photo_url} alt="" />
-                    : <span className="muted" style={{ fontSize: 11 }}>No photo</span>}
+                    : <span className="muted" style={{ fontSize: 13.5 }}>No photo</span>}
                 </div>
                 <div className="txinfo">
                   <div className="txaddr" style={r.closed_and_funded ? { opacity: 0.5 } : undefined}>
@@ -361,7 +361,7 @@ function AssignedChips({ names }: { names: string[] }) {
             width: 26, height: 26, borderRadius: '50%', flex: 'none',
             border: '1px solid var(--gold-soft)', background: 'var(--panel-2)',
             display: 'grid', placeItems: 'center',
-            fontFamily: 'var(--serif)', fontSize: 11, color: 'var(--gold)',
+            fontFamily: 'var(--serif)', fontSize: 13.5, color: 'var(--gold)',
           }}>{initials || '·'}</div>
         )
       })}
@@ -462,7 +462,7 @@ function FirstRun({ onDone }: { onDone: () => void }) {
                      onChange={(e) => setYourName(e.target.value)}
                      placeholder="Allison Mattheis" />
             </div>
-            {err && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{err}</p>}
+            {err && <p style={{ color: 'var(--danger)', fontSize: 15.5 }}>{err}</p>}
             <div className="savebar">
               <button className="btn primary" disabled={busy}>
                 {busy ? 'Setting up…' : 'Set up my workspace'}
@@ -487,7 +487,7 @@ function FirstRun({ onDone }: { onDone: () => void }) {
                      onChange={(e) => setCode(e.target.value.toUpperCase())}
                      placeholder="A1B2C3D4" style={{ textTransform: 'uppercase' }} />
             </div>
-            {err && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{err}</p>}
+            {err && <p style={{ color: 'var(--danger)', fontSize: 15.5 }}>{err}</p>}
             <div className="savebar">
               <button className="btn primary" disabled={busy}>
                 {busy ? 'Joining…' : 'Join the team'}
@@ -514,7 +514,7 @@ function FirstRun({ onDone }: { onDone: () => void }) {
                      onChange={(e) => setCode(e.target.value.toUpperCase())}
                      placeholder="A1B2C3D4" style={{ textTransform: 'uppercase' }} />
             </div>
-            {err && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{err}</p>}
+            {err && <p style={{ color: 'var(--danger)', fontSize: 15.5 }}>{err}</p>}
             <div className="savebar">
               <button className="btn primary" disabled={busy}>
                 {busy ? 'Joining…' : 'Join as mentor'}
@@ -618,7 +618,7 @@ function NewTransaction({ onCancel, onCreated }: {
         </p>
       </div>
 
-      {err && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{err}</p>}
+      {err && <p style={{ color: 'var(--danger)', fontSize: 15.5 }}>{err}</p>}
 
       <div className="savebar">
         <button className="btn primary" disabled={busy}>

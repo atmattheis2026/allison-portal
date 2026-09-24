@@ -77,7 +77,7 @@ export default function Login() {
     return (
       <div className="centered">
         <div style={{ maxWidth: 380 }}>
-          <div className="wordmark" style={{ fontSize: 15, marginBottom: 14 }}>Demo mode</div>
+          <div className="wordmark" style={{ fontSize: 17.5, marginBottom: 14 }}>Demo mode</div>
           <p className="muted" style={{ lineHeight: 1.7 }}>
             There’s no database connected yet, so there’s nothing to log in to.
             The app is running on sample data — go to <a href="/admin">/admin</a> to
@@ -99,7 +99,7 @@ export default function Login() {
         }
         style={{ width: '100%', maxWidth: 340, textAlign: 'left' }}
       >
-        <div className="wordmark" style={{ fontSize: 15, marginBottom: 20, textAlign: 'center' }}>
+        <div className="wordmark" style={{ fontSize: 17.5, marginBottom: 20, textAlign: 'center' }}>
           Sign in
         </div>
 
@@ -122,7 +122,7 @@ export default function Login() {
               placeholder="Your passcode"
             />
             {err && (
-              <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 10 }}>{err}</p>
+              <p style={{ color: 'var(--danger)', fontSize: 15.5, marginTop: 10 }}>{err}</p>
             )}
             <button className="btn primary" style={{ width: '100%', marginTop: 14, justifyContent: 'center' }}
                     disabled={busy}>
@@ -147,13 +147,13 @@ export default function Login() {
               placeholder="you@yourcompany.com"
             />
             {err && (
-              <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 10 }}>{err}</p>
+              <p style={{ color: 'var(--danger)', fontSize: 15.5, marginTop: 10 }}>{err}</p>
             )}
             <button className="btn primary" style={{ width: '100%', marginTop: 14, justifyContent: 'center' }}
                     disabled={busy}>
               {busy ? 'Sending…' : 'Email me a sign-in code'}
             </button>
-            <p className="muted" style={{ fontSize: 12, marginTop: 14, lineHeight: 1.6 }}>
+            <p className="muted" style={{ fontSize: 14.5, marginTop: 14, lineHeight: 1.6 }}>
               We’ll email you a one-time code. Once you’re in, you’ll set a passcode so you
               don’t need email again next time.
             </p>
@@ -178,10 +178,10 @@ export default function Login() {
               type="text" inputMode="numeric" required value={code} autoFocus
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
               placeholder="Code from the email"
-              style={{ letterSpacing: '.2em', fontSize: 20, textAlign: 'center' }}
+              style={{ letterSpacing: '.06em', fontSize: 20, textAlign: 'center' }}
             />
             {err && (
-              <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 10 }}>{err}</p>
+              <p style={{ color: 'var(--danger)', fontSize: 15.5, marginTop: 10 }}>{err}</p>
             )}
             <button className="btn primary" style={{ width: '100%', marginTop: 14, justifyContent: 'center' }}
                     disabled={busy || !code}>
@@ -210,7 +210,7 @@ export default function Login() {
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="At least 6 characters"
             />
-            <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+            <p className="muted" style={{ fontSize: 14.5, marginTop: 6 }}>
               Needs to be at least 6 characters.
             </p>
             <label className="eyebrow" style={{ display: 'block', margin: '14px 0 8px' }}>
@@ -222,7 +222,7 @@ export default function Login() {
               placeholder="Type it again"
             />
             {err && (
-              <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 10 }}>{err}</p>
+              <p style={{ color: 'var(--danger)', fontSize: 15.5, marginTop: 10 }}>{err}</p>
             )}
             <button className="btn primary" style={{ width: '100%', marginTop: 14, justifyContent: 'center' }}
                     disabled={busy || newPassword.length < 6}>

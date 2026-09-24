@@ -101,12 +101,12 @@ export default function NetworkAgentDetail({ viewer }: { viewer: 'staff' | 'ment
       )}
 
       <header className="adminbar">
-        <span className="wordmark" style={{ fontSize: 15 }}>
+        <span className="wordmark" style={{ fontSize: 17.5 }}>
           <Link to={backTo} className="muted" style={{ textDecoration: 'none' }}>{backLabel}</Link>
           {' / '}{agent.full_name || 'Unnamed'}
         </span>
         <nav className="adminnav">
-          {saveFlash && <span className="muted" style={{ fontSize: 12.5 }}>Saved</span>}
+          {saveFlash && <span className="muted" style={{ fontSize: 15 }}>Saved</span>}
           <Link className="btn" to={backTo}>← {backLabel}</Link>
           {viewer === 'staff' && (
             <button className="btn" style={{ color: 'var(--danger, #cc3311)' }} onClick={deleteAgent}>
@@ -186,7 +186,7 @@ export default function NetworkAgentDetail({ viewer }: { viewer: 'staff' | 'ment
               </div>
             </>
           ) : (
-            <div style={{ display: 'grid', gap: 6, fontSize: 14 }}>
+            <div style={{ display: 'grid', gap: 6, fontSize: 16.5 }}>
               <div>{agent.phone || 'No phone on file'}</div>
               <div>{agent.email || 'No email on file'}</div>
               <div className="muted">{LICENSE_STATUS_LABEL[agent.license_status]}</div>
@@ -202,7 +202,7 @@ export default function NetworkAgentDetail({ viewer }: { viewer: 'staff' | 'ment
               : 'Check off steps as they’re completed.'}
           </p>
           {items.length === 0 ? (
-            <p className="muted" style={{ fontSize: 12.5 }}>No checklist steps yet.</p>
+            <p className="muted" style={{ fontSize: 15 }}>No checklist steps yet.</p>
           ) : (
             items.map((item) => (
               <div className="checkline" key={item.id}>

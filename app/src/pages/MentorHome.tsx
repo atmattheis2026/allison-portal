@@ -71,7 +71,7 @@ export default function MentorHome() {
       )}
 
       <header className="adminbar">
-        <span className="wordmark" style={{ fontSize: 15 }}>
+        <span className="wordmark" style={{ fontSize: 17.5 }}>
           My agents{mentorName ? ` — ${mentorName}` : ''}
         </span>
         <nav className="adminnav">

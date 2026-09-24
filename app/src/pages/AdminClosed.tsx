@@ -154,7 +154,7 @@ export default function AdminClosed() {
       )}
 
       <header className="adminbar">
-        <span className="wordmark" style={{ fontSize: 15 }}>Closed</span>
+        <span className="wordmark" style={{ fontSize: 17.5 }}>Closed</span>
       </header>
       <AdminNav current="closed" />
 
@@ -166,7 +166,7 @@ export default function AdminClosed() {
             style={{ flex: 1, minWidth: 220, maxWidth: 420 }}
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none', whiteSpace: 'nowrap' }}>
-            <label className="muted" style={{ fontSize: 13 }}>Sort by</label>
+            <label className="muted" style={{ fontSize: 15.5 }}>Sort by</label>
             <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
               <option value="lastname">Client last name</option>
               <option value="price">Purchase price (highest first)</option>
@@ -245,7 +245,7 @@ export default function AdminClosed() {
                         Transaction file →
                       </Link>
                     ) : (
-                      <span className="muted" style={{ fontSize: 12.5 }}>No transaction linked</span>
+                      <span className="muted" style={{ fontSize: 15 }}>No transaction linked</span>
                     )}
                   </div>
                 )}

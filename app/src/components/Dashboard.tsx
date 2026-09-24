@@ -39,6 +39,12 @@ function fmtLong(d: string): string {
   })
 }
 
+function fmtStep(d: string): string {
+  return parseLocal(d).toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+  })
+}
+
 function daysUntil(d: string): number {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -117,7 +123,6 @@ export default function Dashboard({
   const isLoanOnly = tx.deal_type === 'loan'
   const hasLoan = (tx.deal_type === 'buy' || isLoanOnly) && milestones.some((m) => m.side === 'loan')
   const showRealEstateCol = !isLoanOnly
-  const threeCol = showRealEstateCol && hasLoan
 
   // Brand colors drive the CSS variables, so a color change in Settings
   // repaints the whole page with no code change.
@@ -165,19 +170,12 @@ export default function Dashboard({
                    onPickLender={h.onPickLender} />
       </div>
 
-      {railSteps.length > 0 && <Rail steps={railSteps} currentIdx={currentIdx} />}
-
-      <div className={`sections${threeCol ? '' : ' twocol'}`}>
-        {showRealEstateCol && (
-          <div className="col">
-            <ChecklistSection
-              title="Real Estate" side="real_estate" milestones={milestones}
-              docLines={[]} editable={editable} defaultOpen {...h}
-            />
-          </div>
-        )}
-
-        <div className="col">
+      {/* Two columns at desktop: the details stack on the left, the status
+          tracker and closing countdown stay pinned on the right. On a phone
+          it's one stack — tracker first, then the details. */}
+      <div className="layout">
+        <aside className="sidecol">
+          {railSteps.length > 0 && <Rail steps={railSteps} currentIdx={currentIdx} />}
           {(tx.closing_date || editable || tx.closed_and_funded) && (
             <div className="countdownDesk">
               {tx.closed_and_funded ? (
@@ -187,6 +185,15 @@ export default function Dashboard({
                            onPatch={h.onPatchTransaction} />
               )}
             </div>
+          )}
+        </aside>
+
+        <div className="maincol">
+          {showRealEstateCol && (
+            <ChecklistSection
+              title="Real Estate" side="real_estate" milestones={milestones}
+              docLines={[]} editable={editable} defaultOpen {...h}
+            />
           )}
           {showRealEstateCol && (
             <OfferDetailsSection tx={tx} editable={editable} onPatch={h.onPatchTransaction} />
@@ -199,6 +206,13 @@ export default function Dashboard({
           {showRealEstateCol && (
             <NotesBoard title="Real Estate Updates" side="real_estate" notes={notes}
                         editable={editable} onAdd={h.onAddNote} />
+          )}
+          {hasLoan && (
+            <ChecklistSection
+              title="Loan" side="loan" milestones={milestones}
+              docLines={doc_lines} lending brand={lendBrand}
+              editable={editable} {...h}
+            />
           )}
           {hasLoan && (
             <NotesBoard title="Loan Updates" side="loan" notes={notes} lending
@@ -218,16 +232,6 @@ export default function Dashboard({
                                       onUploadContactPhoto={h.onUploadInternalContactPhoto} />
           )}
         </div>
-
-        {hasLoan && (
-          <div className="col">
-            <ChecklistSection
-              title="Loan" side="loan" milestones={milestones}
-              docLines={doc_lines} lending brand={lendBrand}
-              editable={editable} {...h}
-            />
-          </div>
-        )}
       </div>
 
       <Disclaimers brands={brands} />
@@ -281,13 +285,13 @@ function OfferDetailsSection({ tx, editable, onPatch }: {
     borderRadius: 6, padding: '8px 10px', font: 'inherit', color: 'inherit',
   }
   const labelStyle: React.CSSProperties = {
-    fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-faint, #8a8578)',
+    fontSize: 13.5, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-faint, #8a8578)',
     display: 'block', marginBottom: 4,
   }
 
   return (
-    <div className="card" style={{ padding: 16 }}>
-      <h3 className="eyebrow">Offer Details</h3>
+    <div className="card infocard">
+      <h3 className="cardtitle">Offer Details</h3>
       {editable ? (
         <div style={{ display: 'grid', gap: 10, marginTop: 8 }}>
           <div>
@@ -310,7 +314,7 @@ function OfferDetailsSection({ tx, editable, onPatch }: {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gap: 6, marginTop: 8, fontSize: 14 }}>
+        <div style={{ display: 'grid', gap: 6, marginTop: 8, fontSize: 16.5 }}>
           {tx.offer_price != null && <div><strong>Original offer:</strong> ${tx.offer_price.toLocaleString()}</div>}
           {tx.contingencies_addendums && (
             <div><strong>Contingencies / addenda:</strong> {tx.contingencies_addendums}</div>
@@ -374,13 +378,13 @@ function HomeInfoSection({ tx, editable, onPatch, onFetchListingPreview, onSearc
     borderRadius: 6, padding: '8px 10px', font: 'inherit', color: 'inherit',
   }
   const labelStyle: React.CSSProperties = {
-    fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-faint, #8a8578)',
+    fontSize: 13.5, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-faint, #8a8578)',
     display: 'block', marginBottom: 4,
   }
 
   return (
-    <div className="card" style={{ padding: 16 }}>
-      <h3 className="eyebrow">Home Info</h3>
+    <div className="card infocard">
+      <h3 className="cardtitle">Home Info</h3>
       {editable ? (
         <div style={{ display: 'grid', gap: 10, marginTop: 8 }}>
           <div>
@@ -396,14 +400,14 @@ function HomeInfoSection({ tx, editable, onPatch, onFetchListingPreview, onSearc
               </button>
             </div>
             {lookupStatus === 'empty' && (
-              <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+              <p className="muted" style={{ fontSize: 14.5, marginTop: 6 }}>
                 Couldn't find HOA, tax, school district, or county automatically — some sites
                 (Zillow especially) block this, and a web search for the address didn't turn up
                 anything usable either. Enter what you have below.
               </p>
             )}
             {lookupStatus === 'found' && (
-              <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+              <p className="muted" style={{ fontSize: 14.5, marginTop: 6 }}>
                 Found something below
                 {foundSourceUrl && (
                   <> — from <a href={foundSourceUrl} target="_blank" rel="noreferrer">
@@ -440,7 +444,7 @@ function HomeInfoSection({ tx, editable, onPatch, onFetchListingPreview, onSearc
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gap: 6, marginTop: 8, fontSize: 14 }}>
+        <div style={{ display: 'grid', gap: 6, marginTop: 8, fontSize: 16.5 }}>
           {tx.hoa_fee && <div><strong>HOA:</strong> {tx.hoa_fee}</div>}
           {tx.property_tax && <div><strong>Property tax:</strong> {tx.property_tax}</div>}
           {tx.school_district && <div><strong>School district:</strong> {tx.school_district}</div>}
@@ -450,7 +454,7 @@ function HomeInfoSection({ tx, editable, onPatch, onFetchListingPreview, onSearc
           )}
         </div>
       )}
-      <p className="muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
+      <p className="muted" style={{ fontSize: 14, marginTop: 10, lineHeight: 1.5 }}>
         This information was provided by the MLS listing and needs to be verified for accuracy.
       </p>
     </div>
@@ -794,23 +798,27 @@ function Avatar({ src, name }: { src: string | null; name: string }) {
   return (
     <div className="avatar" style={{
       display: 'grid', placeItems: 'center',
-      fontFamily: 'var(--serif)', fontSize: 15, color: 'var(--gold)',
+      fontFamily: 'var(--serif)', fontSize: 17.5, color: 'var(--gold)',
     }}>{initials || '·'}</div>
   )
 }
 
 /**
- * Both orientations are rendered and CSS shows exactly one. Costs a dozen extra
- * DOM nodes and makes it impossible for a resize to leave the rail invisible.
+ * The status tracker. One vertical list at every size — on a phone it sits
+ * above the details, on a desktop it's pinned in the right-hand column.
  */
 function Rail({ steps, currentIdx }: { steps: Milestone[]; currentIdx: number }) {
-  const pct = steps.length < 2 ? 0 : (currentIdx / (steps.length - 1)) * 100
+  const doneCount = steps.filter((s) => s.is_complete).length
   const cls = (s: Milestone, i: number) =>
     s.is_complete ? ' done' : i === currentIdx ? ' current' : ''
 
   return (
     <div className="rail card">
-      <h3 className="eyebrow">Where we are</h3>
+      <h3 className="railtitle">Status Tracker</h3>
+      <div className="railsub">
+        {doneCount === steps.length ? 'All steps complete'
+          : `Step ${doneCount} of ${steps.length} complete`}
+      </div>
 
       <div className="vsteps">
         {steps.map((s, i) => (
@@ -819,19 +827,8 @@ function Rail({ steps, currentIdx }: { steps: Milestone[]; currentIdx: number })
             <div className="node">{s.is_complete ? '✓' : i + 1}</div>
             <div>
               <div className="lbl">{s.rail_label || s.label}</div>
-              {s.date_value && <div className="dt">{fmtShort(s.date_value)}</div>}
+              {s.date_value && <div className="dt">{fmtStep(s.date_value)}</div>}
             </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="hsteps" aria-hidden="true">
-        <div className="track"><div className="fill2" style={{ width: `${pct}%` }} /></div>
-        {steps.map((s, i) => (
-          <div key={s.id} className={`hstep${cls(s, i)}`}>
-            <div className="node">{s.is_complete ? '✓' : i + 1}</div>
-            <div className="lbl">{s.rail_label || s.label}</div>
-            <div className="dt">{fmtShort(s.date_value)}</div>
           </div>
         ))}
       </div>
@@ -1021,10 +1018,10 @@ function NotesBoard({ title, side, notes, lending, editable, onAdd }: {
 
   return (
     <div className={`card notesboard${lending ? ' lending' : ''}`}>
-      <h3 className="eyebrow">{title}</h3>
+      <h3 className="cardtitle">{title}</h3>
 
       {items.length === 0 ? (
-        <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 0' }}>
+        <p className="muted" style={{ fontSize: 15, margin: '8px 0 0' }}>
           No updates posted yet.
         </p>
       ) : (
@@ -1165,23 +1162,20 @@ function ContactRow({
 
   if (!editable) {
     return (
-      <div className="crow">
-        <span className="k" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {c.photo_url && <img src={c.photo_url} alt="" style={{
-            width: 22, height: 22, borderRadius: '50%', objectFit: 'cover', flex: 'none',
-            border: '1px solid var(--line)',
-          }} />}
-          {c.role_label}
-        </span>
-        <div className="rt">
-          <div>
-            <span className="v">{c.name}</span>
-            {c.note && <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 1 }}>{c.note}</div>}
+      <div className="crow cperson">
+        <div className="cwho">
+          {c.photo_url && <img className="cphoto" src={c.photo_url} alt="" />}
+          <div style={{ minWidth: 0 }}>
+            <div className="cname">{c.name}</div>
+            <div className="crole">{c.role_label}</div>
+            {c.note && <div className="cnote">{c.note}</div>}
           </div>
-          {c.phone && <a className="tapicon" href={telHref(c.phone)}
-                         aria-label={`Call ${c.role_label}`}>✆</a>}
+        </div>
+        <div className="rt">
           {c.email && <a className="tapicon" href={`mailto:${c.email}`}
-                         aria-label={`Email ${c.role_label}`}>✉</a>}
+                         aria-label={`Email ${c.name ?? c.role_label}`}>✉</a>}
+          {c.phone && <a className="tapicon" href={telHref(c.phone)}
+                         aria-label={`Call ${c.name ?? c.role_label}`}>✆</a>}
         </div>
       </div>
     )
@@ -1212,7 +1206,7 @@ function ContactRow({
           {!!saved?.length && (
             <select
               value=""
-              style={{ fontSize: 11.5 }}
+              style={{ fontSize: 14 }}
               onChange={(e) => { if (e.target.value) onPickSaved?.(c.id, e.target.value) }}
             >
               <option value="">Use a saved {c.role_label}…</option>
@@ -1225,7 +1219,7 @@ function ContactRow({
                         onCommit={(v) => onPatch?.(c.id, { email: v || null })} />
           <EditableText value={c.note ?? ''} placeholder="Address (optional)"
                         onCommit={(v) => onPatch?.(c.id, { note: v || null })} />
-          <label className="btn" style={{ fontSize: 11, alignSelf: 'flex-start', cursor: 'pointer' }}>
+          <label className="btn" style={{ fontSize: 13.5, alignSelf: 'flex-start', cursor: 'pointer' }}>
             <input type="file" accept="image/*" style={{ display: 'none' }}
                    onChange={(e) => {
                      const f = e.target.files?.[0]
@@ -1234,7 +1228,7 @@ function ContactRow({
             {c.photo_url ? 'Change photo/logo' : 'Add a photo/logo'}
           </label>
           {c.name?.trim() && (
-            <button type="button" className="btn" style={{ fontSize: 11, alignSelf: 'flex-start' }}
+            <button type="button" className="btn" style={{ fontSize: 13.5, alignSelf: 'flex-start' }}
                     onClick={() => onSaveContact?.(c)}>
               Save "{c.name}" for next time
             </button>

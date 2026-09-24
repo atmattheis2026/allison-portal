@@ -27,7 +27,7 @@ export default function AdminSettings() {
       )}
 
       <header className="adminbar">
-        <span className="wordmark" style={{ fontSize: 15 }}>Settings</span>
+        <span className="wordmark" style={{ fontSize: 17.5 }}>Settings</span>
       </header>
       <AdminNav current="settings" />
 
@@ -204,7 +204,7 @@ function BrandCard({ kind, title, help, value, onChange, teamId }: {
                  onChange={(e) => set({ accent_hex: e.target.value })} />
           <input value={value.accent_hex} style={{ maxWidth: 130 }}
                  onChange={(e) => set({ accent_hex: e.target.value })} />
-          <span className="muted" style={{ fontSize: 12 }}>
+          <span className="muted" style={{ fontSize: 14.5 }}>
             Use the exact hex from your brand guidelines.
           </span>
         </div>
@@ -239,9 +239,9 @@ function BrandCard({ kind, title, help, value, onChange, teamId }: {
         <button className="btn primary" disabled={DEMO_MODE || saving} onClick={save}>
           {saving ? 'Saving…' : `Save ${title.toLowerCase()}`}
         </button>
-        {saved && <span className="muted" style={{ fontSize: 12 }}>Saved.</span>}
-        {saveError && <span style={{ color: 'var(--danger)', fontSize: 12 }}>{saveError}</span>}
-        {DEMO_MODE && <span className="muted" style={{ fontSize: 12 }}>Saving needs the database connected.</span>}
+        {saved && <span className="muted" style={{ fontSize: 14.5 }}>Saved.</span>}
+        {saveError && <span style={{ color: 'var(--danger)', fontSize: 14.5 }}>{saveError}</span>}
+        {DEMO_MODE && <span className="muted" style={{ fontSize: 14.5 }}>Saving needs the database connected.</span>}
       </div>
     </div>
   )
@@ -258,7 +258,7 @@ function LogoDrop({ url, onFile, busy, light }: {
       {busy ? <div className="spinner" />
         : url ? <img src={url} alt="logo" />
         : <span>Click to upload<br />PNG or SVG</span>}
-      {url && <span style={{ fontSize: 11 }}>Click to replace</span>}
+      {url && <span style={{ fontSize: 13.5 }}>Click to replace</span>}
     </label>
   )
 }
@@ -405,7 +405,7 @@ function Checklists() {
           <button className="btn" onClick={add}>+ Add a step</button>
           <button className="btn primary" disabled={DEMO_MODE}>Save checklist</button>
           {DEMO_MODE && (
-            <span className="muted" style={{ fontSize: 12 }}>
+            <span className="muted" style={{ fontSize: 14.5 }}>
               Saving needs the database connected.
             </span>
           )}
@@ -606,7 +606,7 @@ function Team() {
                   }} />
                 : <span style={{
                     width: 32, height: 32, borderRadius: '50%', display: 'grid', placeItems: 'center',
-                    border: '1px dashed var(--line)', fontSize: 10, color: 'var(--ink-faint)',
+                    border: '1px dashed var(--line)', fontSize: 13, color: 'var(--ink-faint)',
                   }}>+</span>}
             </label>
             <input
@@ -638,7 +638,7 @@ function Team() {
                     : 'Send Invite'}
                 </button>
               ) : (
-                <span className="muted" style={{ fontSize: 11 }}>Add an email to invite</span>
+                <span className="muted" style={{ fontSize: 13.5 }}>Add an email to invite</span>
               )
             )}
             <button className="del" onClick={() => remove(m.id)} title="Remove from team">×</button>
@@ -731,13 +731,13 @@ function Team() {
             {busy ? 'Saving…' : saved ? 'Saved' : 'Save team'}
           </button>
           {DEMO_MODE && (
-            <span className="muted" style={{ fontSize: 12 }}>
+            <span className="muted" style={{ fontSize: 14.5 }}>
               Saving needs the database connected.
             </span>
           )}
         </div>
         {saveError && (
-          <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 10 }}>{saveError}</p>
+          <p style={{ color: 'var(--danger)', fontSize: 15.5, marginTop: 10 }}>{saveError}</p>
         )}
       </div>
     </div>
@@ -902,7 +902,7 @@ function AgentNetwork() {
           <button className="btn primary" disabled={DEMO_MODE || templateBusy} onClick={saveTemplate}>
             {templateBusy ? 'Saving…' : templateSaved ? 'Saved' : 'Save checklist'}
           </button>
-          {DEMO_MODE && <span className="muted" style={{ fontSize: 12 }}>Saving needs the database connected.</span>}
+          {DEMO_MODE && <span className="muted" style={{ fontSize: 14.5 }}>Saving needs the database connected.</span>}
         </div>
       </div>
 
@@ -932,7 +932,7 @@ function AgentNetwork() {
           <button className="btn primary" disabled={DEMO_MODE || mentorBusy} onClick={saveMentors}>
             {mentorBusy ? 'Saving…' : mentorSaved ? 'Saved' : 'Save mentors'}
           </button>
-          {DEMO_MODE && <span className="muted" style={{ fontSize: 12 }}>Saving needs the database connected.</span>}
+          {DEMO_MODE && <span className="muted" style={{ fontSize: 14.5 }}>Saving needs the database connected.</span>}
         </div>
 
         <div style={{

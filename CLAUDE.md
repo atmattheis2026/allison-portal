@@ -121,8 +121,24 @@ brokerage and her lender have to approve the exact wording, and fake legal text 
 looks real is worse than an empty footer.
 
 **Seller transactions have no loan side.** Her listing checklist has no loan steps, so
-the Loan section is absent and the page runs two columns. That is data-driven, not a
-special case in code — adding loan steps to the seller template would bring it back.
+the Loan section is absent. That is data-driven, not a special case in code —
+adding loan steps to the seller template would bring it back.
+
+**Page layout (since 2026-09-24):** modeled on a title-company portal she liked.
+Desktop is two columns — every detail card (checklists, offer, home info,
+updates, contacts) stacked in one wide left column, and the Status Tracker
+(vertical, "Step X of N complete") plus the closing countdown pinned on the
+right (`.layout` / `.maincol` / `.sidecol`). Phone is one stack with the
+tracker above the details. Card titles are plain readable headings, not tiny
+all-caps labels; client-side contacts show name over role with email/call
+buttons on the right.
+
+**Readability rule (2026-09-24):** Allison found small, letter-spaced, pale
+gold all-caps labels "too hard to read" — twice. Section headings use `.eyebrow`,
+which is now a plain 17px bold dark heading (not tiny spaced caps). Body text is
+17px, grey text colors (`--ink-dim`, `--ink-faint`) were darkened, and nothing in
+the app should go below ~13px or use letter-spacing wider than ~.08em. Text in
+gold should use `--gold-bright` (the darker gold), not `--gold`.
 
 **Editing is inline, not a separate form.** The admin view is the same Dashboard
 component with `editable`, so the thing she changes is the thing her client sees.
