@@ -681,4 +681,7 @@ export interface SharedLeadPayload {
   maybe_homes: LeadMaybeHome[]
   priorities: LeadPriority[]
   notes: LeadNote[]
+  /** Their current transaction, once under contract (migration 074): the
+   *  same payload the deal's own /t/ link gets. Null before that. */
+  transaction?: SharedPayload | null
 }

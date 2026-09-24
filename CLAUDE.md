@@ -75,6 +75,12 @@ client page twice (071, 072). Migration 073 reads every row through `to_jsonb()`
 and guards each section with its own `exception` block. Keep it that way when
 adding fields: add a key to the matching `jsonb_build_object`, never
 `v_lead.<col>`.
+Since 074 it also returns `transaction`: the full `get_shared_transaction()`
+payload for the lead's `converted_transaction_id`. When that's present,
+`ClientLeadView` renders the full `Dashboard` (the same view as the deal's /t/
+link) with the lead's own updates and referral form underneath. A client
+under contract keeps their /l/ link (leads aren't archived on conversion since
+055), and before 074 that link showed none of the deal's progress.
 
 **Do not remove RLS policies.** Every table is locked to the user's team. Turning
 that off means her whole business is readable by anyone with the app's public key.
