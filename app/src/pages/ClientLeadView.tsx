@@ -141,7 +141,7 @@ export default function ClientLeadView() {
     )
   }
 
-  const { lead, realtor, brand, appointments, homes, maybe_homes: maybeHomes, priorities, notes } = data
+  const { lead, realtor, lender, brand, appointments, homes, maybe_homes: maybeHomes, priorities, notes } = data
   const light = brand?.needs_light_background
   const logo = light ? brand?.logo_light_url || brand?.logo_url : brand?.logo_url
   const styleVars = brand?.accent_hex ? ({ '--gold': brand.accent_hex } as React.CSSProperties) : {}
@@ -180,6 +180,30 @@ export default function ClientLeadView() {
                   <div className="role">Your agent</div>
                   <div className="name">{realtor.full_name}</div>
                   {realtor.phone && <div className="lic">{realtor.phone}</div>}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {lender && (
+          <div className="card" style={{ padding: 16 }}>
+            <div className="team">
+              <div className="person lend">
+                <Avatar src={lender.headshot_url} name={lender.full_name} />
+                <div className="who">
+                  <div className="role">
+                    {lender.is_mortgage_broker ? 'Your mortgage broker' : 'Your loan officer'}
+                  </div>
+                  <div className="name">{lender.full_name}</div>
+                  {lender.company_name && <div className="lic">{lender.company_name}</div>}
+                  {lender.nmls_number && <div className="lic">NMLS #{lender.nmls_number}</div>}
+                  {lender.phone && <div className="lic">{lender.phone}</div>}
+                  {[lender.website_1, lender.website_2, lender.website_3].filter(Boolean).map((w, i) => (
+                    <a key={i} href={w!} target="_blank" rel="noreferrer" className="lic" style={{ display: 'block' }}>
+                      {w}
+                    </a>
+                  ))}
                 </div>
               </div>
             </div>

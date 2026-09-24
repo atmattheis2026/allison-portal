@@ -667,6 +667,14 @@ export interface SharedLeadPayload {
     why_selling: string | null
   }
   realtor: Person | null
+  /** The lead's assigned loan person, from the roster (migration 071). */
+  lender: {
+    full_name: string; headshot_url: string | null
+    phone: string | null; email: string | null
+    company_name: string | null; nmls_number: string | null
+    is_mortgage_broker: boolean
+    website_1: string | null; website_2: string | null; website_3: string | null
+  } | null
   brand: Brand | null
   appointments: LeadAppointment[]
   homes: LeadHome[]
