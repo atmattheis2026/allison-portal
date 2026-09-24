@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { SharedLeadPayload } from '../lib/types'
+import Dashboard from '../components/Dashboard'
 import '../components/Dashboard.css'
 
 function Avatar({ src, name }: { src: string | null; name: string }) {
@@ -145,6 +146,38 @@ export default function ClientLeadView() {
   const light = brand?.needs_light_background
   const logo = light ? brand?.logo_light_url || brand?.logo_url : brand?.logo_url
   const styleVars = brand?.accent_hex ? ({ '--gold': brand.accent_hex } as React.CSSProperties) : {}
+
+  // Under contract: show the full transaction view (status tracker, both
+  // checklists, real estate + loan updates), the same thing the deal's own
+  // client link shows. The lead-page extras go underneath.
+  if (data.transaction) {
+    const tx = data.transaction.transaction
+    return (
+      <>
+        <Dashboard data={data.transaction} editable={false}
+                   viewNote={`${tx.deal_type === 'loan' ? 'Your loan' : 'Your home purchase'} · ${lead.full_name}`} />
+        <div className="leadextras">
+          {notes.length > 0 && (
+            <div className="card notesboard">
+              <h3 className="eyebrow">More updates</h3>
+              <div className="notelist">
+                {notes.map((n) => (
+                  <div className="note" key={n.id}>
+                    <div className="notemeta">
+                      {n.author_name && <span className="noteauthor">{n.author_name}</span>}
+                      <span className="notewhen">{fmtWhen(n.created_at)}</span>
+                    </div>
+                    <p className="notebody">{n.body}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <ReferralForm token={token ?? ''} />
+        </div>
+      </>
+    )
+  }
 
   return (
     <div className="dash" style={styleVars}>
