@@ -62,6 +62,63 @@ function Thumb({ src }: { src: string | null }) {
  * triggers a best-effort lookup of HOA, property tax, school district, and
  * county — same disclaimer as everywhere else this data shows up.
  */
+/** Pick one of her open transactions to connect to this client. */
+function LinkTransactionPicker({ onCancel, onLink }: {
+  onCancel: () => void
+  onLink: (txId: string) => void
+}) {
+  const [rows, setRows] = useState<Array<{ id: string; address_line: string; city_state_zip: string }> | null>(null)
+  const [picked, setPicked] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (!supabase) { setRows([]); return }
+    supabase.from('transactions').select('id, address_line, city_state_zip')
+      .is('archived_at', null).order('created_at', { ascending: false })
+      .then(({ data }) => setRows((data as typeof rows) ?? []))
+  }, [])
+
+  return (
+    <div className="card setcard newtx" style={{ maxWidth: 560, margin: '0 auto 18px' }}>
+      <h2>Link an existing transaction</h2>
+      <p className="sethelp">
+        Already made this client's transaction separately? Pick it here. Their client
+        link will then show its checklists, status tracker and updates.
+      </p>
+      {rows === null ? (
+        <div className="spinner" />
+      ) : rows.length === 0 ? (
+        <p className="muted">No open transactions found.</p>
+      ) : (
+        <div style={{ display: 'grid', gap: 8 }}>
+          {rows.map((t) => (
+            <label key={t.id} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+              background: picked === t.id ? 'var(--panel)' : 'var(--panel-2)',
+              border: `1px solid ${picked === t.id ? 'var(--gold-soft)' : 'var(--line)'}`,
+              borderRadius: 'var(--r-md)', cursor: 'pointer',
+            }}>
+              <input type="radio" name="linktx" checked={picked === t.id} onChange={() => setPicked(t.id)}
+                     style={{ width: 'auto' }} />
+              <span>
+                {t.address_line || 'Untitled property'}
+                {t.city_state_zip && <span className="muted">, {t.city_state_zip}</span>}
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 10, marginTop: 16, justifyContent: 'flex-end' }}>
+        <button type="button" className="btn" onClick={onCancel}>Cancel</button>
+        <button type="button" className="btn primary" disabled={!picked || busy}
+                onClick={async () => { if (!picked) return; setBusy(true); await onLink(picked); setBusy(false) }}>
+          {busy ? 'Linking…' : 'Link this transaction'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function ConvertPicker({ homes, busy, onCancel, onConvertWithHome, onConvertManual }: {
   homes: LeadHome[]
   busy: boolean
@@ -174,6 +231,7 @@ export default function AdminLead() {
   const [copied, setCopied] = useState(false)
   const [converting, setConverting] = useState(false)
   const [showConvertPicker, setShowConvertPicker] = useState(false)
+  const [showLinkPicker, setShowLinkPicker] = useState(false)
   const [reactivating, setReactivating] = useState(false)
   const [noteDraft, setNoteDraft] = useState('')
   const [saveFlash, setSaveFlash] = useState(false)
@@ -337,6 +395,21 @@ export default function AdminLead() {
   // Converts using one specific home from "Homes shown" — unambiguous, so
   // no picker needed. Used by the "Went under contract" button under each
   // home, and by the picker (below) when she selects one from the list.
+  /** For a transaction that was created on its own instead of with "Convert
+   *  to transaction": connects it to this client, so their client link shows
+   *  the deal's checklists, status tracker and updates (migration 074). Same
+   *  two writes the convert function makes: converted_transaction_id on the
+   *  lead, plus a row in the deal history. */
+  async function linkTransaction(txId: string) {
+    if (!supabase || !id) return
+    const { error } = await supabase.from('lead_transactions')
+      .upsert({ lead_id: id, transaction_id: txId }, { onConflict: 'lead_id,transaction_id', ignoreDuplicates: true })
+    if (error) { alert(error.message); return }
+    await patchLead({ converted_transaction_id: txId, lead_status: 'under_contract' })
+    setShowLinkPicker(false)
+    loadAll()
+  }
+
   async function convert(homeId: string) {
     if (!id || !supabase || converting) return
     if (!confirm('Convert this buyer to a full transaction? Use this once they’re under contract.')) return
@@ -649,9 +722,14 @@ export default function AdminLead() {
               View transaction →
             </Link>
           ) : (
-            <button className="btn primary" onClick={() => setShowConvertPicker(true)} disabled={converting}>
-              {converting ? 'Converting…' : 'Convert to transaction'}
-            </button>
+            <>
+              <button className="btn" onClick={() => { setShowLinkPicker(true); setShowConvertPicker(false) }}>
+                Link existing transaction
+              </button>
+              <button className="btn primary" onClick={() => { setShowConvertPicker(true); setShowLinkPicker(false) }} disabled={converting}>
+                {converting ? 'Converting…' : 'Convert to transaction'}
+              </button>
+            </>
           )}
         </nav>
       </header>
@@ -683,6 +761,10 @@ export default function AdminLead() {
           </div>
         </div>
       </div>
+
+      {showLinkPicker && (
+        <LinkTransactionPicker onCancel={() => setShowLinkPicker(false)} onLink={linkTransaction} />
+      )}
 
       {showConvertPicker && (
         <ConvertPicker
