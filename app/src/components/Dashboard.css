@@ -83,10 +83,24 @@
 .person .lic  { font-size: 10px; color: var(--ink-faint); margin-top: 1px; font-variant-numeric: tabular-nums; }
 
 /* ---------------- progress rail ---------------- */
-.rail { margin: 18px 18px 0; padding: 18px 18px 6px; }
-.rail h3 { margin: 0 0 14px; }
+/* ---------------- two-column layout ----------------
+   Phone: one stack, status tracker first. Desktop: details on the left,
+   tracker + countdown pinned on the right (see the 900px block). */
+.layout { display: flex; flex-direction: column; gap: 16px; padding: 18px 18px 0; }
+.sidecol, .maincol { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
-.vstep { display: flex; gap: 14px; position: relative; padding-bottom: 16px; }
+/* Card headings — plain words, readable size, not tiny all-caps. */
+.cardtitle { font-size: 18px; font-weight: 600; color: var(--ink); margin: 0 0 12px;
+             letter-spacing: 0; text-transform: none; }
+.notesboard.lending .cardtitle { color: var(--lend-bright); }
+.infocard { padding: 18px 20px; }
+
+/* ---------------- status tracker ---------------- */
+.rail { padding: 20px 20px 10px; }
+.railtitle { font-size: 20px; font-weight: 600; margin: 0; color: var(--ink); }
+.railsub { font-size: 13px; color: var(--ink-faint); margin: 3px 0 20px; }
+
+.vstep { display: flex; gap: 14px; position: relative; padding-bottom: 22px; align-items: flex-start; }
 .vstep:last-child { padding-bottom: 4px; }
 .vstep .spine { position: absolute; left: 13px; top: 26px; bottom: 0; width: 1.5px; background: var(--line); }
 .vstep.done .spine { background: var(--gold); }
@@ -99,13 +113,12 @@
 .vstep.done .node { background: var(--gold); border-color: var(--gold); color: #0A0D13; }
 .vstep.current .node { border-color: var(--gold); color: var(--gold-bright);
                        box-shadow: 0 0 0 4px rgba(201,164,76,.10); }
-.vstep .lbl { font-size: 15px; color: var(--ink-dim); line-height: 1.35; }
+.vstep .lbl { font-size: 16px; color: var(--ink-dim); line-height: 1.35; padding-top: 3px; }
 .vstep.done .lbl { color: var(--ink); }
 .vstep.current .lbl { color: var(--gold-bright); }
-.vstep .dt { font-size: 11.5px; color: var(--ink-faint); font-variant-numeric: tabular-nums; margin-top: 1px; }
+.vstep .dt { font-size: 12px; color: var(--ink-faint); font-variant-numeric: tabular-nums; margin-top: 1px; }
 .vstep.current .dt { color: var(--gold); }
 
-.hsteps { display: none; }
 
 /* Phone: the address lives over the photo, and the desktop headline block is
    redundant. Both are always in the DOM; CSS picks. */
@@ -113,9 +126,9 @@
 .countdownDesk { display: none; }
 
 /* ---------------- notes board ---------------- */
-.notesboard { margin: 14px 18px 0; padding: 16px 18px; }
+.notesboard { padding: 18px 20px; }
 .notesboard.lending .eyebrow { color: var(--lend-bright); }
-.notelist { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+.notelist { display: flex; flex-direction: column; gap: 14px; margin-top: 4px; }
 .note { border-top: 1px solid var(--line-soft); padding-top: 10px; }
 .note:first-child { border-top: none; padding-top: 0; }
 .notemeta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
@@ -128,16 +141,14 @@
 .noteadd .btn { align-self: flex-end; }
 
 /* ---------------- sections ---------------- */
-.sections { display: block; }
-.sec { margin: 14px 18px 0; overflow: hidden; }
+.sec { overflow: hidden; }
 .sec > .sechdr {
-  width: 100%; cursor: pointer; padding: 16px 18px;
+  width: 100%; cursor: pointer; padding: 18px 20px;
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   -webkit-tap-highlight-color: transparent; text-align: left;
 }
 .sec .sechead { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.sec .sectitle { font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
-                 color: var(--gold); font-weight: 500; }
+.sec .sectitle { font-size: 18px; color: var(--ink); font-weight: 600; }
 .sec.lending .sectitle { color: var(--lend-bright); }
 .lendmark {
   font-family: var(--serif); font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
@@ -148,7 +159,7 @@
 .count { font-size: 11.5px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
 .chev { color: var(--ink-faint); font-size: 10px; transition: transform .2s; }
 .sechdr[aria-expanded="true"] .chev { transform: rotate(180deg); }
-.secbody { padding: 2px 10px 14px; border-top: 1px solid var(--line-soft); }
+.secbody { padding: 6px 12px 16px; border-top: 1px solid var(--line-soft); }
 .secbody[data-open="false"] { display: none; }
 
 /* checklist — 44px tap targets */
@@ -184,6 +195,15 @@
 .crow { display: flex; align-items: center; justify-content: space-between; gap: 12px;
         padding: 11px 8px; border-bottom: 1px solid var(--line-soft); min-height: 44px; }
 .crow:last-child { border-bottom: none; }
+/* Client view of a contact: name on top, role underneath, email/call on the right. */
+.cperson { padding: 14px 8px; }
+.cwho { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.cphoto { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex: none;
+          border: 1px solid var(--line); }
+.cname { font-size: 16px; color: var(--ink); line-height: 1.25; }
+.crole { font-size: 13px; color: var(--ink-faint); margin-top: 2px; }
+.cnote { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+.cperson .tapicon { width: 40px; height: 40px; font-size: 16px; }
 .crow .k { font-size: 12.5px; color: var(--ink-faint); white-space: nowrap; }
 .crow .rt { display: flex; align-items: center; gap: 10px; text-align: right; min-width: 0; }
 .crow .v { font-size: 14.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
@@ -289,34 +309,27 @@ input.inlineEdit.statusNote { font-size: 12px; color: var(--ink-dim); max-width:
   .person .name { font-size: 14px; }
   .person .lic { font-size: 11px; }
 
-  /* rail goes horizontal — both markups are in the DOM, CSS picks one */
-  .rail { margin: 0 0 22px; padding: 30px 34px 24px; }
-  .rail h3 { display: none; }
-  .vsteps { display: none; }
-  .hsteps { display: flex; align-items: flex-start; justify-content: space-between; position: relative; }
-  .hstep { display: flex; flex-direction: column; align-items: center; gap: 11px;
-           flex: 1; position: relative; z-index: 2; }
-  .hstep .node {
-    width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
-    font-size: 13px; font-weight: 600; background: var(--bg);
-    border: 1.5px solid var(--line); color: var(--ink-faint);
-  }
-  .hstep.done .node { background: var(--gold); border-color: var(--gold); color: #0A0D13; }
-  .hstep.current .node { border-color: var(--gold); color: var(--gold-bright);
-                         box-shadow: 0 0 0 4px rgba(201,164,76,.10); }
-  .hstep .lbl { font-size: 12.5px; color: var(--ink-dim); text-align: center; }
-  .hstep.current .lbl { color: var(--gold-bright); }
-  .hstep .dt { font-size: 11.5px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
-  .hstep.current .dt { color: var(--gold); }
-  .track { position: absolute; top: 16px; left: 8%; right: 8%; height: 1.5px;
-           background: var(--line); z-index: 1; }
-  .track .fill2 { height: 100%; background: var(--gold); }
+  /* Details on the left, status tracker pinned on the right while you scroll. */
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 28px;
+            align-items: start; padding: 0; }
+  .sidecol { grid-column: 2; grid-row: 1; position: sticky; top: 24px; gap: 20px; }
+  .maincol { grid-column: 1; grid-row: 1; gap: 24px; }
 
-  /* three columns; two when there's no loan side (seller deals) */
-  .sections { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; align-items: start; }
-  .sections.twocol { grid-template-columns: 1fr 1fr; }
-  .sec { margin: 0; }
-  .notesboard { margin: 0 0 20px; }
+  .rail { padding: 28px 28px 14px; }
+  .railtitle { font-size: 22px; }
+  .railsub { font-size: 13.5px; margin-bottom: 24px; }
+  .vstep { gap: 16px; padding-bottom: 26px; }
+  .vstep .node { width: 34px; height: 34px; font-size: 13px; }
+  .vstep .spine { left: 16.5px; top: 34px; }
+  .vstep .lbl { font-size: 17px; padding-top: 5px; }
+
+  .sec > .sechdr { padding: 24px 30px 18px; }
+  .sec .sectitle { font-size: 21px; }
+  .secbody { padding: 8px 22px 22px; }
+  .notesboard, .infocard { padding: 24px 30px; }
+  .cardtitle { font-size: 21px; margin-bottom: 16px; }
+  .chk .txt { font-size: 16px; }
+  .cname { font-size: 17px; }
 
   /* A section must never be collapsed on a wide screen, whatever state it was
      left in on a phone. This is the reason Section isn't a <details>: a closed
@@ -326,10 +339,8 @@ input.inlineEdit.statusNote { font-size: 12px; color: var(--ink-dim); max-width:
   .secbody[data-open="false"] { display: block; }
 
   .disclaimers { margin: 34px 0 0; grid-template-columns: 1fr 1fr; gap: 32px; }
-  .sections.twocol ~ .disclaimers { grid-template-columns: 1fr; max-width: 720px; }
 
-  .countdown { margin: 0 0 20px; display: block; text-align: center; padding: 26px 24px 22px; }
+  .countdown { margin: 0; display: block; text-align: center; padding: 26px 24px 22px; }
   .countdown .num { font-size: 64px; margin-bottom: 6px; }
   .countdown .unit { font-size: 26px; }
-  .col { display: block; }
 }
