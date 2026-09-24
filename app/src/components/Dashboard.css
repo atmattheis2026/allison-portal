@@ -10,7 +10,7 @@
   border-bottom: 1px solid var(--line-soft);
 }
 .brandbar img { max-height: 30px; width: auto; display: block; }
-.brandbar .wordmark { font-size: 15px; }
+.brandbar .wordmark { font-size: 19px; }
 .brandbar .viewnote { display: none; }
 /* Brokerage rules sometimes forbid a dark background. When that's flagged,
    the bar becomes a light band so the mark sits on approved ground. */
@@ -40,11 +40,11 @@
 .pill {
   display: inline-flex; align-items: center; gap: 8px;
   border: 1px solid var(--gold-soft); border-radius: 999px;
-  padding: 6px 14px 6px 9px; color: var(--gold-bright); font-size: 12.5px;
+  padding: 6px 14px 6px 9px; color: var(--gold-bright); font-size: 15px;
 }
 .pill .dot {
   width: 16px; height: 16px; border-radius: 50%; background: var(--gold);
-  color: #0A0D13; display: grid; place-items: center; font-size: 9px; font-weight: 700;
+  color: #0A0D13; display: grid; place-items: center; font-size: 13px; font-weight: 700;
 }
 .pill.attention { border-color: var(--danger); color: var(--danger); }
 .pill.attention .dot { background: var(--danger); }
@@ -58,10 +58,10 @@
 }
 .countdown .num { font-family: var(--serif); font-size: clamp(40px, 12vw, 60px);
                   line-height: .9; font-weight: 300; flex: none; }
-.countdown .lab { font-size: 9.5px; letter-spacing: .24em; text-transform: uppercase;
-                  color: var(--gold); margin-bottom: 3px; }
+.countdown .lab { font-size: 13px; letter-spacing: .06em; text-transform: uppercase;
+                  color: var(--gold-bright); font-weight: 700; margin-bottom: 3px; }
 .countdown .unit { font-family: var(--serif); font-size: 23px; color: var(--gold-bright); line-height: 1.1; }
-.countdown .when { font-size: 12px; color: var(--ink-faint); margin-top: 5px; }
+.countdown .when { font-size: 14.5px; color: var(--ink-faint); margin-top: 5px; }
 
 /* ---------------- team ---------------- */
 .team { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; padding: 14px 18px 0; }
@@ -76,11 +76,11 @@
 }
 .person.lend .avatar { border-color: var(--lend-soft); }
 .person .who { min-width: 0; }
-.person .role { font-size: 8.5px; letter-spacing: .18em; text-transform: uppercase;
-                color: var(--gold); margin-bottom: 2px; }
+.person .role { font-size: 13px; letter-spacing: .04em; text-transform: uppercase;
+                color: var(--gold-bright); font-weight: 700; margin-bottom: 2px; }
 .person.lend .role { color: var(--lend-bright); }
-.person .name { font-size: 13.5px; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; }
-.person .lic  { font-size: 10px; color: var(--ink-faint); margin-top: 1px; font-variant-numeric: tabular-nums; }
+.person .name { font-size: 17px; font-weight: 600; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; }
+.person .lic  { font-size: 13px; color: var(--ink-faint); margin-top: 1px; font-variant-numeric: tabular-nums; }
 
 /* ---------------- progress rail ---------------- */
 /* ---------------- two-column layout ----------------
@@ -98,7 +98,7 @@
 /* ---------------- status tracker ---------------- */
 .rail { padding: 20px 20px 10px; }
 .railtitle { font-size: 20px; font-weight: 600; margin: 0; color: var(--ink); }
-.railsub { font-size: 13px; color: var(--ink-faint); margin: 3px 0 20px; }
+.railsub { font-size: 15.5px; color: var(--ink-faint); margin: 3px 0 20px; }
 
 .vstep { display: flex; gap: 14px; position: relative; padding-bottom: 22px; align-items: flex-start; }
 .vstep:last-child { padding-bottom: 4px; }
@@ -107,7 +107,7 @@
 .vstep:last-child .spine { display: none; }
 .vstep .node {
   width: 27px; height: 27px; border-radius: 50%; flex: none; z-index: 2;
-  display: grid; place-items: center; font-size: 11px; font-weight: 600;
+  display: grid; place-items: center; font-size: 13.5px; font-weight: 600;
   background: var(--bg); border: 1.5px solid var(--line); color: var(--ink-faint);
 }
 .vstep.done .node { background: var(--gold); border-color: var(--gold); color: #0A0D13; }
@@ -116,7 +116,7 @@
 .vstep .lbl { font-size: 16px; color: var(--ink-dim); line-height: 1.35; padding-top: 3px; }
 .vstep.done .lbl { color: var(--ink); }
 .vstep.current .lbl { color: var(--gold-bright); }
-.vstep .dt { font-size: 12px; color: var(--ink-faint); font-variant-numeric: tabular-nums; margin-top: 1px; }
+.vstep .dt { font-size: 14.5px; color: var(--ink-faint); font-variant-numeric: tabular-nums; margin-top: 1px; }
 .vstep.current .dt { color: var(--gold); }
 
 
@@ -132,12 +132,12 @@
 .note { border-top: 1px solid var(--line-soft); padding-top: 10px; }
 .note:first-child { border-top: none; padding-top: 0; }
 .notemeta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
-.noteauthor { font-size: 11.5px; color: var(--gold-bright); }
+.noteauthor { font-size: 14px; color: var(--gold-bright); font-weight: 700; }
 .notesboard.lending .noteauthor { color: var(--lend-bright); }
-.notewhen { font-size: 10.5px; color: var(--ink-faint); }
-.notebody { font-size: 14px; line-height: 1.55; color: var(--ink-dim); margin: 0; white-space: pre-wrap; }
+.notewhen { font-size: 13px; color: var(--ink-faint); }
+.notebody { font-size: 16.5px; line-height: 1.55; color: var(--ink-dim); margin: 0; white-space: pre-wrap; }
 .noteadd { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-.noteadd textarea { resize: vertical; font-size: 14px; }
+.noteadd textarea { resize: vertical; font-size: 16.5px; }
 .noteadd .btn { align-self: flex-end; }
 
 /* ---------------- sections ---------------- */
@@ -151,13 +151,13 @@
 .sec .sectitle { font-size: 18px; color: var(--ink); font-weight: 600; }
 .sec.lending .sectitle { color: var(--lend-bright); }
 .lendmark {
-  font-family: var(--serif); font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+  font-family: var(--serif); font-size: 13px; letter-spacing: .06em; text-transform: uppercase;
   color: var(--lend); border-left: 1px solid var(--lend-soft); padding-left: 10px;
 }
 .lendmark img { max-height: 18px; width: auto; display: block; }
 .secright { display: flex; align-items: center; gap: 11px; }
-.count { font-size: 11.5px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
-.chev { color: var(--ink-faint); font-size: 10px; transition: transform .2s; }
+.count { font-size: 14px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.chev { color: var(--ink-faint); font-size: 13px; transition: transform .2s; }
 .sechdr[aria-expanded="true"] .chev { transform: rotate(180deg); }
 .secbody { padding: 6px 12px 16px; border-top: 1px solid var(--line-soft); }
 .secbody[data-open="false"] { display: none; }
@@ -168,25 +168,25 @@
 .chk.editable:hover { background: var(--panel-2); }
 .box {
   width: 19px; height: 19px; border-radius: 5px; border: 1.5px solid var(--line);
-  flex: none; display: grid; place-items: center; font-size: 11px;
+  flex: none; display: grid; place-items: center; font-size: 13.5px;
   color: transparent; transition: background .14s, border-color .14s;
 }
 .chk.done .box { background: var(--gold); border-color: var(--gold); color: #0A0D13; }
 .sec.lending .chk.done .box { background: var(--lend); border-color: var(--lend); }
-.chk .txt { flex: 1; font-size: 15px; color: var(--ink-dim); line-height: 1.3; }
+.chk .txt { flex: 1; font-size: 17.5px; color: var(--ink-dim); line-height: 1.3; }
 .chk.done .txt { color: var(--ink); }
-.chk .date { font-size: 11.5px; color: var(--gold); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chk .date { font-size: 14px; color: var(--gold-bright); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .chk .date.empty { color: var(--ink-faint); opacity: .45; }
 .sec.lending .chk .date { color: var(--lend-bright); }
-.dateinput { width: 128px; padding: 5px 7px; font-size: 12px; }
+.dateinput { width: 128px; padding: 5px 7px; font-size: 14.5px; }
 
 .divider { height: 1px; background: var(--line-soft); margin: 7px 8px; }
 
 .fill { display: flex; align-items: center; gap: 10px; padding: 7px 8px 7px 34px; min-height: 38px; }
-.fill .tick { font-size: 11px; width: 11px; color: var(--lend); flex: none; }
+.fill .tick { font-size: 13.5px; width: 11px; color: var(--lend); flex: none; }
 .fill .tick.off { color: var(--ink-faint); opacity: .35; }
 .fill .line { flex: 1; border-bottom: 1px solid var(--line); padding-bottom: 3px;
-              font-size: 14px; color: var(--ink-dim); min-height: 19px; }
+              font-size: 16.5px; color: var(--ink-dim); min-height: 19px; }
 .fill input.line { background: none; border: none; border-bottom: 1px solid var(--line);
                    border-radius: 0; padding: 2px 0 3px; }
 .fill input.line:focus { border-bottom-color: var(--gold-soft); }
@@ -201,23 +201,23 @@
 .cphoto { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex: none;
           border: 1px solid var(--line); }
 .cname { font-size: 16px; color: var(--ink); line-height: 1.25; }
-.crole { font-size: 13px; color: var(--ink-faint); margin-top: 2px; }
-.cnote { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+.crole { font-size: 15.5px; color: var(--ink-faint); margin-top: 2px; }
+.cnote { font-size: 14.5px; color: var(--ink-faint); margin-top: 2px; }
 .cperson .tapicon { width: 40px; height: 40px; font-size: 16px; }
-.crow .k { font-size: 12.5px; color: var(--ink-faint); white-space: nowrap; }
+.crow .k { font-size: 15px; color: var(--ink-faint); white-space: nowrap; }
 .crow .rt { display: flex; align-items: center; gap: 10px; text-align: right; min-width: 0; }
-.crow .v { font-size: 14.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+.crow .v { font-size: 17px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
 .crow .v.blank { color: var(--ink-faint); opacity: .45; font-style: italic; }
 .tapicon {
   width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line);
-  display: grid; place-items: center; font-size: 13px; color: var(--gold);
+  display: grid; place-items: center; font-size: 15.5px; color: var(--gold);
   flex: none; text-decoration: none;
 }
 .tapicon:hover { border-color: var(--gold-soft); background: var(--panel-2); }
-.glabel { font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase;
+.glabel { font-size: 13px; letter-spacing: .06em; text-transform: uppercase;
           color: var(--ink-faint); margin: 16px 8px 6px; }
 
-.emptynote { padding: 22px 12px; text-align: center; color: var(--ink-faint); font-size: 13px; line-height: 1.6; }
+.emptynote { padding: 22px 12px; text-align: center; color: var(--ink-faint); font-size: 15.5px; line-height: 1.6; }
 
 /* ---------------- inline editing ---------------- */
 /* Inputs are invisible until touched, so the editing view reads as the finished
@@ -232,32 +232,32 @@
 
 input.inlineEdit.address  { font-family: var(--serif); font-size: 32px; line-height: 1.1; margin: 0 0 2px -4px; }
 input.inlineEdit.cityline { font-family: var(--serif); font-size: 17px; color: var(--gold); margin-left: -4px; }
-input.inlineEdit.name { font-size: 13.5px; }
-input.inlineEdit.lic  { font-size: 10px; color: var(--ink-faint); }
-input.inlineEdit.v    { font-size: 14.5px; text-align: right; }
+input.inlineEdit.name { font-size: 16px; }
+input.inlineEdit.lic  { font-size: 13px; color: var(--ink-faint); }
+input.inlineEdit.v    { font-size: 17px; text-align: right; }
 
 .photoSwap {
   position: absolute; left: 10px; top: 10px; z-index: 3; cursor: pointer;
   background: rgba(10,13,19,.82); border: 1px solid var(--line);
-  border-radius: 999px; padding: 6px 13px; font-size: 11px; color: #C9C2B4;
+  border-radius: 999px; padding: 6px 13px; font-size: 13.5px; color: #C9C2B4;
 }
 .photoSwap:hover { border-color: var(--gold-soft); color: #E3C77E; }
 
 .statusEdit { display: flex; flex-direction: column; gap: 7px; align-items: flex-start; }
 .statusEdit .pill select {
   background: none; border: none; padding: 0; width: auto;
-  color: var(--gold-bright); font-size: 12.5px;
+  color: var(--gold-bright); font-size: 15px;
 }
 .statusEdit .pill select option { background: var(--panel); color: var(--ink); }
-input.inlineEdit.statusNote { font-size: 12px; color: var(--ink-dim); max-width: 320px; }
+input.inlineEdit.statusNote { font-size: 14.5px; color: var(--ink-dim); max-width: 320px; }
 
-.closingInput { width: auto; padding: 4px 8px; font-size: 12px; margin-top: 6px; }
+.closingInput { width: auto; padding: 4px 8px; font-size: 14.5px; margin-top: 6px; }
 
 .crowEdit { border-bottom: 1px solid var(--line-soft); }
 .crowEdit:last-child { border-bottom: none; }
 .crowEdit .crow { border-bottom: none; }
 .crowMore { display: grid; gap: 8px; padding: 0 8px 12px 8px; }
-.crowMore .inlineEdit { border-bottom-color: var(--line); font-size: 12.5px; }
+.crowMore .inlineEdit { border-bottom-color: var(--line); font-size: 15px; }
 .tapicon.on { border-color: var(--gold-soft); color: var(--gold-bright); }
 
 /* ---------------- compliance footer ---------------- */
@@ -266,9 +266,9 @@ input.inlineEdit.statusNote { font-size: 12px; color: var(--ink-dim); max-width:
   border-top: 1px solid var(--line-soft);
   display: grid; gap: 14px;
 }
-.disc p { margin: 0; font-size: 10.5px; line-height: 1.6; color: var(--ink-faint); }
+.disc p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink-faint); }
 .discwho {
-  font-size: 9px; letter-spacing: .18em; text-transform: uppercase;
+  font-size: 13px; letter-spacing: .06em; text-transform: uppercase;
   color: var(--gold-soft); margin-bottom: 5px;
 }
 .disc.lending .discwho { color: var(--lend-soft); }
@@ -278,10 +278,10 @@ input.inlineEdit.statusNote { font-size: 12px; color: var(--ink-dim); max-width:
   .dash { max-width: 1400px; margin: 0 auto; padding: 0 28px 64px; }
 
   .brandbar { justify-content: space-between; padding: 22px 0 18px; }
-  .brandbar .wordmark { font-size: 19px; letter-spacing: .34em; }
+  .brandbar .wordmark { font-size: 24px; letter-spacing: .08em; }
   .brandbar img { max-height: 38px; }
-  .brandbar .viewnote { display: block; font-size: 10.5px; letter-spacing: .18em;
-                        text-transform: uppercase; color: var(--ink-faint); }
+  .brandbar .viewnote { display: block; font-size: 14px; font-weight: 600;
+                        color: var(--ink-faint); }
   .brandbar.lightband { margin: 0 -28px; padding: 18px 28px; }
 
   .topgrid { display: grid; grid-template-columns: 300px 1fr auto; gap: 32px;
@@ -305,9 +305,9 @@ input.inlineEdit.statusNote { font-size: 12px; color: var(--ink-dim); max-width:
   .team { grid-template-columns: 1fr; gap: 10px; padding: 0; min-width: 270px; }
   .person { padding: 11px 14px; }
   .person .avatar { width: 46px; height: 46px; }
-  .person .role { font-size: 9.5px; letter-spacing: .2em; }
-  .person .name { font-size: 14px; }
-  .person .lic { font-size: 11px; }
+  .person .role { font-size: 13px; }
+  .person .name { font-size: 18px; }
+  .person .lic { font-size: 13.5px; }
 
   /* Details on the left, status tracker pinned on the right while you scroll. */
   .layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 28px;
@@ -317,9 +317,9 @@ input.inlineEdit.statusNote { font-size: 12px; color: var(--ink-dim); max-width:
 
   .rail { padding: 28px 28px 14px; }
   .railtitle { font-size: 22px; }
-  .railsub { font-size: 13.5px; margin-bottom: 24px; }
+  .railsub { font-size: 16px; margin-bottom: 24px; }
   .vstep { gap: 16px; padding-bottom: 26px; }
-  .vstep .node { width: 34px; height: 34px; font-size: 13px; }
+  .vstep .node { width: 34px; height: 34px; font-size: 15.5px; }
   .vstep .spine { left: 16.5px; top: 34px; }
   .vstep .lbl { font-size: 17px; padding-top: 5px; }
 

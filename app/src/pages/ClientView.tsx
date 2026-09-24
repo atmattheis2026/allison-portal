@@ -53,7 +53,7 @@ export default function ClientView() {
     return (
       <div className="centered">
         <div>
-          <div className="wordmark" style={{ fontSize: 15, marginBottom: 14 }}>Not found</div>
+          <div className="wordmark" style={{ fontSize: 17.5, marginBottom: 14 }}>Not found</div>
           <p className="muted" style={{ maxWidth: 340, lineHeight: 1.7 }}>
             This link isn’t active. It may have been replaced with a newer one,
             or the transaction has been closed out. Reach out to your agent for
@@ -68,7 +68,7 @@ export default function ClientView() {
     return (
       <div className="centered">
         <div>
-          <div className="wordmark" style={{ fontSize: 15, marginBottom: 14 }}>
+          <div className="wordmark" style={{ fontSize: 17.5, marginBottom: 14 }}>
             Something went wrong
           </div>
           <p className="muted" style={{ maxWidth: 340, lineHeight: 1.7 }}>

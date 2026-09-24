@@ -48,7 +48,7 @@ function Thumb({ src }: { src: string | null }) {
     }}>
       {src
         ? <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        : <span className="muted" style={{ fontSize: 9, textAlign: 'center', lineHeight: 1.2 }}>No photo</span>}
+        : <span className="muted" style={{ fontSize: 13, textAlign: 'center', lineHeight: 1.2 }}>No photo</span>}
     </div>
   )
 }
@@ -107,7 +107,7 @@ function ConvertPicker({ homes, busy, onCancel, onConvertWithHome, onConvertManu
               <Thumb src={h.photo_url} />
               <div>
                 <div>{h.address_line || 'Untitled property'}</div>
-                <div className="muted" style={{ fontSize: 12 }}>{h.city_state_zip}</div>
+                <div className="muted" style={{ fontSize: 14.5 }}>{h.city_state_zip}</div>
               </div>
             </label>
           ))}
@@ -636,12 +636,12 @@ export default function AdminLead() {
       )}
       <div className="admin">
       <header className="adminbar">
-        <span className="wordmark" style={{ fontSize: 15 }}>
+        <span className="wordmark" style={{ fontSize: 17.5 }}>
           <Link to="/admin/leads" className="muted" style={{ textDecoration: 'none' }}>Active Clients</Link>
           {' / '}{lead.full_name || 'Unnamed buyer'}
         </span>
         <nav className="adminnav">
-          {saveFlash && <span className="muted" style={{ fontSize: 12.5 }}>Saved</span>}
+          {saveFlash && <span className="muted" style={{ fontSize: 15 }}>Saved</span>}
           <Link className="btn" to="/admin/leads">← Active Clients</Link>
           <button className="btn" onClick={copyLink}>{copied ? 'Copied' : 'Copy client link'}</button>
           {lead.converted_transaction_id ? (
@@ -702,7 +702,7 @@ export default function AdminLead() {
           border: `2px solid ${lead.lead_status === 'under_contract' ? '#3b82f6' : '#2ecc40'}`,
         }}>
           <span style={{
-            fontWeight: 800, fontSize: 15, letterSpacing: '.03em', textTransform: 'uppercase',
+            fontWeight: 800, fontSize: 17.5, letterSpacing: '.03em', textTransform: 'uppercase',
             color: lead.lead_status === 'under_contract' ? '#3b82f6' : '#2ecc40',
           }}>
             {lead.lead_status === 'under_contract'
@@ -764,7 +764,7 @@ export default function AdminLead() {
           <h2>Updates</h2>
           <p className="sethelp">Posted here shows up on their client page — check this first.</p>
           {notes.length === 0 ? (
-            <p className="muted" style={{ fontSize: 12.5 }}>No updates posted yet.</p>
+            <p className="muted" style={{ fontSize: 15 }}>No updates posted yet.</p>
           ) : (
             <div className="notelist">
               {notes.map((n) => (
@@ -978,7 +978,7 @@ export default function AdminLead() {
                 <Link to={`/admin/t/${d.transaction_id}`} style={{ flex: 1 }}>
                   {d.address_line || 'Untitled property'}{d.city_state_zip ? `, ${d.city_state_zip}` : ''}
                 </Link>
-                <span className="muted" style={{ fontSize: 12.5, flex: 'none' }}>
+                <span className="muted" style={{ fontSize: 15, flex: 'none' }}>
                   {d.closed_and_funded
                     ? `Closed${d.closed_and_funded_date ? ` ${new Date(d.closed_and_funded_date + 'T00:00:00').toLocaleDateString()}` : ''}`
                         + (d.final_purchase_price != null ? ` — $${d.final_purchase_price.toLocaleString()}` : '')
@@ -1271,7 +1271,7 @@ export default function AdminLead() {
                 <button type="button" className="del" onClick={() => removeAppointment(a.id)}>✕</button>
               </div>
               <details style={{ marginTop: 8 }}>
-                <summary className="muted" style={{ fontSize: 12, cursor: 'pointer' }}>
+                <summary className="muted" style={{ fontSize: 14.5, cursor: 'pointer' }}>
                   Paste a photo URL manually instead
                 </summary>
                 <input type="text" value={a.photo_url ?? ''} placeholder="Photo URL"
@@ -1302,7 +1302,7 @@ export default function AdminLead() {
                 <div style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
                   background: 'var(--gold-soft, #3a2f1a)', border: '1px solid var(--gold, #C9A44C)',
-                  borderRadius: 'var(--r-sm)', padding: '8px 10px', marginBottom: 10, fontSize: 13,
+                  borderRadius: 'var(--r-sm)', padding: '8px 10px', marginBottom: 10, fontSize: 15.5,
                 }}>
                   <span>🔔 Client requested a showing</span>
                   <button type="button" className="btn primary" style={{ flex: 'none' }}
@@ -1349,7 +1349,7 @@ export default function AdminLead() {
                 <button type="button" className="del" onClick={() => removeMaybeHome(h.id)}>✕</button>
               </div>
               <details style={{ marginTop: 8 }}>
-                <summary className="muted" style={{ fontSize: 12, cursor: 'pointer' }}>
+                <summary className="muted" style={{ fontSize: 14.5, cursor: 'pointer' }}>
                   Paste a photo URL manually instead
                 </summary>
                 <input type="text" value={h.photo_url ?? ''} placeholder="Photo URL"
@@ -1393,7 +1393,7 @@ export default function AdminLead() {
                 <div style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
                   background: 'var(--gold-soft, #3a2f1a)', border: '1px solid var(--gold, #C9A44C)',
-                  borderRadius: 'var(--r-sm)', padding: '8px 10px', marginBottom: 10, fontSize: 13,
+                  borderRadius: 'var(--r-sm)', padding: '8px 10px', marginBottom: 10, fontSize: 15.5,
                 }}>
                   <span>🎉 Client wants to make an offer on this one!</span>
                   <button type="button" className="btn" style={{ flex: 'none' }}
@@ -1447,7 +1447,7 @@ export default function AdminLead() {
                 <button type="button" className="del" onClick={() => removeHome(h.id)}>✕</button>
               </div>
               <details style={{ marginTop: 8 }}>
-                <summary className="muted" style={{ fontSize: 12, cursor: 'pointer' }}>
+                <summary className="muted" style={{ fontSize: 14.5, cursor: 'pointer' }}>
                   Paste a photo URL manually instead
                 </summary>
                 <input type="text" value={h.photo_url ?? ''} placeholder="Photo URL"
@@ -1525,7 +1525,7 @@ export default function AdminLead() {
             Just for you and your team; the client never sees this list.
           </p>
           {documents.length === 0 ? (
-            <p className="muted" style={{ fontSize: 12.5 }}>Nothing uploaded yet.</p>
+            <p className="muted" style={{ fontSize: 15 }}>Nothing uploaded yet.</p>
           ) : (
             <div className="notelist">
               {documents.map((doc) => (

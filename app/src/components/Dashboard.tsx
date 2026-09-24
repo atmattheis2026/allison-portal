@@ -285,7 +285,7 @@ function OfferDetailsSection({ tx, editable, onPatch }: {
     borderRadius: 6, padding: '8px 10px', font: 'inherit', color: 'inherit',
   }
   const labelStyle: React.CSSProperties = {
-    fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-faint, #8a8578)',
+    fontSize: 13.5, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-faint, #8a8578)',
     display: 'block', marginBottom: 4,
   }
 
@@ -314,7 +314,7 @@ function OfferDetailsSection({ tx, editable, onPatch }: {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gap: 6, marginTop: 8, fontSize: 14 }}>
+        <div style={{ display: 'grid', gap: 6, marginTop: 8, fontSize: 16.5 }}>
           {tx.offer_price != null && <div><strong>Original offer:</strong> ${tx.offer_price.toLocaleString()}</div>}
           {tx.contingencies_addendums && (
             <div><strong>Contingencies / addenda:</strong> {tx.contingencies_addendums}</div>
@@ -378,7 +378,7 @@ function HomeInfoSection({ tx, editable, onPatch, onFetchListingPreview, onSearc
     borderRadius: 6, padding: '8px 10px', font: 'inherit', color: 'inherit',
   }
   const labelStyle: React.CSSProperties = {
-    fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-faint, #8a8578)',
+    fontSize: 13.5, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-faint, #8a8578)',
     display: 'block', marginBottom: 4,
   }
 
@@ -400,14 +400,14 @@ function HomeInfoSection({ tx, editable, onPatch, onFetchListingPreview, onSearc
               </button>
             </div>
             {lookupStatus === 'empty' && (
-              <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+              <p className="muted" style={{ fontSize: 14.5, marginTop: 6 }}>
                 Couldn't find HOA, tax, school district, or county automatically — some sites
                 (Zillow especially) block this, and a web search for the address didn't turn up
                 anything usable either. Enter what you have below.
               </p>
             )}
             {lookupStatus === 'found' && (
-              <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+              <p className="muted" style={{ fontSize: 14.5, marginTop: 6 }}>
                 Found something below
                 {foundSourceUrl && (
                   <> — from <a href={foundSourceUrl} target="_blank" rel="noreferrer">
@@ -444,7 +444,7 @@ function HomeInfoSection({ tx, editable, onPatch, onFetchListingPreview, onSearc
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gap: 6, marginTop: 8, fontSize: 14 }}>
+        <div style={{ display: 'grid', gap: 6, marginTop: 8, fontSize: 16.5 }}>
           {tx.hoa_fee && <div><strong>HOA:</strong> {tx.hoa_fee}</div>}
           {tx.property_tax && <div><strong>Property tax:</strong> {tx.property_tax}</div>}
           {tx.school_district && <div><strong>School district:</strong> {tx.school_district}</div>}
@@ -454,7 +454,7 @@ function HomeInfoSection({ tx, editable, onPatch, onFetchListingPreview, onSearc
           )}
         </div>
       )}
-      <p className="muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
+      <p className="muted" style={{ fontSize: 14, marginTop: 10, lineHeight: 1.5 }}>
         This information was provided by the MLS listing and needs to be verified for accuracy.
       </p>
     </div>
@@ -798,7 +798,7 @@ function Avatar({ src, name }: { src: string | null; name: string }) {
   return (
     <div className="avatar" style={{
       display: 'grid', placeItems: 'center',
-      fontFamily: 'var(--serif)', fontSize: 15, color: 'var(--gold)',
+      fontFamily: 'var(--serif)', fontSize: 17.5, color: 'var(--gold)',
     }}>{initials || '·'}</div>
   )
 }
@@ -1021,7 +1021,7 @@ function NotesBoard({ title, side, notes, lending, editable, onAdd }: {
       <h3 className="cardtitle">{title}</h3>
 
       {items.length === 0 ? (
-        <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 0' }}>
+        <p className="muted" style={{ fontSize: 15, margin: '8px 0 0' }}>
           No updates posted yet.
         </p>
       ) : (
@@ -1206,7 +1206,7 @@ function ContactRow({
           {!!saved?.length && (
             <select
               value=""
-              style={{ fontSize: 11.5 }}
+              style={{ fontSize: 14 }}
               onChange={(e) => { if (e.target.value) onPickSaved?.(c.id, e.target.value) }}
             >
               <option value="">Use a saved {c.role_label}…</option>
@@ -1219,7 +1219,7 @@ function ContactRow({
                         onCommit={(v) => onPatch?.(c.id, { email: v || null })} />
           <EditableText value={c.note ?? ''} placeholder="Address (optional)"
                         onCommit={(v) => onPatch?.(c.id, { note: v || null })} />
-          <label className="btn" style={{ fontSize: 11, alignSelf: 'flex-start', cursor: 'pointer' }}>
+          <label className="btn" style={{ fontSize: 13.5, alignSelf: 'flex-start', cursor: 'pointer' }}>
             <input type="file" accept="image/*" style={{ display: 'none' }}
                    onChange={(e) => {
                      const f = e.target.files?.[0]
@@ -1228,7 +1228,7 @@ function ContactRow({
             {c.photo_url ? 'Change photo/logo' : 'Add a photo/logo'}
           </label>
           {c.name?.trim() && (
-            <button type="button" className="btn" style={{ fontSize: 11, alignSelf: 'flex-start' }}
+            <button type="button" className="btn" style={{ fontSize: 13.5, alignSelf: 'flex-start' }}
                     onClick={() => onSaveContact?.(c)}>
               Save "{c.name}" for next time
             </button>

@@ -75,7 +75,7 @@ function ClientPhotoUpload({ token, slot, name, initialUrl }: {
         <label style={{ cursor: 'pointer' }}>
           <input type="file" accept="image/*" style={{ display: 'none' }}
                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
-          <span className="muted" style={{ fontSize: 12, textDecoration: 'underline' }}>
+          <span className="muted" style={{ fontSize: 14.5, textDecoration: 'underline' }}>
             {busy ? 'Uploading…' : url ? 'Change photo' : 'Add your photo'}
           </span>
         </label>
@@ -119,7 +119,7 @@ export default function ClientLeadView() {
     return (
       <div className="centered">
         <div>
-          <div className="wordmark" style={{ fontSize: 15, marginBottom: 14 }}>Not found</div>
+          <div className="wordmark" style={{ fontSize: 17.5, marginBottom: 14 }}>Not found</div>
           <p className="muted" style={{ maxWidth: 340, lineHeight: 1.7 }}>
             This link isn’t active anymore. Reach out to your agent for an updated one.
           </p>
@@ -132,7 +132,7 @@ export default function ClientLeadView() {
     return (
       <div className="centered">
         <div>
-          <div className="wordmark" style={{ fontSize: 15, marginBottom: 14 }}>Something went wrong</div>
+          <div className="wordmark" style={{ fontSize: 17.5, marginBottom: 14 }}>Something went wrong</div>
           <p className="muted" style={{ maxWidth: 340, lineHeight: 1.7 }}>
             We couldn’t load this page. Try refreshing.
           </p>
@@ -261,7 +261,7 @@ export default function ClientLeadView() {
                     {h.url ? <a href={h.url} target="_blank" rel="noreferrer">{h.address_line}</a> : h.address_line}
                     {h.city_state_zip ? `, ${h.city_state_zip}` : ''}
                   </p>
-                  {h.note && <p className="notebody muted" style={{ fontSize: 12.5 }}>{h.note}</p>}
+                  {h.note && <p className="notebody muted" style={{ fontSize: 15 }}>{h.note}</p>}
                   <RequestShowingButton token={token ?? ''} homeId={h.id} initiallyRequested={h.showing_requested} />
                 </div>
               ))}
@@ -286,7 +286,7 @@ export default function ClientLeadView() {
                     {h.city_state_zip ? `, ${h.city_state_zip}` : ''}
                     {h.price ? ` — ${h.price}` : ''}
                   </p>
-                  {h.note && <p className="notebody muted" style={{ fontSize: 12.5 }}>{h.note}</p>}
+                  {h.note && <p className="notebody muted" style={{ fontSize: 15 }}>{h.note}</p>}
                   <MakeOfferButton token={token ?? ''} homeId={h.id} initiallyRequested={h.offer_requested} />
                 </div>
               ))}
@@ -306,7 +306,7 @@ export default function ClientLeadView() {
         <div className="card notesboard">
           <h3 className="eyebrow">Updates</h3>
           {notes.length === 0 ? (
-            <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 0' }}>No updates posted yet.</p>
+            <p className="muted" style={{ fontSize: 15, margin: '8px 0 0' }}>No updates posted yet.</p>
           ) : (
             <div className="notelist">
               {notes.map((n) => (
@@ -335,7 +335,7 @@ function RequestShowingButton({ token, homeId, initiallyRequested }: {
   const [busy, setBusy] = useState(false)
 
   if (requested) {
-    return <p className="notebody muted" style={{ fontSize: 12.5, marginTop: 6 }}>Showing requested — we'll be in touch.</p>
+    return <p className="notebody muted" style={{ fontSize: 15, marginTop: 6 }}>Showing requested — we'll be in touch.</p>
   }
 
   return (
@@ -363,7 +363,7 @@ function MakeOfferButton({ token, homeId, initiallyRequested }: {
   const [busy, setBusy] = useState(false)
 
   if (requested) {
-    return <p className="notebody muted" style={{ fontSize: 12.5, marginTop: 6 }}>We got it — your agent will be in touch!</p>
+    return <p className="notebody muted" style={{ fontSize: 15, marginTop: 6 }}>We got it — your agent will be in touch!</p>
   }
 
   return (
@@ -414,7 +414,7 @@ function ReferralForm({ token }: { token: string }) {
           <input value={name} required placeholder="Their name" onChange={(e) => setName(e.target.value)} />
           <input value={phone} placeholder="Phone (optional)" onChange={(e) => setPhone(e.target.value)} />
           <input type="email" value={email} placeholder="Email (optional)" onChange={(e) => setEmail(e.target.value)} />
-          {err && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{err}</p>}
+          {err && <p style={{ color: 'var(--danger)', fontSize: 15.5 }}>{err}</p>}
           <button className="btn primary" disabled={busy || !name.trim()} style={{ justifySelf: 'start' }}>
             {busy ? 'Sending…' : 'Send referral'}
           </button>

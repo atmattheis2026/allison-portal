@@ -514,7 +514,7 @@ export default function AdminTransaction() {
             </>
           ) : (
             <>
-              <span className="muted" style={{ fontSize: 13 }}>
+              <span className="muted" style={{ fontSize: 15.5 }}>
                 Once funds have disbursed, mark this closed to move the client's file to Closed.
               </span>
               <button className="btn primary" onClick={markClosed}>Closed &amp; Funded</button>
@@ -570,7 +570,7 @@ function AssignedTo({ roster, assignedIds, onToggle }: {
                 : undefined}
               onClick={() => onToggle(m.id)}
               style={{
-                fontSize: 12, letterSpacing: '.02em',
+                fontSize: 14.5, letterSpacing: '.02em',
                 border: `1px solid ${on ? 'var(--gold-soft)' : 'var(--line)'}`,
                 borderRadius: 999, padding: '6px 12px',
                 color: on ? 'var(--gold-bright)' : 'var(--ink-faint)',

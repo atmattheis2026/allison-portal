@@ -306,7 +306,7 @@ export default function AdminRolodex() {
   return (
     <div className="admin">
       <header className="adminbar">
-        <span className="wordmark" style={{ fontSize: 15 }}>Rolodex</span>
+        <span className="wordmark" style={{ fontSize: 17.5 }}>Rolodex</span>
       </header>
       <AdminNav current="rolodex" />
 
@@ -335,7 +335,7 @@ export default function AdminRolodex() {
             client's profile.
           </p>
           {clientRows.length === 0 ? (
-            <p className="muted" style={{ fontSize: 12.5 }}>Nothing matches.</p>
+            <p className="muted" style={{ fontSize: 15 }}>Nothing matches.</p>
           ) : (
             <div className="notelist" style={{ marginTop: 10 }}>
               {clientRows.map(renderRow)}
@@ -350,7 +350,7 @@ export default function AdminRolodex() {
             no matter who's on which deal.
           </p>
           {professionalRows.length === 0 ? (
-            <p className="muted" style={{ fontSize: 12.5 }}>Nothing matches.</p>
+            <p className="muted" style={{ fontSize: 15 }}>Nothing matches.</p>
           ) : (
             <div className="notelist" style={{ marginTop: 10 }}>
               {professionalRows.map(renderRow)}

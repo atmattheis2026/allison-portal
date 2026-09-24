@@ -174,7 +174,7 @@ export default function AdminResources() {
 
       {isMentorViewer ? (
         <header className="adminbar">
-          <span className="wordmark" style={{ fontSize: 15 }}>
+          <span className="wordmark" style={{ fontSize: 17.5 }}>
             <Link to="/mentor" className="muted" style={{ textDecoration: 'none' }}>My agents</Link>
             {' / '}Home Page
           </span>
@@ -185,7 +185,7 @@ export default function AdminResources() {
       ) : (
         <>
           <header className="adminbar">
-            <span className="wordmark" style={{ fontSize: 15 }}>Home Page</span>
+            <span className="wordmark" style={{ fontSize: 17.5 }}>Home Page</span>
           </header>
           <AdminNav current="resources" />
         </>
@@ -243,7 +243,7 @@ export default function AdminResources() {
                   <>
                     {isDatabaseManager && (
                       unfiled.length === 0 ? (
-                        <p className="muted" style={{ fontSize: 12.5 }}>Nothing unfiled here.</p>
+                        <p className="muted" style={{ fontSize: 15 }}>Nothing unfiled here.</p>
                       ) : (
                         <ResourceList items={unfiled} onRemove={removeResource} />
                       )
@@ -312,7 +312,7 @@ function ResourceList({ items, onRemove }: { items: Resource[]; onRemove: (id: s
               Delete
             </button>
           </p>
-          {r.description && <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>{r.description}</p>}
+          {r.description && <p className="muted" style={{ fontSize: 15, margin: '4px 0 0' }}>{r.description}</p>}
         </div>
       ))}
     </div>
@@ -346,7 +346,7 @@ function FolderTile({ folder, onClick }: { folder: ResourceFolder; onClick: () =
       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent' }}
     >
       <FolderIcon size={36} />
-      <span style={{ fontSize: 12.5, lineHeight: 1.3, color: 'var(--ink)', wordBreak: 'break-word' }}>
+      <span style={{ fontSize: 15, lineHeight: 1.3, color: 'var(--ink)', wordBreak: 'break-word' }}>
         {folder.name}
       </span>
     </button>
@@ -407,7 +407,7 @@ function FolderDetail(props: FolderDetailProps) {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 12.5, marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 15, marginBottom: 12 }}>
         {crumbs.map((crumb, i) => {
           const isLast = i === crumbs.length - 1
           return (
@@ -436,7 +436,7 @@ function FolderDetail(props: FolderDetailProps) {
                   onClick={() => onNavigate(parentPath)}>
             ← Back
           </button>
-          <strong style={{ flex: 1, fontSize: 15 }}>{folder.name}</strong>
+          <strong style={{ flex: 1, fontSize: 17.5 }}>{folder.name}</strong>
           {isDatabaseManager && (
             <>
               <button type="button" className="btn"
@@ -630,7 +630,7 @@ function FolderContactsList({ folder, contacts, onAdded, onPatched, onRemoved }:
     <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--line-soft)' }}>
       <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Contacts</label>
       {contacts.length === 0 && !adding && (
-        <p className="muted" style={{ fontSize: 12.5, marginBottom: 8 }}>No contacts yet.</p>
+        <p className="muted" style={{ fontSize: 15, marginBottom: 8 }}>No contacts yet.</p>
       )}
       {contacts.map((c) => (
         <div key={c.id} style={{
@@ -652,12 +652,12 @@ function FolderContactsList({ folder, contacts, onAdded, onPatched, onRemoved }:
             <>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
                 <strong>{c.name || <span className="muted">Unnamed contact</span>}</strong>
-                {c.role_label && <span className="muted" style={{ fontSize: 12.5 }}>{c.role_label}</span>}
+                {c.role_label && <span className="muted" style={{ fontSize: 15 }}>{c.role_label}</span>}
               </div>
               <p className="notebody" style={{ margin: '4px 0 0' }}>
                 {[c.phone, c.email].filter(Boolean).join(' · ') || <span className="muted">No contact info</span>}
               </p>
-              {c.note && <p className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>{c.note}</p>}
+              {c.note && <p className="muted" style={{ fontSize: 15, marginTop: 4 }}>{c.note}</p>}
               <div className="savebar" style={{ marginTop: 8 }}>
                 <button type="button" className="btn" onClick={() => startEdit(c)}>Edit</button>
                 <button type="button" className="btn" style={{ color: 'var(--danger, #cc3311)' }} onClick={() => removeContact(c)}>
@@ -745,7 +745,7 @@ function FolderNotesBoard({ folder, notes, onAdded }: {
     <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--line-soft)' }}>
       <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Notes</label>
       {notes.length === 0 ? (
-        <p className="muted" style={{ fontSize: 12.5, marginBottom: 8 }}>No notes yet.</p>
+        <p className="muted" style={{ fontSize: 15, marginBottom: 8 }}>No notes yet.</p>
       ) : (
         <div className="notelist">
           {notes.map((n) => (
@@ -755,7 +755,7 @@ function FolderNotesBoard({ folder, notes, onAdded }: {
                 <span className="notewhen">{new Date(n.created_at).toLocaleDateString('en-US', {
                   month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
                 })}</span>
-                {n.notified && <span className="tag" style={{ fontSize: 10, flex: 'none' }}>Notified</span>}
+                {n.notified && <span className="tag" style={{ fontSize: 13, flex: 'none' }}>Notified</span>}
               </div>
               <p className="notebody">{n.body}</p>
             </div>
@@ -764,7 +764,7 @@ function FolderNotesBoard({ folder, notes, onAdded }: {
       )}
       <div className="noteadd">
         <textarea rows={2} value={draft} placeholder="Type a note…" onChange={(e) => setDraft(e.target.value)} />
-        <label className="cl" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}>
+        <label className="cl" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 15 }}>
           <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
           Notify people with access to this folder
         </label>
@@ -812,7 +812,7 @@ function NewFolder({ category, parentFolderId, onCancel, onCreated }: {
         <label>Folder name</label>
         <input value={name} autoFocus onChange={(e) => setName(e.target.value)} placeholder="e.g. Title company documents" />
       </div>
-      {err && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{err}</p>}
+      {err && <p style={{ color: 'var(--danger)', fontSize: 15.5 }}>{err}</p>}
       <div className="savebar">
         <button className="btn primary" disabled={busy}>{busy ? 'Creating…' : 'Create folder'}</button>
         <button type="button" className="btn" onClick={onCancel}>Cancel</button>
@@ -921,7 +921,7 @@ function FolderAccessEditor({ folder }: { folder: ResourceFolder }) {
       <label className="eyebrow" style={{ display: 'block', marginBottom: 4 }}>Mentors</label>
       <div style={{ display: 'grid', gap: 4, marginBottom: 10 }}>
         {mentors.length === 0 ? (
-          <p className="muted" style={{ fontSize: 12.5 }}>No mentors added yet.</p>
+          <p className="muted" style={{ fontSize: 15 }}>No mentors added yet.</p>
         ) : mentors.map((m) => (
           <label key={m.id} className="cl" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <input type="checkbox" checked={checkedMentors.has(m.id)} onChange={() => toggleMentor(m.id)} />
@@ -933,7 +933,7 @@ function FolderAccessEditor({ folder }: { folder: ResourceFolder }) {
         <button type="button" className="btn primary" disabled={DEMO_MODE || busy} onClick={save}>
           {busy ? 'Saving…' : saved ? 'Saved' : 'Save access'}
         </button>
-        {DEMO_MODE && <span className="muted" style={{ fontSize: 12 }}>Saving needs the database connected.</span>}
+        {DEMO_MODE && <span className="muted" style={{ fontSize: 14.5 }}>Saving needs the database connected.</span>}
       </div>
     </div>
   )
@@ -1003,7 +1003,7 @@ function AddResource({ category, folderId, onCancel, onAdded }: {
         <label>Link (optional)</label>
         <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" />
       </div>
-      {err && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{err}</p>}
+      {err && <p style={{ color: 'var(--danger)', fontSize: 15.5 }}>{err}</p>}
       <div className="savebar">
         <button type="button" className="btn primary" disabled={uploading}
                 onClick={() => saveWithFile(null)}>
