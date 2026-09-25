@@ -22,6 +22,7 @@ interface Comm { at: string; text: string; kind: 'referral' | 'showing' | 'offer
 interface ReferralRow { id: string; lead_id: string; name: string; created_at: string }
 interface ShowingRow { id: string; lead_id: string; address_line: string | null; showing_requested_at: string | null }
 interface OfferRow { id: string; lead_id: string; address_line: string | null; offer_requested_at: string | null }
+interface LatestNote { lead_id: string; author_name: string | null; body: string; created_at: string }
 
 /**
  * "Active Clients" — people still pre-contract, whether they're house
@@ -37,6 +38,7 @@ export default function AdminLeads() {
   const [referrals, setReferrals] = useState<ReferralRow[]>([])
   const [showings, setShowings] = useState<ShowingRow[]>([])
   const [offers, setOffers] = useState<OfferRow[]>([])
+  const [latestNotes, setLatestNotes] = useState<Record<string, LatestNote>>({})
   const [resolvingId, setResolvingId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
@@ -78,6 +80,22 @@ export default function AdminLeads() {
       setReferrals((referralData as ReferralRow[]) ?? [])
       setShowings((showingData as ShowingRow[]) ?? [])
       setOffers((offerData as OfferRow[]) ?? [])
+
+      // Most recent post from each client's "Updates" box, so the list shows
+      // at a glance where things were left. Newest first, so the first one
+      // seen per client is the latest.
+      const leadIds = ((data as Lead[]) ?? []).map((l) => l.id)
+      if (leadIds.length) {
+        const { data: noteData } = await supabase!.from('lead_notes')
+          .select('lead_id, author_name, body, created_at')
+          .in('lead_id', leadIds)
+          .order('created_at', { ascending: false })
+        const latest: Record<string, LatestNote> = {}
+        for (const n of (noteData as LatestNote[]) ?? []) {
+          if (!latest[n.lead_id]) latest[n.lead_id] = n
+        }
+        setLatestNotes(latest)
+      }
     }
     load()
   }, [nav])
@@ -340,6 +358,15 @@ export default function AdminLeads() {
                     </button>
                   )}
                 </div>
+                {latestNotes[r.id] && (
+                  <Link to={`/admin/leads/${r.id}`} className="txlastnote">
+                    <span className="txlastnotelabel">
+                      Last update · {commWhen(latestNotes[r.id].created_at)}
+                      {latestNotes[r.id].author_name && ` · ${latestNotes[r.id].author_name}`}
+                    </span>
+                    <span className="txlastnotebody">{latestNotes[r.id].body}</span>
+                  </Link>
+                )}
               </div>
             )
           })}
