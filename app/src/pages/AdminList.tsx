@@ -23,6 +23,20 @@ interface Row {
   share_token: string
 }
 
+interface LatestNote { transaction_id: string; author_name: string | null; body: string; created_at: string }
+
+function timeAgo(iso: string) {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days === 1) return 'yesterday'
+  if (days < 7) return `${days}d ago`
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 type SortMode = 'recent' | 'agent' | 'lender' | 'client' | 'city' | 'price'
 
 const DEMO_ROWS: Row[] = [
@@ -68,6 +82,7 @@ export default function AdminList() {
   const [roster, setRoster] = useState<TeamMember[]>([])
   const [assignedByTx, setAssignedByTx] = useState<Record<string, string[]>>({})
   const [clientNameByTx, setClientNameByTx] = useState<Record<string, string | null>>({})
+  const [latestNotes, setLatestNotes] = useState<Record<string, LatestNote>>({})
   const [search, setSearch] = useState('')
   const [sortMode, setSortMode] = useState<SortMode>('recent')
 
@@ -76,6 +91,12 @@ export default function AdminList() {
       setRows(DEMO_ROWS)
       setRoster(TEAM_MEMBERS)
       setAssignedByTx(TRANSACTION_ASSIGNEES)
+      const demoLatest: Record<string, LatestNote> = {}
+      for (const p of [DEMO_PAYLOAD, DEMO_SELLER]) {
+        const n = p.notes[0]
+        if (n) demoLatest[p.transaction.id] = { transaction_id: p.transaction.id, author_name: n.author_name, body: n.body, created_at: n.created_at }
+      }
+      setLatestNotes(demoLatest)
       return
     }
 
@@ -148,6 +169,19 @@ export default function AdminList() {
           byTx[tx.id] = match?.name ?? null
         }
         setClientNameByTx(byTx)
+
+        // Most recent post from each deal's Updates board (either side —
+        // real estate or loan), so the list shows where things were left.
+        // Newest first, so the first one seen per deal is the latest.
+        const { data: noteRows } = await supabase!.from('notes')
+          .select('transaction_id, author_name, body, created_at')
+          .in('transaction_id', txIds)
+          .order('created_at', { ascending: false })
+        const latest: Record<string, LatestNote> = {}
+        for (const n of (noteRows as LatestNote[]) ?? []) {
+          if (!latest[n.transaction_id]) latest[n.transaction_id] = n
+        }
+        setLatestNotes(latest)
       }
     }
     load()
@@ -339,6 +373,16 @@ export default function AdminList() {
                         onClick={() => deleteTransaction(r)} title="Permanently delete this transaction">
                   Delete
                 </button>
+              )}
+              {latestNotes[r.id] && (
+                <Link to={`/admin/t/${r.id}`} className="txlastnote"
+                      style={r.closed_and_funded ? { opacity: 0.6 } : undefined}>
+                  <span className="txlastnotelabel">
+                    Last update · {timeAgo(latestNotes[r.id].created_at)}
+                    {latestNotes[r.id].author_name && ` · ${latestNotes[r.id].author_name}`}
+                  </span>
+                  <span className="txlastnotebody">{latestNotes[r.id].body}</span>
+                </Link>
               )}
             </div>
           ))}
