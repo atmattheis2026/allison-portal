@@ -1,0 +1,106 @@
+/* Loan Options Worksheet — /admin/leads/:id/loan-worksheet
+   Two halves: the editing screen (follows the app's readability rules:
+   17px text, plain headings) and the client sheet pages (.sp), which are a
+   fixed printed design and deliberately keep the worksheet's own look. */
+
+@font-face { font-family: LwRoboto; src: url(../assets/loan-sheet/roboto-latin-300-normal.woff2) format('woff2'); font-weight: 300; }
+@font-face { font-family: LwRoboto; src: url(../assets/loan-sheet/roboto-latin-400-normal.woff2) format('woff2'); font-weight: 400; }
+@font-face { font-family: LwRoboto; src: url(../assets/loan-sheet/roboto-latin-500-normal.woff2) format('woff2'); font-weight: 500; }
+@font-face { font-family: LwCorm; src: url(../assets/loan-sheet/cormorant-garamond-latin-500-italic.woff2) format('woff2'); font-style: italic; font-weight: 500; }
+
+.lw { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; max-width: 1100px; margin: 0 auto; }
+.lw > * { min-width: 0; }
+.lw .setcard h2 { margin-bottom: 4px; }
+.lw-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 10px 18px; margin-bottom: 12px; }
+.lw-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lw-status { font-size: 15px; color: var(--ink-faint); }
+.lw-banner { background: #FBF1E2; color: #7a4a14; border-radius: var(--r-sm); padding: 10px 14px; font-size: 15.5px; margin-bottom: 14px; line-height: 1.5; }
+
+.lw-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.lw-rates { border-collapse: collapse; width: 100%; min-width: 1180px; }
+.lw-rates th { font-size: 14px; font-weight: 600; color: var(--ink-dim); text-align: left; padding: 6px 5px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.lw-rates td { padding: 5px 4px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+.lw-rates tr.on td { background: var(--panel-2); }
+.lw-rates input, .lw-rates select { width: 100%; font-size: 15px; padding: 7px 8px; }
+.lw-rates input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--gold); cursor: pointer; }
+.lw input.n { text-align: right; font-variant-numeric: tabular-nums; }
+.lw-pct { display: flex; align-items: center; gap: 4px; }
+.lw-pct span { color: var(--ink-faint); font-size: 15px; }
+.lw-x { background: none; border: none; color: var(--ink-faint); font-size: 20px; cursor: pointer; padding: 2px 6px; }
+.lw-x:hover { color: var(--danger); }
+
+.lw-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 4px 16px; }
+.lw-grid .wide { grid-column: 1 / -1; }
+.lw-grid .field input, .lw-grid .field select, .lw-grid .field textarea { width: 100%; }
+.lw details { margin-top: 10px; border-top: 1px solid var(--line-soft); padding-top: 12px; }
+.lw summary { cursor: pointer; font-size: 16px; font-weight: 600; color: var(--ink-dim); margin-bottom: 10px; }
+
+.lw-cmp { border-collapse: collapse; width: 100%; min-width: 560px; }
+.lw-cmp th { background: #3A3A3A; color: #f1ece2; font-weight: 600; font-size: 15px; padding: 10px; text-align: left; }
+.lw-cmp td { padding: 8px 10px; border-bottom: 1px solid var(--line-soft); font-variant-numeric: tabular-nums; }
+.lw-cmp td:first-child { font-size: 15px; color: var(--ink-faint); white-space: nowrap; }
+.lw-cmp tr.sub td { font-weight: 700; color: var(--gold-bright); padding-top: 14px; }
+.lw-cmp tr.tot td { border-top: 2px solid var(--gold); font-weight: 700; font-size: 18px; }
+.lw-cmp tr.tot td:first-child { color: var(--ink); font-size: 15px; }
+.lw-cmp .lw-pct { max-width: 150px; }
+.lw-sub { display: block; font-size: 14px; color: var(--ink-faint); }
+.lw-warn { display: block; font-size: 14px; color: var(--danger); margin-top: 2px; }
+.lw-empty { padding: 26px; text-align: center; color: var(--ink-faint); border: 1px dashed var(--line); border-radius: var(--r-md); }
+
+.lw-stage { background: #e9e4d8; border-radius: var(--r-md); padding: 18px 0; overflow: hidden; }
+.lw-scale { transform-origin: top left; width: 816px; }
+
+/* ================= the client sheet (fixed printed design) ================= */
+.sp { width: 816px; height: 1056px; background: #fff; color: #1c1c1c; position: relative; overflow: hidden;
+  margin: 0 auto 18px; box-shadow: 0 2px 14px rgba(0,0,0,.12);
+  font-family: LwRoboto, Roboto, sans-serif; font-weight: 300; font-size: 12.5px; line-height: 1.55; text-align: left; }
+.sp:last-child { margin-bottom: 0; }
+.sp * { box-sizing: border-box; }
+.sp b { font-weight: 500; }
+.sp .s-abs { position: absolute; }
+.sp .s-pad { position: absolute; inset: 0; padding: 72px 72px 70px; }
+.sp .s-corm { font-family: LwCorm, 'Cormorant Garamond', serif; font-style: italic; font-weight: 500; }
+.sp .s-hero { left: 72px; top: 112px; width: 420px; color: #fff; }
+.sp .s-heroeyebrow { font-size: 10px; letter-spacing: .38em; text-transform: uppercase; margin-bottom: 12px; }
+.sp .s-herotitle { font-size: 40px; letter-spacing: .1em; text-transform: uppercase; line-height: 1.12; }
+.sp .s-herorule { width: 86px; height: 1px; background: #F1E2B8; margin-top: 18px; }
+.sp .s-letter { font-size: 12.4px; line-height: 1.7; color: #2b2b2b; margin: 0 0 11px; }
+.sp .s-sig { font-size: 9px; letter-spacing: .22em; text-transform: uppercase; color: #5a5a5a; margin-top: 7px; }
+.sp .s-logos { left: 72px; right: 72px; bottom: 84px; border-top: 1px solid #E6DFCF; padding-top: 16px;
+  display: flex; align-items: center; justify-content: center; gap: 34px; }
+.sp .s-vrule { width: 1px; height: 58px; background: #B39A5E; }
+.sp .s-rh { display: flex; justify-content: space-between; font-size: 9px; letter-spacing: .28em; text-transform: uppercase;
+  color: #8a8a8a; border-bottom: 1px solid #E6DFCF; padding-bottom: 9px; margin-bottom: 26px; }
+.sp .s-kick { font-size: 9.5px; letter-spacing: .34em; text-transform: uppercase; color: #B39A5E; font-weight: 500; margin-bottom: 6px; }
+.sp h3 { font-weight: 300; font-size: 25px; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 16px; line-height: 1.15; font-family: inherit; color: #1c1c1c; }
+.sp h3 em { font-family: LwCorm, 'Cormorant Garamond', serif; font-style: italic; font-weight: 500; letter-spacing: 0; text-transform: none; color: #B39A5E; font-size: 29px; }
+.sp .s-lbl { font-size: 9px; letter-spacing: .24em; text-transform: uppercase; color: #B39A5E; font-weight: 500; }
+.sp table { border-collapse: collapse; width: 100%; }
+.sp th { background: #3A3A3A; color: #f1ece2; font-weight: 400; font-size: 8.8px; letter-spacing: .14em; text-transform: uppercase; padding: 8px 9px; text-align: left; }
+.sp td { padding: 6px 9px; border-bottom: 1px solid #E6DFCF; font-size: 11.8px; font-variant-numeric: tabular-nums; vertical-align: top; }
+.sp td:first-child { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: #2b2b2b; }
+.sp tr.s-hl td { background: #FAF8F3; }
+.sp tr.s-hl td:first-child { border-left: 3px solid #B39A5E; padding-left: 6px; }
+.sp tr.s-sub td { background: #FAF8F3; font-size: 8.8px; letter-spacing: .22em; color: #B39A5E; font-weight: 500; padding-top: 8px; text-transform: uppercase; }
+.sp tr.s-tot td { border-top: 1.4px solid #B39A5E; font-weight: 500; font-size: 13px; }
+.sp .s-snote { font-size: 9.6px; line-height: 1.55; color: #6b6b6b; margin-top: 9px; }
+.sp .s-fill { background: #FAF8F3; border: 1px solid #E6DFCF; padding: 14px 16px; }
+.sp .s-fieldrow { display: flex; align-items: baseline; gap: 10px; border-bottom: 1px solid #E6DFCF; padding: 8px 0; }
+.sp .s-fieldrow .s-k { font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: #B39A5E; font-weight: 500; white-space: nowrap; width: 100px; flex: none; }
+.sp .s-fieldrow .s-v { font-size: 12.5px; }
+.sp .s-chk { display: flex; gap: 9px; font-size: 11.5px; line-height: 1.5; color: #2b2b2b; padding: 3px 0; }
+.sp .s-chk i { flex: none; width: 10px; height: 10px; border: 1px solid #B39A5E; margin-top: 4px; }
+.sp .s-twocol { display: grid; grid-template-columns: 1fr 1fr; column-gap: 36px; }
+.sp .s-step { display: flex; gap: 12px; padding: 7px 0; border-top: 1px solid #E6DFCF; }
+.sp .s-stepnum { font-size: 22px; color: #B39A5E; line-height: 1; width: 28px; flex: none; }
+.sp .s-steptxt { font-size: 11.6px; line-height: 1.5; color: #2b2b2b; }
+.sp .s-steptxt b { font-weight: 400; text-transform: uppercase; letter-spacing: .08em; font-size: 10.2px; color: #1c1c1c; }
+.sp .s-notes { font-size: 12px; line-height: 1.6; color: #2b2b2b; white-space: pre-wrap; }
+.sp .s-cta { margin-top: 18px; display: flex; gap: 22px; align-items: center; border: 1px solid #B39A5E; padding: 16px 18px; }
+.sp .s-ctatxt { font-size: 11.6px; line-height: 1.6; color: #2b2b2b; margin: 0 0 6px; }
+.sp .s-ctacontact { font-size: 10.4px; letter-spacing: .12em; text-transform: uppercase; color: #1c1c1c; }
+.sp .s-disc { font-size: 8.6px; line-height: 1.55; color: #6b6b6b; margin-top: 14px; }
+.sp .s-legal { position: absolute; left: 72px; right: 72px; bottom: 30px; display: flex; justify-content: space-between; gap: 20px;
+  font-size: 7.6px; letter-spacing: .04em; color: #8a8a8a; line-height: 1.45; border-top: 1px solid #E6DFCF; padding-top: 8px; }
+.sp .s-eho { width: 10px; height: 10px; vertical-align: -2px; margin-right: 3px; }
+.sp .s-ph { color: #b0a78f; }
