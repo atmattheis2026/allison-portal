@@ -181,6 +181,31 @@ export default function AdminList() {
         for (const n of (noteRows as LatestNote[]) ?? []) {
           if (!latest[n.transaction_id]) latest[n.transaction_id] = n
         }
+
+        // Once a client is under contract, updates often keep going on their
+        // Active Clients page instead of the deal itself — so a deal's
+        // client's updates count too, whichever is newer wins.
+        const { data: linkedLeads } = await supabase!.from('leads')
+          .select('id, converted_transaction_id')
+          .in('converted_transaction_id', txIds)
+        const txByLead: Record<string, string> = {}
+        for (const l of linkedLeads ?? []) {
+          if (l.converted_transaction_id) txByLead[l.id] = l.converted_transaction_id
+        }
+        const leadIds = Object.keys(txByLead)
+        if (leadIds.length) {
+          const { data: leadNoteRows } = await supabase!.from('lead_notes')
+            .select('lead_id, author_name, body, created_at')
+            .in('lead_id', leadIds)
+            .order('created_at', { ascending: false })
+          for (const n of leadNoteRows ?? []) {
+            const txId = txByLead[n.lead_id]
+            const cur = latest[txId]
+            if (!cur || n.created_at > cur.created_at) {
+              latest[txId] = { transaction_id: txId, author_name: n.author_name, body: n.body, created_at: n.created_at }
+            }
+          }
+        }
         setLatestNotes(latest)
       }
     }
