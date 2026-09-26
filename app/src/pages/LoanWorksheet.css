@@ -101,6 +101,7 @@
 .sp .s-cta { margin-top: 18px; display: flex; gap: 22px; align-items: center; border: 1px solid #B39A5E; padding: 16px 18px; }
 .sp .s-ctatxt { font-size: 11.6px; line-height: 1.6; color: #2b2b2b; margin: 0 0 6px; }
 .sp .s-ctacontact { font-size: 10.4px; letter-spacing: .12em; text-transform: uppercase; color: #1c1c1c; }
+.sp .s-ctaemails { font-size: 10.4px; letter-spacing: .02em; color: #1c1c1c; margin-top: 3px; white-space: pre; }
 .sp .s-disc { font-size: 8.6px; line-height: 1.55; color: #6b6b6b; margin-top: 14px; }
 .sp .s-legal { position: absolute; left: 72px; right: 72px; bottom: 30px; display: flex; justify-content: space-between; gap: 20px;
   font-size: 7.6px; letter-spacing: .04em; color: #8a8a8a; line-height: 1.45; border-top: 1px solid #E6DFCF; padding-top: 8px; }

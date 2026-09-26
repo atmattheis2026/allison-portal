@@ -71,7 +71,8 @@ export interface LoanOfficerProfile {
   title: string
   nmls: string
   phone: string
-  email: string
+  /** One or more; printed in this order. */
+  emails: string[]
   /** Shows The Mattheis Team logo beside The Surek Group's on page 1. */
   showMattheisLogo: boolean
   /** Where the page-3 QR code goes, and the sentence beside it. */
@@ -84,13 +85,13 @@ export const COMPANY_NMLS = '2278678'
 export const PROFILES: LoanOfficerProfile[] = [
   {
     id: 'mattheis', label: 'The Mattheis Team', fullName: 'Allison Mattheis', signName: 'Allison',
-    title: 'Mortgage Loan Officer', nmls: '2733400', phone: '407-708-9360', email: 'allisonsellsflorida@gmail.com',
+    title: 'Mortgage Loan Officer', nmls: '2733400', phone: '407-708-9360', emails: ['mattheisteam@gouslending.com', 'allisonsellsflorida@gmail.com'],
     showMattheisLogo: true, qr: 'lendingpad',
     ctaText: 'Scan to start your secure application with The Surek Group, or reach me directly.',
   },
   {
     id: 'surek', label: "Rich Surek's team", fullName: 'Richard Surek', signName: 'Rich',
-    title: 'Loan Officer', nmls: '17742', phone: '608-219-0791', email: 'rich@gouslending.com',
+    title: 'Loan Officer', nmls: '17742', phone: '608-219-0791', emails: ['rich@gouslending.com'],
     showMattheisLogo: false, qr: 'gouslending',
     ctaText: 'Scan to visit gouslending.com and start your application, or reach me directly.',
   },

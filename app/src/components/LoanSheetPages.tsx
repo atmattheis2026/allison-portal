@@ -139,7 +139,7 @@ export default function LoanSheetPages({ sheet, client, options, selected, lo }:
               <div className="s-lotext">
                 <div className="s-corm" style={{ fontSize: 26, lineHeight: 1.1 }}>{lo.fullName}</div>
                 <div className="s-sig" style={{ marginTop: 6 }}>{lo.title} · NMLS #{lo.nmls}</div>
-                <div className="s-locontact">{lo.phone}<br />{lo.email}</div>
+                <div className="s-locontact">{lo.phone}{lo.emails.map((e) => <span key={e}><br />{e}</span>)}</div>
               </div>
               <span className="s-vrule" />
               <img src={surekLogo} style={{ height: 76 }} alt="The Surek Group" />
@@ -231,7 +231,8 @@ export default function LoanSheetPages({ sheet, client, options, selected, lo }:
             <div style={{ flex: 1 }}>
               <div className="s-corm" style={{ fontSize: 22, lineHeight: 1.1, marginBottom: 5 }}>Ready when you are</div>
               <p className="s-ctatxt">{lo.ctaText}</p>
-              <div className="s-ctacontact">{lo.phone} &nbsp;·&nbsp; <span style={{ textTransform: 'none', letterSpacing: '.02em' }}>{lo.email}</span></div>
+              <div className="s-ctacontact">{lo.phone}</div>
+              <div className="s-ctaemails">{lo.emails.join('  ·  ')}</div>
             </div>
             <div style={{ borderLeft: '1px solid #E6DFCF', paddingLeft: 18 }}><img src={surekLogo} style={{ height: 64 }} alt="The Surek Group" /></div>
           </div>
