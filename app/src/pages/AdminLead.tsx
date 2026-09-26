@@ -1633,6 +1633,7 @@ export default function AdminLead() {
                      onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadDocument(f) }} />
               {uploadingDoc ? 'Uploading…' : '+ Upload document'}
             </label>
+            <Link className="btn" to={`/admin/leads/${id}/loan-worksheet`}>+ Loan options worksheet</Link>
           </div>
         </div>
 

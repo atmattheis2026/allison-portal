@@ -410,6 +410,35 @@ from `resource_folder_contacts`. There's no deep link back to the specific
 folder (Home Page navigation is client-side path state, not a URL) — the
 row's link just goes to `/admin/resources`.
 
+## Loan Options Worksheet
+
+Added 2026-09-26. Route `/admin/leads/:id/loan-worksheet`
+(`AdminLoanWorksheet.tsx`), reached from the **+ Loan options worksheet**
+button in a client's Documents card. It's her branded rate sheet for new loan
+clients: rate table, then client details (pre-filled from the lead), up to three
+loans picked for a side-by-side monthly payment, then a three-page client sheet
+(`components/LoanSheetPages.tsx`), which is saved as a PDF into the client's
+Documents (`lead_documents` + `media` bucket, same as an upload) or downloaded.
+
+- **Rate table is team-wide**, one row per team in `loan_rate_sheets`
+  (migration 075, with the same `not is_mentor()` wall as other team tables).
+  If 075 hasn't been run on her live database, `loadRateSheet()` falls back to
+  this browser's localStorage and the page shows a banner saying so. Keep
+  that fallback; her live database isn't guaranteed to have every migration.
+- **Client details are never stored** except inside the saved PDF. That's on
+  purpose, so no borrower financial details sit in a new table.
+- **The client sheet is a fixed printed design**, 816×1056 px per page, and
+  deliberately keeps the worksheet's own look (small spaced caps, Roboto
+  light plus Cormorant italic, bundled in `assets/loan-sheet/`). The app's
+  readability rule applies to the editing screen, not to these pages.
+  Branding is The Mattheis Team + The Surek Group only; never add a brokerage
+  logo to it (Allison's instruction). Its lending disclosures are the wording
+  she approved for the printed worksheet; don't reword them.
+- All client-sheet classes are prefixed `s-` inside `.sp`, because the app's
+  global classes (`.hero`, `.fill`, `.chk`, ...) broke the layout otherwise.
+- PDFs are built in the browser with html2canvas + jsPDF (loaded only when a
+  button is pressed) from an unscaled off-screen copy of the pages.
+
 ## Still to do
 
 - Both company logos — she uploads them in Settings › Branding
