@@ -17,8 +17,8 @@ import LoanSheetPages from '../components/LoanSheetPages'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { Lead, TeamMember } from '../lib/types'
 import {
-  type LoanProgram, type MiRule, type RateSheet, type SheetSource, type WorksheetClient,
-  DEFAULT_SHEET, calcOption, loadRateSheet, money, num, pct3, saveRateSheet, todayLocal,
+  type LoanProgram, type MiRule, type ProfileId, type RateSheet, type SheetSource, type WorksheetClient,
+  DEFAULT_SHEET, PROFILES, calcOption, loadRateSheet, money, num, pct3, saveRateSheet, todayLocal,
 } from '../lib/loanWorksheet'
 import './Admin.css'
 import './LoanWorksheet.css'
@@ -63,6 +63,9 @@ export default function AdminLoanWorksheet() {
   const [picks, setPicks] = useState<string[]>([])
   const [overrides, setOverrides] = useState<Record<string, number>>({})
   const [budgetHint, setBudgetHint] = useState('')
+
+  const [profileId, setProfileId] = useState<ProfileId>('mattheis')
+  const lo = PROFILES.find((p) => p.id === profileId) ?? PROFILES[0]
 
   const [busy, setBusy] = useState<'' | 'save' | 'download'>('')
   const [pdfStatus, setPdfStatus] = useState<ReactNode>('')
@@ -167,7 +170,7 @@ export default function AdminLoanWorksheet() {
     }
     return pdf.output('blob')
   }
-  const fileName = () => `Loan Options - ${safeFileName(client.name) || 'Client'} - ${client.date || todayLocal()}.pdf`
+  const fileName = () => `Loan Options - ${safeFileName(client.name) || 'Client'} - ${client.date || todayLocal()}${profileId === 'surek' ? ' - Surek' : ''}.pdf`
 
   async function downloadPdf() {
     setBusy('download'); setPdfStatus('Building the PDF…')
@@ -229,6 +232,20 @@ export default function AdminLoanWorksheet() {
       <AdminNav current="leads" />
 
       <div className="lw">
+        {/* ---------- who it's from ---------- */}
+        <div className="card setcard">
+          <h2>Prepared by</h2>
+          <p className="sethelp">Pick whose name, contact details and branding go on this client's sheet. Both use the same rate table.</p>
+          <div className="tabs" style={{ marginBottom: 0 }}>
+            {PROFILES.map((p) => (
+              <button key={p.id} type="button" className={`tab${p.id === profileId ? ' on' : ''}`}
+                      onClick={() => setProfileId(p.id)}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* ---------- 1. rates ---------- */}
         <div className="card setcard">
           <div className="lw-head">
@@ -413,7 +430,7 @@ export default function AdminLoanWorksheet() {
           {pdfStatus && <p className="lw-status" style={{ margin: '0 0 12px' }}>{pdfStatus}</p>}
           <div className="lw-stage" ref={stageRef}>
             <div className="lw-scale" ref={scaleRef}>
-              <LoanSheetPages sheet={sheet} client={client} options={options} selected={picks} />
+              <LoanSheetPages lo={lo} sheet={sheet} client={client} options={options} selected={picks} />
             </div>
           </div>
         </div>
@@ -421,7 +438,7 @@ export default function AdminLoanWorksheet() {
 
       {/* Unscaled copy used only to build the PDF, kept off-screen. */}
       <div ref={printRef} aria-hidden="true" style={{ position: 'fixed', left: -10000, top: 0, width: 816, pointerEvents: 'none' }}>
-        <LoanSheetPages sheet={sheet} client={client} options={options} selected={picks} />
+        <LoanSheetPages lo={lo} sheet={sheet} client={client} options={options} selected={picks} />
       </div>
     </div>
   )

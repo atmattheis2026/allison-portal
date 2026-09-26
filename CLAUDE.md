@@ -431,8 +431,13 @@ Documents (`lead_documents` + `media` bucket, same as an upload) or downloaded.
   deliberately keeps the worksheet's own look (small spaced caps, Roboto
   light plus Cormorant italic, bundled in `assets/loan-sheet/`). The app's
   readability rule applies to the editing screen, not to these pages.
-  Branding is The Mattheis Team + The Surek Group only; never add a brokerage
-  logo to it (Allison's instruction). Its lending disclosures are the wording
+  Never add a brokerage logo to it (Allison's instruction).
+- **Two versions, one rate table** (2026-09-26): a "Prepared by" picker
+  switches between The Mattheis Team (Allison; Mattheis Team + Surek Group
+  logos, QR to her LendingPad application) and Rich Surek's team (Richard
+  Surek, NMLS #17742; no team logo, so his name and contact sit where the
+  Mattheis logo goes, QR to gouslending.com). Both are teams inside The Surek
+  Group. Details live in `PROFILES` in `lib/loanWorksheet.ts`. Its lending disclosures are the wording
   she approved for the printed worksheet; don't reword them.
 - All client-sheet classes are prefixed `s-` inside `.sp`, because the app's
   global classes (`.hero`, `.fill`, `.chk`, ...) broke the layout otherwise.

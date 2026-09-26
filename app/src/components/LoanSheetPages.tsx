@@ -3,8 +3,8 @@
  * client receives them in the PDF. Fixed 816×1056 px (8.5×11 in at 96 dpi) so
  * the on-screen preview and the PDF are the same picture.
  *
- * Branding is The Mattheis Team + The Surek Group only — no brokerage logo,
- * per Allison. The lending disclosures below are the wording she approved for
+ * Branding is The Surek Group, plus The Mattheis Team logo on that team's
+ * version — never a brokerage logo, per Allison. The lending disclosures below are the wording she approved for
  * the printed worksheet (Sept 2026).
  */
 import type { ReactNode } from 'react'
@@ -12,15 +12,12 @@ import shore from '../assets/loan-sheet/shore.jpg'
 import mattheisLogo from '../assets/loan-sheet/mattheis-team.png'
 import surekLogo from '../assets/loan-sheet/surek-group.png'
 import applyQr from '../assets/loan-sheet/apply-qr.svg'
+import surekSiteQr from '../assets/loan-sheet/surek-site-qr.svg'
 import {
-  type OptionCalc, type RateSheet, type WorksheetClient,
+  type LoanOfficerProfile, type OptionCalc, type RateSheet, type WorksheetClient, COMPANY_NMLS,
   fmtLongDate, money, pct3,
 } from '../lib/loanWorksheet'
 
-const NMLS_MLO = '2733400'
-const NMLS_CO = '2278678'
-const PHONE = '407-708-9360'
-const EMAIL = 'allisonsellsflorida@gmail.com'
 
 function Eho() {
   return (
@@ -34,12 +31,12 @@ function Ph({ v, label }: { v: string | null | undefined; label: string }) {
   return v ? <>{v}</> : <span className="s-ph">[{label}]</span>
 }
 
-function Legal({ n }: { n: number }) {
+function Legal({ n, lo }: { n: number; lo: LoanOfficerProfile }) {
   return (
     <div className="s-legal">
       <span>
-        Allison Mattheis, Mortgage Loan Officer, NMLS #{NMLS_MLO} · The Surek Group, a DBA of US Lending Group
-        Corporation, NMLS #{NMLS_CO} · <Eho />Equal Housing Opportunity
+        {lo.fullName}, {lo.title}, NMLS #{lo.nmls} · The Surek Group, a DBA of US Lending Group
+        Corporation, NMLS #{COMPANY_NMLS} · <Eho />Equal Housing Opportunity
       </span>
       <span>{String(n).padStart(2, '0')}</span>
     </div>
@@ -64,7 +61,8 @@ const DOCS = [
   'Current lease or mortgage statement',
 ]
 
-export default function LoanSheetPages({ sheet, client, options, selected }: {
+export default function LoanSheetPages({ sheet, client, options, selected, lo }: {
+  lo: LoanOfficerProfile
   sheet: RateSheet
   client: WorksheetClient
   options: OptionCalc[]
@@ -114,8 +112,8 @@ export default function LoanSheetPages({ sheet, client, options, selected }: {
           <div className="s-corm" style={{ fontSize: 26, lineHeight: 1.2, marginBottom: 12 }}>Hi <Ph v={name} label="Client name" />,</div>
           <p className="s-letter">{sheet.intro_1}</p>
           <p className="s-letter" style={{ marginBottom: 8 }}>{sheet.intro_2}</p>
-          <div className="s-corm" style={{ fontSize: 30, color: '#B39A5E', lineHeight: 1 }}>Allison</div>
-          <div className="s-sig">Mortgage Loan Officer · NMLS #{NMLS_MLO}</div>
+          <div className="s-corm" style={{ fontSize: 30, color: '#B39A5E', lineHeight: 1 }}>{lo.signName}</div>
+          <div className="s-sig">{lo.title} · NMLS #{lo.nmls}</div>
           <div className="s-lbl" style={{ margin: '24px 0 5px' }}>What you can count on</div>
           <div className="s-chk"><i /><span>Fast, thorough pre-approvals your agent can rely on</span></div>
           <div className="s-chk"><i /><span>Clear updates for you and your agent at every step</span></div>
@@ -130,11 +128,25 @@ export default function LoanSheetPages({ sheet, client, options, selected }: {
           </div>
         </div>
         <div className="s-abs s-logos">
-          <img src={mattheisLogo} style={{ width: 230 }} alt="The Mattheis Team" />
-          <span className="s-vrule" />
-          <img src={surekLogo} style={{ height: 76 }} alt="The Surek Group" />
+          {lo.showMattheisLogo ? (
+            <>
+              <img src={mattheisLogo} style={{ width: 230 }} alt="The Mattheis Team" />
+              <span className="s-vrule" />
+              <img src={surekLogo} style={{ height: 76 }} alt="The Surek Group" />
+            </>
+          ) : (
+            <>
+              <div className="s-lotext">
+                <div className="s-corm" style={{ fontSize: 26, lineHeight: 1.1 }}>{lo.fullName}</div>
+                <div className="s-sig" style={{ marginTop: 6 }}>{lo.title} · NMLS #{lo.nmls}</div>
+                <div className="s-locontact">{lo.phone}<br />{lo.email}</div>
+              </div>
+              <span className="s-vrule" />
+              <img src={surekLogo} style={{ height: 76 }} alt="The Surek Group" />
+            </>
+          )}
         </div>
-        <Legal n={1} />
+        <Legal n={1} lo={lo} />
       </div>
 
       {/* ---------- page 2: rates at a glance + next steps ---------- */}
@@ -174,7 +186,7 @@ export default function LoanSheetPages({ sheet, client, options, selected }: {
             </div>
           </div>
         </div>
-        <Legal n={2} />
+        <Legal n={2} lo={lo} />
       </div>
 
       {/* ---------- page 3: side-by-side ---------- */}
@@ -215,22 +227,22 @@ export default function LoanSheetPages({ sheet, client, options, selected }: {
             </div>
           </div>
           <div className="s-cta">
-            <img src={applyQr} style={{ width: 92, height: 92, flex: 'none' }} alt="Scan to apply" />
+            <img src={lo.qr === 'lendingpad' ? applyQr : surekSiteQr} style={{ width: 92, height: 92, flex: 'none' }} alt="Scan to apply" />
             <div style={{ flex: 1 }}>
               <div className="s-corm" style={{ fontSize: 22, lineHeight: 1.1, marginBottom: 5 }}>Ready when you are</div>
-              <p className="s-ctatxt">Scan to start your secure application with The Surek Group, or reach me directly.</p>
-              <div className="s-ctacontact">{PHONE} &nbsp;·&nbsp; <span style={{ textTransform: 'none', letterSpacing: '.02em' }}>{EMAIL}</span></div>
+              <p className="s-ctatxt">{lo.ctaText}</p>
+              <div className="s-ctacontact">{lo.phone} &nbsp;·&nbsp; <span style={{ textTransform: 'none', letterSpacing: '.02em' }}>{lo.email}</span></div>
             </div>
             <div style={{ borderLeft: '1px solid #E6DFCF', paddingLeft: 18 }}><img src={surekLogo} style={{ height: 64 }} alt="The Surek Group" /></div>
           </div>
           <div className="s-disc">
-            Allison Mattheis, Mortgage Loan Officer, NMLS #{NMLS_MLO}. The Surek Group is a registered trademark and DBA of
-            US Lending Group Corporation, NMLS #{NMLS_CO}. www.nmlsconsumeraccess.org<br />
+            {lo.fullName}, {lo.title}, NMLS #{lo.nmls}. The Surek Group is a registered trademark and DBA of
+            US Lending Group Corporation, NMLS #{COMPANY_NMLS}. www.nmlsconsumeraccess.org<br />
             <Eho />Equal Housing Opportunity. This is not a commitment to lend. All loans are subject to credit approval and
             program guidelines. Rates, terms and costs shown are estimates and could change.
           </div>
         </div>
-        <Legal n={3} />
+        <Legal n={3} lo={lo} />
       </div>
     </>
   )

@@ -55,6 +55,47 @@ export interface WorksheetClient {
   notes: string
 }
 
+/**
+ * Who the worksheet comes from. Two teams inside The Surek Group, picked at
+ * the top of the worksheet page. Both share the same rate table.
+ */
+export type ProfileId = 'mattheis' | 'surek'
+
+export interface LoanOfficerProfile {
+  id: ProfileId
+  /** Shown on the picker. */
+  label: string
+  fullName: string
+  /** How the intro letter is signed. */
+  signName: string
+  title: string
+  nmls: string
+  phone: string
+  email: string
+  /** Shows The Mattheis Team logo beside The Surek Group's on page 1. */
+  showMattheisLogo: boolean
+  /** Where the page-3 QR code goes, and the sentence beside it. */
+  qr: 'lendingpad' | 'gouslending'
+  ctaText: string
+}
+
+export const COMPANY_NMLS = '2278678'
+
+export const PROFILES: LoanOfficerProfile[] = [
+  {
+    id: 'mattheis', label: 'The Mattheis Team', fullName: 'Allison Mattheis', signName: 'Allison',
+    title: 'Mortgage Loan Officer', nmls: '2733400', phone: '407-708-9360', email: 'allisonsellsflorida@gmail.com',
+    showMattheisLogo: true, qr: 'lendingpad',
+    ctaText: 'Scan to start your secure application with The Surek Group, or reach me directly.',
+  },
+  {
+    id: 'surek', label: "Rich Surek's team", fullName: 'Richard Surek', signName: 'Rich',
+    title: 'Loan Officer', nmls: '17742', phone: '608-219-0791', email: 'rich@gouslending.com',
+    showMattheisLogo: false, qr: 'gouslending',
+    ctaText: 'Scan to visit gouslending.com and start your application, or reach me directly.',
+  },
+]
+
 export const DEFAULT_PROGRAMS: LoanProgram[] = [
   { id: 'conv30', name: 'Conventional 30-year fixed', rate: 6.375, apr: 6.521, minDown: '3%', best: 'Solid credit; no MI once you reach 20% equity', term: 30, mi: 'lt20', miPct: 0.5, fee: 0 },
   { id: 'conv15', name: 'Conventional 15-year fixed', rate: 5.625, apr: 5.842, minDown: '3%', best: 'Building equity fast with less total interest', term: 15, mi: 'lt20', miPct: 0.3, fee: 0 },
