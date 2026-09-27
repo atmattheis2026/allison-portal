@@ -115,8 +115,9 @@ export default function VaGuidePages({ name }: { name?: string }) {
               Served by someone who served
             </div>
             <p>
-              Rich Surek, owner of The Surek Group, is a veteran himself. Helping the men and women who have sacrificed
-              for all of us, and their families, find their way home is personal to him and to our whole team.
+              Rich Surek, owner of The Surek Group, served seven years in the U.S. Navy. Helping the men and women who
+              have sacrificed for all of us, and their families, find their way home is personal to him and to our
+              whole team.
             </p>
             <p style={{ margin: 0 }}>It's work we take a great deal of pride in.</p>
           </div>
