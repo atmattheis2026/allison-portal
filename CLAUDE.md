@@ -164,6 +164,16 @@ DOM: once inside the photo (phone) and once beside it (desktop), with CSS hiding
 one. Both are editable. If you add a new editable field, check it isn't living only
 inside `.headline`, which is `display:none` on a phone.
 
+**Per-transaction checklist changes (2026-09-27).** On her editing view each
+step has a ✕ ("remove from this transaction" — a condo needs no survey, a cash
+buyer no appraisal), a "+ Add a step to this transaction" form (name, where it
+goes, date or not), and a "Removed from this transaction" list with Put back.
+Removing sets `milestones.internal_only = true`, which `get_shared_transaction`
+already filters out — so no new column and no change to that function. The
+row keeps its checkmark/date, and Put back returns it to the same spot.
+`AdminTransaction.tsx` fetches the hidden rows itself (`hiddenMilestones`),
+same as agent-only contacts. Nothing here touches the Settings master lists.
+
 ## Agent Recruiting (recruiting/training/mentorship)
 
 Labeled "Agent Network" until 2026-08-13 — every user-visible label now says
