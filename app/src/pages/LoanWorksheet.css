@@ -111,7 +111,7 @@
 .sp .s-stats { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid #E6DFCF; border-bottom: 1px solid #E6DFCF; }
 .sp .s-stats > div { padding: 14px 10px 12px; text-align: center; border-left: 1px solid #E6DFCF; }
 .sp .s-stats > div:first-child { border-left: 0; }
-.sp .s-stats .s-corm { display: block; font-size: 34px; line-height: 1; color: #B39A5E; margin-bottom: 6px; }
+.sp .s-stats .s-corm { display: block; font-size: 27px; line-height: 1; color: #B39A5E; margin-bottom: 6px; }
 .sp .s-stats span:last-child { display: block; font-size: 8.8px; letter-spacing: .2em; text-transform: uppercase; color: #2b2b2b; line-height: 1.5; }
 .sp .s-perks { display: grid; grid-template-columns: 1fr 1fr; column-gap: 32px; }
 .sp .s-perk { display: flex; gap: 11px; padding: 9px 0; border-top: 1px solid #E6DFCF; }

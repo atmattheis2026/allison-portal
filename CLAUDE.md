@@ -458,9 +458,11 @@ client's Documents card. Four printed pages (`components/VaGuidePages.tsx`)
 in the same fixed design as the Loan Options Worksheet client sheet (shares
 its CSS and `lib/sheetPdf.ts`): welcome + Rich Surek veteran note, benefits +
 funding fee + Florida disabled-veteran property tax breaks, closing costs,
-next steps. **No interest rates on it, on purpose** (Allison: "just
-information"). The funding fee table and the tax breaks are statutory facts
-current as of Sept 2026; update them in place if VA or Florida changes them.
+next steps. **No specific numbers on it, on purpose** — no rates, no
+funding fee percentages, no dollar examples, no concession or exemption
+amounts (Allison, 2026-09-27: "just in case it doesn't work that way for a
+client"). It describes what each benefit/cost is and says the Loan Estimate
+has the real numbers. Don't add figures back without her asking.
 The final disclosure reuses the approved worksheet wording plus a
 not-affiliated-with-VA line.
 
