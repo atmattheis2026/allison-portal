@@ -164,6 +164,16 @@ DOM: once inside the photo (phone) and once beside it (desktop), with CSS hiding
 one. Both are editable. If you add a new editable field, check it isn't living only
 inside `.headline`, which is `display:none` on a phone.
 
+**Per-transaction checklist changes (2026-09-27).** On her editing view each
+step has a ✕ ("remove from this transaction" — a condo needs no survey, a cash
+buyer no appraisal), a "+ Add a step to this transaction" form (name, where it
+goes, date or not), and a "Removed from this transaction" list with Put back.
+Removing sets `milestones.internal_only = true`, which `get_shared_transaction`
+already filters out — so no new column and no change to that function. The
+row keeps its checkmark/date, and Put back returns it to the same spot.
+`AdminTransaction.tsx` fetches the hidden rows itself (`hiddenMilestones`),
+same as agent-only contacts. Nothing here touches the Settings master lists.
+
 ## Agent Recruiting (recruiting/training/mentorship)
 
 Labeled "Agent Network" until 2026-08-13 — every user-visible label now says
@@ -438,6 +448,21 @@ Documents (`lead_documents` + `media` bucket, same as an upload) or downloaded.
   global classes (`.hero`, `.fill`, `.chk`, ...) broke the layout otherwise.
 - PDFs are built in the browser with html2canvas + jsPDF (loaded only when a
   button is pressed) from an unscaled off-screen copy of the pages.
+
+## VA Buyer Guide
+
+Added 2026-09-27. `/admin/va-guide` (a general handout) and
+`/admin/leads/:id/va-guide` (a greeting with the client's name, plus a
+"Save PDF to client file" button), reached from **+ VA buyer guide** in a
+client's Documents card. Four printed pages (`components/VaGuidePages.tsx`)
+in the same fixed design as the Loan Options Worksheet client sheet (shares
+its CSS and `lib/sheetPdf.ts`): welcome + Rich Surek veteran note, benefits +
+funding fee + Florida disabled-veteran property tax breaks, closing costs,
+next steps. **No interest rates on it, on purpose** (Allison: "just
+information"). The funding fee table and the tax breaks are statutory facts
+current as of Sept 2026; update them in place if VA or Florida changes them.
+The final disclosure reuses the approved worksheet wording plus a
+not-affiliated-with-VA line.
 
 ## Still to do
 

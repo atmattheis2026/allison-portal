@@ -31,6 +31,11 @@ export default function AdminTransaction() {
   // so they need their own fetch straight from the table (same admin-only
   // story as roster/assignedIds above).
   const [internalContacts, setInternalContacts] = useState<Contact[]>([])
+  // Checklist steps she removed from this one transaction (a condo's survey,
+  // a cash deal's appraisal). They're milestones.internal_only rows, which
+  // get_shared_transaction() already leaves out — so the client never sees
+  // them, and they need their own fetch here, same as internalContacts.
+  const [hiddenMilestones, setHiddenMilestones] = useState<Milestone[]>([])
   const [remoteUpdate, setRemoteUpdate] = useState(false)
   // Every write on this page goes through write()/toggleAssignee()/
   // ensureAssignee() — this timestamp lets the realtime listener tell "I just
@@ -47,6 +52,7 @@ export default function AdminTransaction() {
       setAssignedIds(new Set(TRANSACTION_ASSIGNEES[id ?? ''] ?? []))
       setSavedContacts(SAVED_CONTACTS)
       setInternalContacts([])
+      setHiddenMilestones([])
       return
     }
     // The admin view reads through the same assembling function so both pages
@@ -72,6 +78,8 @@ export default function AdminTransaction() {
       .then(({ data: rows }) => setSavedContacts((rows as SavedContact[]) ?? []))
     supabase.from('contacts').select('*').eq('transaction_id', id).eq('internal_only', true).order('sort_order')
       .then(({ data: rows }) => setInternalContacts((rows as Contact[]) ?? []))
+    supabase.from('milestones').select('*').eq('transaction_id', id).eq('internal_only', true).order('sort_order')
+      .then(({ data: rows }) => setHiddenMilestones((rows as Milestone[]) ?? []))
   }
 
   useEffect(() => { loadAll() }, [id])
@@ -164,6 +172,63 @@ export default function AdminTransaction() {
         return d
       })
       write('milestones', m.id, { date_value: value })
+    },
+
+    onRemoveMilestone: (m: Milestone) => {
+      patch((d) => ({ ...d, milestones: d.milestones.filter((x) => x.id !== m.id) }))
+      setHiddenMilestones((cur) => [...cur, m])
+      write('milestones', m.id, { internal_only: true })
+    },
+
+    // Puts it back exactly where it was, checkmark and date included.
+    onRestoreMilestone: (m: Milestone) => {
+      setHiddenMilestones((cur) => cur.filter((x) => x.id !== m.id))
+      patch((d) => ({ ...d, milestones: [...d.milestones, m] }))
+      write('milestones', m.id, { internal_only: false })
+    },
+
+    onAddMilestone: async (side: Side, label: string, hasDate: boolean, afterId: string | null) => {
+      if (!data || !id) return
+      justSavedRef.current = Date.now()
+      // Every row on this side, removed ones too, so the new step can't
+      // collide with a removed step's spot if that one is put back later.
+      const all = [...data.milestones, ...hiddenMilestones].filter((m) => m.side === side)
+      const after = afterId ? all.find((m) => m.id === afterId) : null
+      let order: number
+      const bumps: Milestone[] = []
+      if (!after) {
+        order = Math.min(0, ...all.map((m) => m.sort_order)) - 10
+      } else {
+        order = after.sort_order + 1
+        // Templates are usually spaced out, but if the next number is taken,
+        // shift everything from there down by one to make room.
+        if (all.some((m) => m.sort_order === order)) {
+          for (const m of all) if (m.sort_order >= order) bumps.push(m)
+        }
+      }
+      const bump = (list: Milestone[]) => list.map((m) =>
+        bumps.some((b) => b.id === m.id) ? { ...m, sort_order: m.sort_order + 1 } : m)
+      setHiddenMilestones((cur) => bump(cur))
+      patch((d) => ({ ...d, milestones: bump(d.milestones) }))
+      for (const b of bumps) write('milestones', b.id, { sort_order: b.sort_order + 1 })
+
+      const fresh: Milestone = {
+        id: `local-${Date.now()}`, side, label, has_date: hasDate, date_value: null,
+        is_complete: false, sort_order: order, is_rail_step: false, rail_label: null,
+      }
+      if (DEMO_MODE || !supabase) {
+        patch((d) => ({ ...d, milestones: [...d.milestones, fresh] }))
+        return
+      }
+      const { data: row, error } = await supabase.from('milestones')
+        .insert({ transaction_id: id, side, label, has_date: hasDate, sort_order: order })
+        .select('*').single()
+      if (error || !row) {
+        console.error('milestone insert failed', error)
+        alert('That step didn’t save. Please try again.')
+        return
+      }
+      patch((d) => ({ ...d, milestones: [...d.milestones, row as Milestone] }))
     },
 
     onToggleDocLine: (lineId: string, checked: boolean) => {
@@ -528,6 +593,7 @@ export default function AdminTransaction() {
         roster={roster}
         savedContacts={savedContacts}
         internalContacts={internalContacts}
+        hiddenMilestones={hiddenMilestones}
         headerExtra={
           <span style={{ display: 'flex', gap: 9, alignItems: 'center' }}>
             <Link className="btn" to="/admin">All transactions</Link>

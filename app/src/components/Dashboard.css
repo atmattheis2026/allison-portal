@@ -180,6 +180,32 @@
 .sec.lending .chk .date { color: var(--lend-bright); }
 .dateinput { width: 128px; padding: 5px 7px; font-size: 14.5px; }
 
+/* Admin only: take a step off this one transaction, add a one-off step,
+   and the list of removed steps she can put back. */
+.chkwrap { display: flex; align-items: center; gap: 2px; }
+.chkwrap .chk { flex: 1; min-width: 0; }
+.chkremove { flex: none; width: 36px; height: 36px; border-radius: 50%;
+             color: var(--ink-faint); font-size: 15px; display: grid; place-items: center; }
+.chkremove:hover { color: #B4452F; background: var(--panel-2); }
+.addstep { padding: 10px 8px 2px; }
+.addstep.open { display: flex; flex-direction: column; gap: 10px;
+                border: 1px solid var(--gold-soft); border-radius: var(--r-sm);
+                background: rgba(201,164,76,0.06); padding: 12px; margin: 10px 8px 0; }
+.addstep input[type=text] { width: 100%; font-size: 16px; padding: 8px 10px; }
+.addsteprow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.addsteprow label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+                    font-size: 15px; color: var(--ink-dim); }
+.addsteprow select { font-size: 15px; padding: 6px 8px; max-width: 100%; }
+.addstep .datetoggle { font-size: 14px; border: 1px solid var(--line); border-radius: 999px;
+                       padding: 5px 12px; color: var(--ink-dim); }
+.addstep .datetoggle.on { border-color: var(--gold-soft); color: var(--gold-bright); }
+.removedsteps { margin: 14px 8px 0; padding-top: 10px; border-top: 1px dashed var(--line); }
+.removedhdr { font-size: 15.5px; font-weight: 700; color: var(--ink-dim); margin-bottom: 4px; }
+.removedhdr span { display: block; font-weight: 400; font-size: 14px; color: var(--ink-faint); }
+.removedrow { display: flex; align-items: center; gap: 10px; padding: 6px 0; min-height: 44px; }
+.removedrow .txt { flex: 1; font-size: 16px; color: var(--ink-faint); text-decoration: line-through; }
+.removedrow .btn { flex: none; font-size: 14px; padding: 5px 12px; }
+
 .divider { height: 1px; background: var(--line-soft); margin: 7px 8px; }
 
 .fill { display: flex; align-items: center; gap: 10px; padding: 7px 8px 7px 34px; min-height: 38px; }

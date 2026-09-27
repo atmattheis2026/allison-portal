@@ -59,6 +59,13 @@ function telHref(p: string) { return `tel:${p.replace(/[^\d+]/g, '')}` }
 export interface DashboardHandlers {
   onToggleMilestone?: (m: Milestone) => void
   onChangeMilestoneDate?: (m: Milestone, value: string | null) => void
+  /** Per-transaction checklist changes: take a step off this one deal (a
+   *  condo needs no survey, a cash buyer needs no appraisal), put it back,
+   *  or add a one-off step. Removing only hides the row from the client —
+   *  its checkmark and date are kept in case she puts it back. */
+  onRemoveMilestone?: (m: Milestone) => void
+  onRestoreMilestone?: (m: Milestone) => void
+  onAddMilestone?: (side: Side, label: string, hasDate: boolean, afterId: string | null) => void
   onToggleDocLine?: (id: string, checked: boolean) => void
   onChangeDocLine?: (id: string, text: string) => void
   /** Header fields: address, city, closing date, status, lender. */
@@ -106,13 +113,17 @@ interface Props extends DashboardHandlers {
    *  roster: undefined on the client-facing page, so the section that
    *  reads this never renders there. */
   internalContacts?: Contact[]
+  /** Steps she removed from this one transaction (milestones.internal_only),
+   *  which get_shared_transaction() leaves out. Admin-only, like roster —
+   *  undefined on the client page. */
+  hiddenMilestones?: Milestone[]
 }
 
 /* ------------------------------------------------------------------ main */
 
 export default function Dashboard({
   data, editable = false, viewNote = 'Transaction Portal · Client View',
-  headerExtra, roster, savedContacts, internalContacts, ...h
+  headerExtra, roster, savedContacts, internalContacts, hiddenMilestones, ...h
 }: Props) {
   const { transaction: tx, realtor, brands, milestones, doc_lines, contacts, notes } = data
 
@@ -121,7 +132,10 @@ export default function Dashboard({
   // A loan-only deal (a refinance, or any loan she's helping with where she
   // isn't the agent) has no real estate side at all — just the loan checklist.
   const isLoanOnly = tx.deal_type === 'loan'
-  const hasLoan = (tx.deal_type === 'buy' || isLoanOnly) && milestones.some((m) => m.side === 'loan')
+  // A cash buyer with every loan step removed loses the Loan section on the
+  // client page; she keeps it (with its removed steps) so she can put them back.
+  const hasLoan = (tx.deal_type === 'buy' || isLoanOnly) &&
+    [...milestones, ...(hiddenMilestones ?? [])].some((m) => m.side === 'loan')
   const showRealEstateCol = !isLoanOnly
 
   // Brand colors drive the CSS variables, so a color change in Settings
@@ -192,7 +206,8 @@ export default function Dashboard({
           {showRealEstateCol && (
             <ChecklistSection
               title="Real Estate" side="real_estate" milestones={milestones}
-              docLines={[]} editable={editable} defaultOpen {...h}
+              docLines={[]} editable={editable} defaultOpen
+              hiddenMilestones={hiddenMilestones} {...h}
             />
           )}
           {showRealEstateCol && (
@@ -211,7 +226,7 @@ export default function Dashboard({
             <ChecklistSection
               title="Loan" side="loan" milestones={milestones}
               docLines={doc_lines} lending brand={lendBrand}
-              editable={editable} {...h}
+              editable={editable} hiddenMilestones={hiddenMilestones} {...h}
             />
           )}
           {hasLoan && (
@@ -870,14 +885,42 @@ function Section({ title, brandMark, count, lending, defaultOpen, children }: {
 }
 
 function ChecklistSection({
-  title, side, milestones, docLines, lending, brand, editable, defaultOpen,
+  title, side, milestones, docLines, lending, brand, editable, defaultOpen, hiddenMilestones,
   onToggleMilestone, onChangeMilestoneDate, onToggleDocLine, onChangeDocLine,
+  onRemoveMilestone, onRestoreMilestone, onAddMilestone,
 }: {
   title: string; side: Side; milestones: Milestone[]; docLines: SharedPayload['doc_lines']
   lending?: boolean; brand?: Brand; editable: boolean; defaultOpen?: boolean
+  hiddenMilestones?: Milestone[]
 } & DashboardHandlers) {
   const items = milestones.filter((m) => m.side === side).sort((a, b) => a.sort_order - b.sort_order)
+  const removed = (hiddenMilestones ?? []).filter((m) => m.side === side)
+    .sort((a, b) => a.sort_order - b.sort_order)
   const done = items.filter((m) => m.is_complete).length
+  const extras = editable && (
+    <>
+      {onAddMilestone && (
+        <AddStepForm items={items} onAdd={(label, hasDate, afterId) =>
+          onAddMilestone(side, label, hasDate, afterId)} />
+      )}
+      {removed.length > 0 && (
+        <div className="removedsteps">
+          <div className="removedhdr">
+            Removed from this transaction
+            <span>Your client doesn’t see these.</span>
+          </div>
+          {removed.map((m) => (
+            <div className="removedrow" key={m.id}>
+              <span className="txt">{m.label}</span>
+              <button type="button" className="btn" onClick={() => onRestoreMilestone?.(m)}>
+                Put back
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )
 
   // Her two fill-in blocks hang off specific checkboxes.
   const groupAfter: Record<string, DocGroup> = {
@@ -894,9 +937,12 @@ function ChecklistSection({
       <Section title={title} count="" lending={lending} brandMark={mark}
                defaultOpen={defaultOpen}>
         <div className="emptynote">
-          No checklist yet for this type of transaction.<br />
-          Add the steps in <strong>Settings › Checklists</strong>.
+          {removed.length > 0
+            ? <>Every step is removed from this transaction.</>
+            : <>No checklist yet for this type of transaction.<br />
+                Add the steps in <strong>Settings › Checklists</strong>.</>}
         </div>
+        {extras}
       </Section>
     )
   }
@@ -906,10 +952,21 @@ function ChecklistSection({
              brandMark={mark} defaultOpen={defaultOpen}>
       {items.map((m) => (
         <div key={m.id}>
-          <ChecklistRow
-            m={m} editable={editable}
-            onToggle={onToggleMilestone} onDate={onChangeMilestoneDate}
-          />
+          {editable && onRemoveMilestone ? (
+            <div className="chkwrap">
+              <ChecklistRow
+                m={m} editable={editable}
+                onToggle={onToggleMilestone} onDate={onChangeMilestoneDate}
+              />
+              <button type="button" className="chkremove" onClick={() => onRemoveMilestone(m)}
+                      title="Remove from this transaction" aria-label={`Remove ${m.label}`}>✕</button>
+            </div>
+          ) : (
+            <ChecklistRow
+              m={m} editable={editable}
+              onToggle={onToggleMilestone} onDate={onChangeMilestoneDate}
+            />
+          )}
           {groupAfter[m.label] && (
             <FillLines
               lines={docLines.filter((d) => d.group_key === groupAfter[m.label])}
@@ -919,7 +976,63 @@ function ChecklistSection({
           )}
         </div>
       ))}
+      {extras}
     </Section>
+  )
+}
+
+/** "+ Add a step" for one transaction only — the master lists in Settings
+ *  stay untouched. Closed until tapped so it doesn't crowd the checklist. */
+function AddStepForm({ items, onAdd }: {
+  items: Milestone[]
+  onAdd: (label: string, hasDate: boolean, afterId: string | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [label, setLabel] = useState('')
+  const [hasDate, setHasDate] = useState(false)
+  const [after, setAfter] = useState<string>('')
+
+  function start() {
+    setLabel(''); setHasDate(false)
+    setAfter(items.at(-1)?.id ?? '')
+    setOpen(true)
+  }
+  function save() {
+    if (!label.trim()) return
+    onAdd(label.trim(), hasDate, after || null)
+    setOpen(false)
+  }
+
+  if (!open) {
+    return (
+      <div className="addstep">
+        <button type="button" className="btn" onClick={start}>+ Add a step to this transaction</button>
+      </div>
+    )
+  }
+  return (
+    <div className="addstep open">
+      <input type="text" value={label} placeholder="Name this step (e.g. HOA approval)"
+             autoFocus onChange={(e) => setLabel(e.target.value)}
+             onKeyDown={(e) => { if (e.key === 'Enter') save() }} />
+      <div className="addsteprow">
+        <label>
+          Put it after
+          <select value={after} onChange={(e) => setAfter(e.target.value)}>
+            <option value="">— at the top —</option>
+            {items.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+          </select>
+        </label>
+        <button type="button" className={`datetoggle${hasDate ? ' on' : ''}`}
+                onClick={() => setHasDate(!hasDate)}>
+          {hasDate ? 'Has a date: Yes' : 'Has a date: No'}
+        </button>
+      </div>
+      <div className="addsteprow">
+        <button type="button" className="btn primary" disabled={!label.trim()} onClick={save}>Add step</button>
+        <button type="button" className="btn" onClick={() => setOpen(false)}>Cancel</button>
+      </div>
+    </div>
   )
 }
 

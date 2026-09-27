@@ -14,6 +14,7 @@ import { type InputHTMLAttributes, type ReactNode, useEffect, useLayoutEffect, u
 import { Link, useParams } from 'react-router-dom'
 import AdminNav from '../components/AdminNav'
 import LoanSheetPages from '../components/LoanSheetPages'
+import { buildSheetPdf, downloadBlob } from '../lib/sheetPdf'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { Lead, TeamMember } from '../lib/types'
 import {
@@ -153,30 +154,13 @@ export default function AdminLoanWorksheet() {
 
   // ---------- PDF ----------
   const printRef = useRef<HTMLDivElement>(null)
-  async function buildPdf(): Promise<Blob> {
-    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')])
-    await Promise.all(['300 12px LwRoboto', '400 12px LwRoboto', '500 12px LwRoboto', 'italic 500 12px LwCorm']
-      .map((f) => document.fonts.load(f).catch(() => null)))
-    await document.fonts.ready
-    const pages = Array.from(printRef.current!.querySelectorAll<HTMLElement>('.sp'))
-    const pdf = new jsPDF({ unit: 'pt', format: 'letter', compress: true })
-    for (let i = 0; i < pages.length; i++) {
-      const canvas = await html2canvas(pages[i], { scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true })
-      if (i) pdf.addPage('letter')
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 612, 792)
-    }
-    return pdf.output('blob')
-  }
+  const buildPdf = () => buildSheetPdf(printRef.current!)
   const fileName = () => `Loan Options - ${safeFileName(client.name) || 'Client'} - ${client.date || todayLocal()}.pdf`
 
   async function downloadPdf() {
     setBusy('download'); setPdfStatus('Building the PDF…')
     try {
-      const blob = await buildPdf()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url; a.download = fileName(); document.body.appendChild(a); a.click(); a.remove()
-      setTimeout(() => URL.revokeObjectURL(url), 10000)
+      downloadBlob(await buildPdf(), fileName())
       setPdfStatus('Downloaded')
     } catch (e) {
       setPdfStatus(`Couldn't build the PDF: ${(e as Error).message}`)

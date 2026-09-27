@@ -1634,6 +1634,7 @@ export default function AdminLead() {
               {uploadingDoc ? 'Uploading…' : '+ Upload document'}
             </label>
             <Link className="btn" to={`/admin/leads/${id}/loan-worksheet`}>+ Loan options worksheet</Link>
+            <Link className="btn" to={`/admin/leads/${id}/va-guide`}>+ VA buyer guide</Link>
           </div>
         </div>
 
