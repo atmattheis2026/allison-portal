@@ -4,9 +4,10 @@
  * `.sp`, Roboto light + Cormorant italic, The Mattheis Team + The Surek Group
  * branding only.
  *
- * VA facts here are current as of Sept 2026 (funding fee table effective for
- * loans closed on or after April 7, 2023). If VA changes the funding fee or
- * the 4% concession rule, update FUNDING_FEE / the closing-cost rows.
+ * No specific numbers on purpose (Allison, 2026-09-27): no rates, fee
+ * percentages, dollar examples or exemption amounts, since any of them can
+ * differ for a given client. Keep it that way; the Loan Estimate and the
+ * worksheet are where a client's real numbers go.
  * The closing disclosure paragraph on page 4 reuses the wording Allison
  * approved for the worksheet; don't reword it.
  */
@@ -22,46 +23,40 @@ function RunHead({ section }: { section: string }) {
 }
 
 const STATS: [string, string][] = [
-  ['$0', 'down payment'],
-  ['$0', 'monthly mortgage insurance'],
-  ['4%', 'extra seller help allowed'],
-  ['No', 'VA loan limit with full entitlement'],
+  ['Nothing down', 'possible with full entitlement'],
+  ['No PMI', 'no monthly mortgage insurance'],
+  ['Seller help', 'with your closing costs'],
+  ['Reusable', 'use your benefit again'],
 ]
 
 const PERKS: [string, ReactNode][] = [
-  ['No down payment', 'With full entitlement you can buy with nothing down, and VA has no loan limit, so there is no cap on price as long as you qualify for the payment.'],
-  ['No monthly mortgage insurance', 'Conventional loans under 20% down and FHA loans carry monthly mortgage insurance. VA loans never do, which keeps more of your payment working for you.'],
+  ['No down payment', 'With full entitlement you may be able to buy with nothing down, and VA doesn’t cap the price, as long as you qualify for the payment.'],
+  ['No monthly mortgage insurance', 'Low-down-payment conventional loans and FHA loans carry monthly mortgage insurance. VA loans don’t, which keeps more of your payment working for you.'],
   ['Competitive rates', 'VA rates are often lower than conventional rates for the same buyer, because VA backs part of the loan.'],
   ['Flexible credit', 'VA sets no minimum credit score. Lenders set their own, and VA guidelines look at the whole picture, including residual income.'],
   ['Limits on your costs', 'VA caps what a lender can charge you and bars some fees from being charged to veterans at all.'],
-  ['Seller can pay your costs', 'Sellers can pay all of your normal closing costs, plus up to 4% of the price in extra concessions.'],
+  ['Seller can pay your costs', 'Sellers can pay all of your normal closing costs, plus extra concessions within VA’s limits.'],
   ['Reusable benefit', "It isn't one-and-done. Your entitlement can be used again, and restored once a VA loan is paid off."],
   ['Assumable loan', 'When you sell, a qualified buyer may be able to take over your loan and your rate, with lender and VA approval.'],
 ]
 
-const FUNDING_FEE: [string, string, string][] = [
-  ['Less than 5%', '2.15%', '3.30%'],
-  ['5% to less than 10%', '1.50%', '1.50%'],
-  ['10% or more', '1.25%', '1.25%'],
-]
-
 const COSTS: [string, string, string][] = [
-  ['Down payment', '$0 with full entitlement. You can still choose to put money down, which lowers your funding fee.', 'You (optional)'],
-  ['VA funding fee', 'A one-time fee from the table on page 2. Most buyers roll it into the loan instead of paying it at closing. Waived if you receive VA disability compensation.', 'Financed, or you / seller'],
+  ['Down payment', 'None required with full entitlement. You can still choose to put money down, which can lower your funding fee.', 'You (optional)'],
+  ['VA funding fee', 'A one-time VA fee (see page 2). Most buyers roll it into the loan instead of paying it at closing. Waived if you receive VA disability compensation.', 'Financed, or you / seller'],
   ['Lender fees', 'Origination and processing. VA limits these, and some fees can’t be charged to a veteran at all.', 'You, seller or lender credit'],
   ['VA appraisal', 'Ordered through VA to confirm the value and that the home meets VA’s minimum property standards.', 'You or seller'],
   ['Title & settlement', 'Title search, title insurance, closing agent. Varies by county and by what the contract says.', 'You or seller'],
-  ['Florida mortgage taxes', 'Documentary stamp tax (0.35%) and intangible tax (0.2%) on the loan amount, plus recording fees.', 'You or seller'],
-  ['Prepaids & escrow', 'First year of homeowners insurance, a few months of taxes and insurance to start your escrow account, and interest to the end of the month.', 'You or seller (counts toward the 4%)'],
+  ['Florida mortgage taxes', 'State documentary stamp and intangible taxes on a new mortgage, plus county recording fees.', 'You or seller'],
+  ['Prepaids & escrow', 'First year of homeowners insurance, a few months of taxes and insurance to start your escrow account, and interest to the end of the month.', 'You or seller (counts toward seller concession limits)'],
   ['Inspections', 'Home inspection and a wood-destroying organism (termite) report, usually paid before closing.', 'You, or seller if agreed'],
 ]
 
 /** Florida homestead exemptions for disabled veterans (Fla. Stat. 196.24,
  *  196.081, 196.082). */
 const TAX_BREAKS: [string, string][] = [
-  ['10%+ rating', '$5,000 off your home’s assessed value'],
-  ['100% P&T rating', 'No property tax on your homestead'],
-  ['Age 65+, combat', 'Discount equal to your disability %'],
+  ['Disability rating', 'May qualify for an added exemption'],
+  ['Permanent & total', 'May exempt your homestead entirely'],
+  ['Combat-related', 'May qualify for an added discount'],
 ]
 
 const STEPS: [string, string, string][] = [
@@ -158,27 +153,24 @@ export default function VaGuidePages({ name }: { name?: string }) {
 
           <div className="s-kick" style={{ marginTop: 22 }}>The one VA-specific cost</div>
           <h3>The funding <em>fee</em></h3>
-          <div className="s-twocol" style={{ gridTemplateColumns: '1.15fr 1fr', alignItems: 'start' }}>
-            <table>
-              <thead><tr><th>Your down payment</th><th>First use</th><th>After first use</th></tr></thead>
-              <tbody>
-                {FUNDING_FEE.map(([d, a, b]) => (
-                  <tr key={d}><td>{d}</td><td>{a}</td><td>{b}</td></tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="s-twocol" style={{ alignItems: 'start' }}>
             <div>
               <p className="s-letter" style={{ fontSize: 11.6, marginBottom: 8 }}>
-                A one-time fee, as a percent of the loan, that keeps the VA program running. It can be rolled into your
-                loan, so it doesn't have to come out of pocket at closing.
+                A one-time fee, set by VA as a percentage of the loan, that keeps the VA program running. It can be
+                rolled into your loan, so it doesn't have to come out of pocket at closing.
               </p>
-              <div className="s-lbl" style={{ margin: '6px 0 4px' }}>You pay no funding fee if you</div>
+              <div className="s-lbl" style={{ margin: '6px 0 4px' }}>What sets your fee</div>
+              <div className="s-chk"><i /><span>How much you put down: a larger down payment can lower it</span></div>
+              <div className="s-chk"><i /><span>Whether this is your first time using your VA benefit</span></div>
+            </div>
+            <div>
+              <div className="s-lbl" style={{ margin: '4px 0 4px' }}>You pay no funding fee if you</div>
               <div className="s-chk"><i /><span>Receive VA compensation for a service-connected disability</span></div>
               <div className="s-chk"><i /><span>Are a surviving spouse receiving Dependency and Indemnity Compensation</span></div>
               <div className="s-chk"><i /><span>Are an active-duty Purple Heart recipient</span></div>
             </div>
           </div>
-          <div className="s-snote">Purchase loans, funding fee rates for loans closed on or after April 7, 2023. Rates are set by VA and can change.</div>
+          <div className="s-snote">We'll confirm your exact fee, or your exemption, from your Certificate of Eligibility. VA sets the fee and can change it.</div>
 
           <div className="s-fill s-taxbox">
             <div className="s-lbl" style={{ marginBottom: 6 }}>Tell us your disability rating early: it can lower your property taxes too</div>
@@ -189,10 +181,10 @@ export default function VaGuidePages({ name }: { name?: string }) {
                 ))}
               </div>
               <p className="s-steptxt" style={{ margin: 0, fontSize: 11 }}>
-                Florida gives these on top of the regular homestead exemption. Property taxes are part of your monthly
-                payment, so knowing your rating up front lets us estimate your real payment instead of the seller's tax
-                bill, and it can waive your funding fee too. You apply with your county property appraiser after you
-                buy, by March 1.
+                Florida offers property tax breaks for disabled veterans on top of the regular homestead exemption.
+                Property taxes are part of your monthly payment, so knowing your rating up front lets us estimate your
+                real payment instead of the seller's tax bill, and it may waive your funding fee too. You apply with
+                your county property appraiser after you buy, and deadlines apply.
               </p>
             </div>
           </div>
@@ -219,17 +211,18 @@ export default function VaGuidePages({ name }: { name?: string }) {
             <div className="s-fill">
               <div className="s-lbl" style={{ marginBottom: 6 }}>How the seller can help</div>
               <p className="s-steptxt" style={{ margin: 0 }}>
-                The seller can pay <b>all of your normal closing costs</b>, and on top of that up to <b>4% of the price</b> in
-                concessions, like your funding fee or prepaid taxes and insurance. That's why many VA buyers close with
+                The seller can pay <b>all of your normal closing costs</b>, and on top of that <b>extra concessions</b> within VA's
+                limits, like your funding fee or prepaid taxes and insurance. That's why many VA buyers close with
                 little or nothing out of pocket beyond their earnest money deposit, which is credited back to them at closing.
               </p>
             </div>
             <div className="s-fill">
-              <div className="s-lbl" style={{ marginBottom: 6 }}>Example: $400,000 home, $0 down</div>
-              <div className="s-fieldrow"><span className="s-k">Down payment</span><span className="s-v">$0</span></div>
-              <div className="s-fieldrow"><span className="s-k">Funding fee</span><span className="s-v">2.15% = $8,600, rolled in</span></div>
-              <div className="s-fieldrow"><span className="s-k">Loan amount</span><span className="s-v">$408,600</span></div>
-              <div className="s-fieldrow" style={{ borderBottom: 0 }}><span className="s-k">If exempt</span><span className="s-v">$0 fee · loan $400,000</span></div>
+              <div className="s-lbl" style={{ marginBottom: 6 }}>Every buyer is different</div>
+              <p className="s-steptxt" style={{ margin: 0 }}>
+                Your actual costs depend on the price, the county, your eligibility and what's in your contract. Once we
+                review your situation, you'll get an <b>official Loan Estimate</b> with your real numbers, and we'll walk
+                through every line of it together.
+              </p>
             </div>
           </div>
 
