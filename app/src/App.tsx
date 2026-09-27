@@ -6,6 +6,7 @@ import AdminList from './pages/AdminList'
 import AdminLeads from './pages/AdminLeads'
 import AdminLead from './pages/AdminLead'
 import AdminLoanWorksheet from './pages/AdminLoanWorksheet'
+import AdminVaGuide from './pages/AdminVaGuide'
 import AdminClosed from './pages/AdminClosed'
 import AdminRolodex from './pages/AdminRolodex'
 import AdminSettings from './pages/AdminSettings'
@@ -32,6 +33,8 @@ export default function App() {
         <Route path="/admin/leads" element={<AdminLeads />} />
         <Route path="/admin/leads/:id" element={<AdminLead />} />
         <Route path="/admin/leads/:id/loan-worksheet" element={<AdminLoanWorksheet />} />
+        <Route path="/admin/leads/:id/va-guide" element={<AdminVaGuide />} />
+        <Route path="/admin/va-guide" element={<AdminVaGuide />} />
         <Route path="/admin/closed" element={<AdminClosed />} />
         <Route path="/admin/rolodex" element={<AdminRolodex />} />
         <Route path="/admin/network" element={<AdminNetworkLeads />} />

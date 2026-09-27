@@ -449,6 +449,21 @@ Documents (`lead_documents` + `media` bucket, same as an upload) or downloaded.
 - PDFs are built in the browser with html2canvas + jsPDF (loaded only when a
   button is pressed) from an unscaled off-screen copy of the pages.
 
+## VA Buyer Guide
+
+Added 2026-09-27. `/admin/va-guide` (a general handout) and
+`/admin/leads/:id/va-guide` (a greeting with the client's name, plus a
+"Save PDF to client file" button), reached from **+ VA buyer guide** in a
+client's Documents card. Four printed pages (`components/VaGuidePages.tsx`)
+in the same fixed design as the Loan Options Worksheet client sheet (shares
+its CSS and `lib/sheetPdf.ts`): welcome + Rich Surek veteran note, benefits +
+funding fee + Florida disabled-veteran property tax breaks, closing costs,
+next steps. **No interest rates on it, on purpose** (Allison: "just
+information"). The funding fee table and the tax breaks are statutory facts
+current as of Sept 2026; update them in place if VA or Florida changes them.
+The final disclosure reuses the approved worksheet wording plus a
+not-affiliated-with-VA line.
+
 ## Still to do
 
 - Both company logos — she uploads them in Settings › Branding

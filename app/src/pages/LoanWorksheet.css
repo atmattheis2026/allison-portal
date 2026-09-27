@@ -104,3 +104,20 @@
   font-size: 7.6px; letter-spacing: .04em; color: #8a8a8a; line-height: 1.45; border-top: 1px solid #E6DFCF; padding-top: 8px; }
 .sp .s-eho { width: 10px; height: 10px; vertical-align: -2px; margin-right: 3px; }
 .sp .s-ph { color: #b0a78f; }
+
+/* ---- VA buyer guide pages (components/VaGuidePages.tsx), same printed design ---- */
+.sp .s-honor { border: 1px solid #B39A5E; border-top: 3px solid #B39A5E; background: #FAF8F3; padding: 18px 18px 16px; }
+.sp .s-honor p { font-size: 12px; line-height: 1.65; color: #2b2b2b; margin: 0 0 9px; }
+.sp .s-stats { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid #E6DFCF; border-bottom: 1px solid #E6DFCF; }
+.sp .s-stats > div { padding: 14px 10px 12px; text-align: center; border-left: 1px solid #E6DFCF; }
+.sp .s-stats > div:first-child { border-left: 0; }
+.sp .s-stats .s-corm { display: block; font-size: 34px; line-height: 1; color: #B39A5E; margin-bottom: 6px; }
+.sp .s-stats span:last-child { display: block; font-size: 8.8px; letter-spacing: .2em; text-transform: uppercase; color: #2b2b2b; line-height: 1.5; }
+.sp .s-perks { display: grid; grid-template-columns: 1fr 1fr; column-gap: 32px; }
+.sp .s-perk { display: flex; gap: 11px; padding: 9px 0; border-top: 1px solid #E6DFCF; }
+.sp .s-perk i { flex: none; width: 10px; height: 10px; border: 1px solid #B39A5E; background: #B39A5E; transform: rotate(45deg); margin-top: 5px; }
+.sp .s-perk b { display: block; font-weight: 400; text-transform: uppercase; letter-spacing: .08em; font-size: 10.2px; color: #1c1c1c; margin-bottom: 2px; }
+.sp .s-perk span { display: block; font-size: 11.4px; line-height: 1.5; color: #2b2b2b; }
+.sp .s-taxbox { margin-top: 18px; padding: 12px 16px 8px; border-left: 3px solid #B39A5E; }
+.sp .s-taxbox .s-fieldrow { padding: 6px 0; }
+.sp .s-taxbox .s-fieldrow:last-child { border-bottom: 0; }

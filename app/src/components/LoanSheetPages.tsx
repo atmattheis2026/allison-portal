@@ -17,12 +17,12 @@ import {
   fmtLongDate, money, pct3,
 } from '../lib/loanWorksheet'
 
-const NMLS_MLO = '2733400'
-const NMLS_CO = '2278678'
-const PHONE = '407-708-9360'
-const EMAIL = 'allisonsellsflorida@gmail.com'
+export const NMLS_MLO = '2733400'
+export const NMLS_CO = '2278678'
+export const PHONE = '407-708-9360'
+export const EMAIL = 'allisonsellsflorida@gmail.com'
 
-function Eho() {
+export function Eho() {
   return (
     <svg className="s-eho" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
       <path d="M3 11 12 4l9 7" /><path d="M5 10v10h14V10" /><path d="M9 13h6M9 16h6" />
@@ -34,7 +34,7 @@ function Ph({ v, label }: { v: string | null | undefined; label: string }) {
   return v ? <>{v}</> : <span className="s-ph">[{label}]</span>
 }
 
-function Legal({ n }: { n: number }) {
+export function Legal({ n }: { n: number }) {
   return (
     <div className="s-legal">
       <span>
