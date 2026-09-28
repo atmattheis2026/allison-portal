@@ -147,7 +147,7 @@ export default function VaGuidePages({ name, signer = ALLISON }: { name?: string
           )}
         </div>
 
-        <div className="s-abs s-stats" style={{ left: 72, right: 72, top: 690 }}>
+        <div className="s-abs s-stats" style={{ left: 72, right: 72, top: 704 }}>
           {STATS.map(([big, small]) => (
             <div key={small}><span className="s-corm">{big}</span><span>{small}</span></div>
           ))}
