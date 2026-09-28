@@ -67,9 +67,9 @@ const DOWN_FHA = [
   'Works with many down payment assistance programs',
 ]
 const DOWN_CONV = [
-  'Low-down-payment options, especially for first-time buyers',
-  'The more you put down, the less your mortgage insurance costs',
-  '20% down means no mortgage insurance at all',
+  'Low down payment options for many buyers, including first-time buyers',
+  'If you choose to put more down, your mortgage insurance costs less',
+  'Put 20% down and there’s no mortgage insurance at all',
 ]
 
 const CREDIT_FHA = [
@@ -87,18 +87,18 @@ const CREDIT_CONV = [
 
 const SIDE: [string, string, string][] = [
   ['Backed by', 'Insured by the FHA, a government agency', 'Private, following Fannie Mae and Freddie Mac guidelines'],
-  ['Down payment', 'Low minimum', 'Low-down options; 20% avoids mortgage insurance'],
+  ['Down payment', 'Low minimum', 'Low minimum for many buyers; 20% avoids mortgage insurance'],
   ['Mortgage insurance', 'Upfront and monthly, on every loan', 'Monthly, only with less than 20% down'],
   ['Removing it', 'Usually by refinancing', 'Can come off as you build equity'],
   ['Credit', 'More flexible', 'Rewards higher scores'],
   ['Property', 'Your primary home only; condos must be FHA-approved; the appraisal also checks condition', 'Primary homes, second homes and investment property'],
   ['Loan limits', 'Set by county', 'Set nationally each year, higher in some areas'],
-  ['Often best for', 'Lower scores, a smaller down payment, or higher debt-to-income', 'Strong credit, a larger down payment, or buyers who want mortgage insurance to go away'],
+  ['Often best for', 'Lower credit scores or a higher debt-to-income ratio', 'Stronger credit, or buyers who want mortgage insurance to go away'],
 ]
 
 const FEES: [string, string, string][] = [
   ['Upfront mortgage insurance', 'Yes, usually rolled into the loan', 'Usually none'],
-  ['Pricing for credit', 'Less tied to your score', 'Your score and down payment can add cost, paid through your rate or points'],
+  ['Pricing for credit', 'Less tied to your score', 'Your credit score can affect cost, paid through your rate or points'],
   ['Appraisal', 'FHA appraisal that also checks the home’s condition', 'Standard appraisal'],
   ['Lender fees', 'Origination and processing', 'Origination and processing'],
   ['Title & settlement', 'Title search, title insurance, closing agent', 'Same on both'],
@@ -180,7 +180,7 @@ export default function FhaConvGuidePages({ name }: { name?: string }) {
 
           <div className="s-kick" style={{ marginTop: 26 }}>What you bring</div>
           <h3>Down <em>payment</em></h3>
-          <Compare fhaSub="Built for a smaller down payment" convSub="Flexible, and rewards putting more down"
+          <Compare fhaSub="Low down payment" convSub="Low down payment options too"
                    fha={DOWN_FHA} conv={DOWN_CONV} />
           <div className="s-snote">Your down payment and your mortgage insurance work together: we'll show you how different amounts change your monthly payment on each loan.</div>
         </div>
