@@ -1,22 +1,44 @@
 /**
- * VA Buyer Guide — /admin/va-guide (blank handout) and
- * /admin/leads/:id/va-guide (personalized, can be saved into that client's
- * Documents). Same printed look and PDF machinery as the Loan Options
- * Worksheet; the pages themselves are components/VaGuidePages.tsx.
+ * Buyer guide handouts — one screen for every guide, picked by `kind`:
+ *   /admin/va-guide, /admin/leads/:id/va-guide           VA Buyer Guide
+ *   /admin/fha-conv-guide, /admin/leads/:id/fha-conv-guide  FHA vs Conventional
+ * The general route gives a blank handout; the client route pre-fills the
+ * greeting and adds "Save PDF to client file". Same printed look and PDF
+ * machinery as the Loan Options Worksheet.
  */
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { type ComponentType, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import AdminNav from '../components/AdminNav'
 import VaGuidePages from '../components/VaGuidePages'
+import FhaConvGuidePages from '../components/FhaConvGuidePages'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import { buildSheetPdf, downloadBlob } from '../lib/sheetPdf'
 import type { Lead } from '../lib/types'
 import './Admin.css'
 import './LoanWorksheet.css'
 
+export type GuideKind = 'va' | 'fha-conv'
+
+const GUIDES: Record<GuideKind, { title: string; file: string; blurb: string; Pages: ComponentType<{ name?: string }> }> = {
+  va: {
+    title: 'VA buyer guide',
+    file: 'VA Buyer Guide',
+    blurb: 'A four-page handout for VA buyers: the benefits, the funding fee, property tax breaks, what closing costs look like, and next steps.',
+    Pages: VaGuidePages,
+  },
+  'fha-conv': {
+    title: 'FHA vs conventional guide',
+    file: 'FHA vs Conventional',
+    blurb: 'A four-page handout comparing FHA and conventional loans: mortgage insurance, down payment, credit, and fees at closing.',
+    Pages: FhaConvGuidePages,
+  },
+}
+
 function safeFileName(s: string) { return s.replace(/[\\/:*?"<>|#%]/g, '').trim() }
 
-export default function AdminVaGuide() {
+export default function AdminGuide({ kind }: { kind: GuideKind }) {
+  const guide = GUIDES[kind]
+  const { Pages } = guide
   const { id } = useParams<{ id: string }>()
   const [lead, setLead] = useState<Lead | null>(null)
   const [name, setName] = useState('')
@@ -51,7 +73,7 @@ export default function AdminVaGuide() {
   })
 
   const printRef = useRef<HTMLDivElement>(null)
-  const fileName = () => `VA Buyer Guide${name.trim() ? ` - ${safeFileName(name)}` : ''}.pdf`
+  const fileName = () => `${guide.file}${name.trim() ? ` - ${safeFileName(name)}` : ''}.pdf`
 
   async function download() {
     setBusy('download'); setStatus('Building the PDF…')
@@ -89,7 +111,7 @@ export default function AdminVaGuide() {
         <span className="wordmark" style={{ fontSize: 17.5 }}>
           <Link to="/admin/leads" className="muted" style={{ textDecoration: 'none' }}>Active Clients</Link>
           {lead && <>{' / '}<Link to={`/admin/leads/${id}`} className="muted" style={{ textDecoration: 'none' }}>{lead.full_name || 'Unnamed buyer'}</Link></>}
-          {' / '}VA buyer guide
+          {' / '}{guide.title}
         </span>
         <nav className="adminnav">
           {id && <Link className="btn" to={`/admin/leads/${id}`}>← Back to client</Link>}
@@ -101,10 +123,9 @@ export default function AdminVaGuide() {
         <div className="card setcard">
           <div className="lw-head">
             <div>
-              <h2>VA buyer guide</h2>
+              <h2>{guide.title}</h2>
               <p className="sethelp" style={{ margin: 0 }}>
-                A four-page handout for VA buyers: the benefits, the funding fee, property tax breaks, what closing costs look like, and next steps.
-                Add a name to personalize the greeting, or leave it blank for a general handout.
+                {guide.blurb} Add a name to personalize the greeting, or leave it blank for a general handout.
               </p>
             </div>
             <div className="lw-actions">
@@ -124,7 +145,7 @@ export default function AdminVaGuide() {
           {status && <p className="lw-status" style={{ margin: '0 0 12px' }}>{status}</p>}
           <div className="lw-stage" ref={stageRef}>
             <div className="lw-scale" ref={scaleRef}>
-              <VaGuidePages name={name} />
+              <Pages name={name} />
             </div>
           </div>
         </div>
@@ -132,7 +153,7 @@ export default function AdminVaGuide() {
 
       {/* Unscaled copy used only to build the PDF, kept off-screen. */}
       <div ref={printRef} aria-hidden="true" style={{ position: 'fixed', left: -10000, top: 0, width: 816, pointerEvents: 'none' }}>
-        <VaGuidePages name={name} />
+        <Pages name={name} />
       </div>
     </div>
   )
