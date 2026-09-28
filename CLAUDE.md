@@ -475,6 +475,15 @@ except the 20% mortgage insurance line and "as little as 3% (conventional) /
 homeownership is within reach. Never say or imply conventional needs a large
 down payment.
 
+**Guides can be sent as Allison or Rich** (2026-09-28): a "Sent from" switch
+on the guide screen (`?from=rich`). The sender is a `Signer` (`ALLISON` /
+`RICH` in `LoanSheetPages.tsx`) and drives the signature, logo row, apply QR,
+contact line and fine print (`components/GuideParts.tsx`). Rich's copies never
+show The Mattheis Team. His VA guide is written in his own voice as a Navy
+veteran, not about him. Real estate pieces for Rich use the epic | eXp Realty
+logo (he's eXp, not the luxury division); loan-only guides have no brokerage
+logo. Any detail still null on `RICH` prints as a [placeholder].
+
 ## Still to do
 
 - Both company logos — she uploads them in Settings › Branding

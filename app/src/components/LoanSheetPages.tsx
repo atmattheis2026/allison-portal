@@ -30,16 +30,44 @@ export function Eho() {
   )
 }
 
-function Ph({ v, label }: { v: string | null | undefined; label: string }) {
+export function Ph({ v, label }: { v: string | null | undefined; label: string }) {
   return v ? <>{v}</> : <span className="s-ph">[{label}]</span>
 }
 
-export function Legal({ n }: { n: number }) {
+/** Whose name, license and contact details a printed guide carries. The
+ *  worksheet is always Allison's; the buyer guides can be sent as Rich.
+ *  Rich's copies never show The Mattheis Team (Allison's instruction). A null
+ *  field prints as a [placeholder] so a missing detail is obvious. */
+export interface Signer {
+  key: 'allison' | 'rich'
+  fullName: string
+  first: string
+  title: string | null
+  nmls: string | null
+  phone: string | null
+  email: string | null
+  /** Scan-to-apply code. Each loan officer has their own application link. */
+  qr: string | null
+  headshot: string | null
+  mattheis: boolean
+}
+
+export const ALLISON: Signer = {
+  key: 'allison', fullName: 'Allison Mattheis', first: 'Allison', title: 'Mortgage Loan Officer',
+  nmls: NMLS_MLO, phone: PHONE, email: EMAIL, qr: applyQr, headshot: null, mattheis: true,
+}
+
+export const RICH: Signer = {
+  key: 'rich', fullName: 'Rich Surek', first: 'Rich', title: null,
+  nmls: null, phone: null, email: null, qr: null, headshot: null, mattheis: false,
+}
+
+export function Legal({ n, signer = ALLISON }: { n: number; signer?: Signer }) {
   return (
     <div className="s-legal">
       <span>
-        Allison Mattheis, Mortgage Loan Officer, NMLS #{NMLS_MLO} · The Surek Group, a DBA of US Lending Group
-        Corporation, NMLS #{NMLS_CO} · <Eho />Equal Housing Opportunity
+        {signer.fullName}, <Ph v={signer.title} label="Title" />, NMLS #<Ph v={signer.nmls} label="NMLS" /> · The Surek
+        Group, a DBA of US Lending Group Corporation, NMLS #{NMLS_CO} · <Eho />Equal Housing Opportunity
       </span>
       <span>{String(n).padStart(2, '0')}</span>
     </div>

@@ -13,10 +13,8 @@
  */
 import type { ReactNode } from 'react'
 import shore from '../assets/loan-sheet/shore.jpg'
-import mattheisLogo from '../assets/loan-sheet/mattheis-team.png'
-import surekLogo from '../assets/loan-sheet/surek-group.png'
-import applyQr from '../assets/loan-sheet/apply-qr.svg'
-import { EMAIL, Eho, Legal, NMLS_CO, NMLS_MLO, PHONE } from './LoanSheetPages'
+import { ALLISON, Legal, type Signer } from './LoanSheetPages'
+import { ApplyBox, FinePrint, LogoRow, SignOff } from './GuideParts'
 
 function RunHead({ section }: { section: string }) {
   return <div className="s-rh"><span>VA Home Loans · The Surek Group</span><span>{section}</span></div>
@@ -75,8 +73,9 @@ const DOCS = [
   'Photo ID for everyone on the loan',
 ]
 
-export default function VaGuidePages({ name }: { name?: string }) {
+export default function VaGuidePages({ name, signer = ALLISON }: { name?: string; signer?: Signer }) {
   const who = name?.trim()
+  const rich = signer.key === 'rich'
   return (
     <>
       {/* ---------- page 1: welcome + thank you ---------- */}
@@ -92,35 +91,60 @@ export default function VaGuidePages({ name }: { name?: string }) {
         </div>
 
         <div className="s-abs" style={{ left: 72, top: 360, width: 372 }}>
-          <div className="s-kick">Thank you for your service</div>
+          <div className="s-kick">{rich ? 'From one veteran to another' : 'Thank you for your service'}</div>
           <div className="s-corm" style={{ fontSize: 26, lineHeight: 1.2, marginBottom: 12 }}>
             {who ? <>Hi {who},</> : <>Welcome home,</>}
           </div>
-          <p className="s-letter">
-            You earned one of the strongest home loan benefits available, and we want you to get every bit of it.
-            This guide walks through what a VA loan does for you, and what your costs look like when it's time to close.
-          </p>
+          {rich ? (
+            <p className="s-letter">
+              I spent seven years in the U.S. Navy, so I know what it means to serve and what you and your family gave
+              up along the way. The VA home loan is one of the best benefits you earned, and I want to make sure you
+              get every bit of it.
+            </p>
+          ) : (
+            <p className="s-letter">
+              You earned one of the strongest home loan benefits available, and we want you to get every bit of it.
+              This guide walks through what a VA loan does for you, and what your costs look like when it's time to close.
+            </p>
+          )}
           <p className="s-letter" style={{ marginBottom: 8 }}>
-            When you're ready, I'll pull your eligibility, get you pre-approved, and make sure your offer is written to
-            put your benefit to work.
+            {rich
+              ? "This guide walks through what a VA loan does for you and what your costs look like at closing. When you're ready, I'll pull your eligibility, get you pre-approved, and make sure your offer is written to put your benefit to work."
+              : "When you're ready, I'll pull your eligibility, get you pre-approved, and make sure your offer is written to put your benefit to work."}
           </p>
-          <div className="s-corm" style={{ fontSize: 30, color: '#B39A5E', lineHeight: 1 }}>Allison</div>
-          <div className="s-sig">Mortgage Loan Officer · NMLS #{NMLS_MLO}</div>
+          <SignOff signer={signer} />
         </div>
 
         <div className="s-abs" style={{ left: 478, right: 56, top: 360 }}>
-          <div className="s-honor">
-            <div className="s-lbl" style={{ marginBottom: 8 }}>From our team</div>
-            <div className="s-corm" style={{ fontSize: 21, lineHeight: 1.25, marginBottom: 10 }}>
-              Served by someone who served
+          {rich ? (
+            <div className="s-honor">
+              <div className="s-lbl" style={{ marginBottom: 8 }}>Why this matters to me</div>
+              <div className="s-corm" style={{ fontSize: 21, lineHeight: 1.25, marginBottom: 10 }}>
+                I've worn the uniform too
+              </div>
+              <p>
+                Helping the men and women who have sacrificed for all of us, and their families, find their way home
+                is personal to me.
+              </p>
+              <p style={{ margin: 0 }}>
+                It's work my whole team at The Surek Group takes a great deal of pride in, and you'll have a fellow
+                veteran in your corner from pre-approval to closing day.
+              </p>
             </div>
-            <p>
-              Rich Surek, owner of The Surek Group, served seven years in the U.S. Navy. Helping the men and women who
-              have sacrificed for all of us, and their families, find their way home is personal to him and to our
-              whole team.
-            </p>
-            <p style={{ margin: 0 }}>It's work we take a great deal of pride in.</p>
-          </div>
+          ) : (
+            <div className="s-honor">
+              <div className="s-lbl" style={{ marginBottom: 8 }}>From our team</div>
+              <div className="s-corm" style={{ fontSize: 21, lineHeight: 1.25, marginBottom: 10 }}>
+                Served by someone who served
+              </div>
+              <p>
+                Rich Surek, owner of The Surek Group, served seven years in the U.S. Navy. Helping the men and women who
+                have sacrificed for all of us, and their families, find their way home is personal to him and to our
+                whole team.
+              </p>
+              <p style={{ margin: 0 }}>It's work we take a great deal of pride in.</p>
+            </div>
+          )}
         </div>
 
         <div className="s-abs s-stats" style={{ left: 72, right: 72, top: 690 }}>
@@ -129,12 +153,8 @@ export default function VaGuidePages({ name }: { name?: string }) {
           ))}
         </div>
 
-        <div className="s-abs s-logos">
-          <img src={mattheisLogo} style={{ width: 230 }} alt="The Mattheis Team" />
-          <span className="s-vrule" />
-          <img src={surekLogo} style={{ height: 76 }} alt="The Surek Group" />
-        </div>
-        <Legal n={1} />
+        <LogoRow signer={signer} />
+        <Legal n={1} signer={signer} />
       </div>
 
       {/* ---------- page 2: the perks ---------- */}
@@ -190,7 +210,7 @@ export default function VaGuidePages({ name }: { name?: string }) {
             </div>
           </div>
         </div>
-        <Legal n={2} />
+        <Legal n={2} signer={signer} />
       </div>
 
       {/* ---------- page 3: closing costs + next steps ---------- */}
@@ -228,7 +248,7 @@ export default function VaGuidePages({ name }: { name?: string }) {
           </div>
 
         </div>
-        <Legal n={3} />
+        <Legal n={3} signer={signer} />
       </div>
 
       {/* ---------- page 4: next steps ---------- */}
@@ -256,24 +276,10 @@ export default function VaGuidePages({ name }: { name?: string }) {
           <div className="s-fill" style={{ marginTop: 26, minHeight: 150 }}>
             <div className="s-lbl" style={{ marginBottom: 6 }}>Notes{who ? <> for {who}</> : null}</div>
           </div>
-          <div className="s-cta" style={{ marginTop: 22 }}>
-            <img src={applyQr} style={{ width: 92, height: 92, flex: 'none' }} alt="Scan to apply" />
-            <div style={{ flex: 1 }}>
-              <div className="s-corm" style={{ fontSize: 22, lineHeight: 1.1, marginBottom: 5 }}>Ready when you are</div>
-              <p className="s-ctatxt">Scan to start your secure application with The Surek Group, or reach me directly.</p>
-              <div className="s-ctacontact">{PHONE} &nbsp;·&nbsp; <span style={{ textTransform: 'none', letterSpacing: '.02em' }}>{EMAIL}</span></div>
-            </div>
-            <div style={{ borderLeft: '1px solid #E6DFCF', paddingLeft: 16 }}><img src={surekLogo} style={{ height: 64 }} alt="The Surek Group" /></div>
-          </div>
-          <div className="s-disc">
-            Allison Mattheis, Mortgage Loan Officer, NMLS #{NMLS_MLO}. The Surek Group is a registered trademark and DBA of
-            US Lending Group Corporation, NMLS #{NMLS_CO}. www.nmlsconsumeraccess.org<br />
-            <Eho />Equal Housing Opportunity. This is not a commitment to lend. All loans are subject to credit approval and
-            program guidelines. Rates, terms and costs shown are estimates and could change.
-            VA loans require eligibility; not affiliated with or endorsed by the U.S. Department of Veterans Affairs.
-          </div>
+          <ApplyBox signer={signer} style={{ marginTop: 22 }} />
+          <FinePrint signer={signer} extra="VA loans require eligibility; not affiliated with or endorsed by the U.S. Department of Veterans Affairs." />
         </div>
-        <Legal n={4} />
+        <Legal n={4} signer={signer} />
       </div>
     </>
   )
