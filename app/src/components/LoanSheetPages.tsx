@@ -12,6 +12,7 @@ import shore from '../assets/loan-sheet/shore.jpg'
 import mattheisLogo from '../assets/loan-sheet/mattheis-team.png'
 import surekLogo from '../assets/loan-sheet/surek-group.png'
 import applyQr from '../assets/loan-sheet/apply-qr.svg'
+import richHeadshot from '../assets/loan-sheet/rich-surek.jpg'
 import {
   type OptionCalc, type RateSheet, type WorksheetClient,
   fmtLongDate, money, pct3,
@@ -57,9 +58,12 @@ export const ALLISON: Signer = {
   nmls: NMLS_MLO, phone: PHONE, email: EMAIL, qr: applyQr, headshot: null, mattheis: true,
 }
 
+/** From his email signature (2026-09-28). The application link behind the QR
+ *  code works for both him and Allison. */
 export const RICH: Signer = {
-  key: 'rich', fullName: 'Rich Surek', first: 'Rich', title: null,
-  nmls: null, phone: null, email: null, qr: null, headshot: null, mattheis: false,
+  key: 'rich', fullName: 'Richard Surek', first: 'Rich', title: 'Loan Officer',
+  nmls: '17742', phone: '608-219-0791', email: 'rich@gouslending.com', qr: applyQr,
+  headshot: richHeadshot, mattheis: false,
 }
 
 export function Legal({ n, signer = ALLISON }: { n: number; signer?: Signer }) {

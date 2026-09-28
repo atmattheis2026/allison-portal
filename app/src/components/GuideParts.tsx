@@ -20,7 +20,7 @@ export function SignOff({ signer }: { signer: Signer }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
       <img src={signer.headshot} alt={signer.fullName}
-           style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '1px solid #B39A5E', flex: 'none' }} />
+           style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', objectPosition: 'center 22%', border: '1px solid #B39A5E', flex: 'none' }} />
       <div>{sig}</div>
     </div>
   )
