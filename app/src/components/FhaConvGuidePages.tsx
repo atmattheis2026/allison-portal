@@ -5,10 +5,12 @@
  * Team + The Surek Group branding only.
  *
  * Same "no specific numbers" rule as the VA guide (Allison, 2026-09-27): no
- * rates, minimum down payments, credit score cutoffs, premium percentages or
- * dollar examples. The one exception is the 20% line for conventional
- * mortgage insurance, which is the definition of when it applies, not a
- * figure that varies by client. The closing disclosure on page 4 is the
+ * rates, credit score cutoffs, premium percentages or dollar examples.
+ * Exceptions: the 20% line for conventional mortgage insurance (the
+ * definition of when it applies), and the program minimum down payments,
+ * "as little as 3% / 3.5% down for qualified buyers" (Allison, 2026-09-28:
+ * she wants buyers to see homeownership as within reach). Keep the
+ * "qualified buyers" wording; not every buyer gets the minimum. The closing disclosure on page 4 is the
  * wording she approved for the worksheet; don't reword it.
  */
 import shore from '../assets/loan-sheet/shore.jpg'
@@ -62,12 +64,12 @@ const MI_CONV = [
 ]
 
 const DOWN_FHA = [
-  'A low minimum down payment',
+  'As little as 3.5% down for qualified buyers',
   'Gift money from family can cover it',
   'Works with many down payment assistance programs',
 ]
 const DOWN_CONV = [
-  'Low down payment options for many buyers, including first-time buyers',
+  'As little as 3% down for qualified buyers, including many first-time buyers',
   'If you choose to put more down, your mortgage insurance costs less',
   'Put 20% down and there’s no mortgage insurance at all',
 ]
@@ -87,7 +89,7 @@ const CREDIT_CONV = [
 
 const SIDE: [string, string, string][] = [
   ['Backed by', 'Insured by the FHA, a government agency', 'Private, following Fannie Mae and Freddie Mac guidelines'],
-  ['Down payment', 'Low minimum', 'Low minimum for many buyers; 20% avoids mortgage insurance'],
+  ['Down payment', 'As little as 3.5% for qualified buyers', 'As little as 3% for qualified buyers; 20% avoids mortgage insurance'],
   ['Mortgage insurance', 'Upfront and monthly, on every loan', 'Monthly, only with less than 20% down'],
   ['Removing it', 'Usually by refinancing', 'Can come off as you build equity'],
   ['Credit', 'More flexible', 'Rewards higher scores'],
@@ -145,9 +147,9 @@ export default function FhaConvGuidePages({ name }: { name?: string }) {
           <div className="s-honor">
             <div className="s-lbl" style={{ marginBottom: 8 }}>The short version</div>
             <div className="s-corm" style={{ fontSize: 21, lineHeight: 1.2, marginBottom: 4 }}>FHA</div>
-            <p>Insured by the government. More flexible on credit, with a low down payment. Mortgage insurance usually stays unless you refinance.</p>
+            <p>Insured by the government. More flexible on credit, with as little as 3.5% down for qualified buyers. Mortgage insurance usually stays unless you refinance.</p>
             <div className="s-corm" style={{ fontSize: 21, lineHeight: 1.2, marginBottom: 4 }}>Conventional</div>
-            <p style={{ margin: 0 }}>Not government-backed. Rewards stronger credit. Mortgage insurance only with less than 20% down, and it can come off.</p>
+            <p style={{ margin: 0 }}>Not government-backed. As little as 3% down for qualified buyers. Mortgage insurance only with less than 20% down, and it can come off.</p>
           </div>
         </div>
 
@@ -182,7 +184,14 @@ export default function FhaConvGuidePages({ name }: { name?: string }) {
           <h3>Down <em>payment</em></h3>
           <Compare fhaSub="Low down payment" convSub="Low down payment options too"
                    fha={DOWN_FHA} conv={DOWN_CONV} />
-          <div className="s-snote">Your down payment and your mortgage insurance work together: we'll show you how different amounts change your monthly payment on each loan.</div>
+          <div className="s-reach">
+            <div className="s-corm">Homeownership may be closer than you think</div>
+            <p>
+              With as little as 3% down on a conventional loan or 3.5% on FHA, plus gift money from family and down
+              payment assistance programs, many buyers are ready sooner than they expect. Let's look at your numbers
+              together and find the path that fits.
+            </p>
+          </div>
         </div>
         <Legal n={2} />
       </div>

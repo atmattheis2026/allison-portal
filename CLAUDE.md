@@ -466,6 +466,15 @@ has the real numbers. Don't add figures back without her asking.
 The final disclosure reuses the approved worksheet wording plus a
 not-affiliated-with-VA line.
 
+**FHA vs Conventional guide** (added 2026-09-28): `/admin/fha-conv-guide` and
+`/admin/leads/:id/fha-conv-guide`, button **+ FHA vs conventional guide** in
+Documents. Pages are `components/FhaConvGuidePages.tsx`; both guides share
+one screen, `pages/AdminGuide.tsx` (pick with `kind`). Same no-numbers rule,
+except the 20% mortgage insurance line and "as little as 3% (conventional) /
+3.5% (FHA) down for qualified buyers": Allison wants buyers to feel
+homeownership is within reach. Never say or imply conventional needs a large
+down payment.
+
 ## Still to do
 
 - Both company logos — she uploads them in Settings › Branding
