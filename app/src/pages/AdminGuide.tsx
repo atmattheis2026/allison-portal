@@ -7,10 +7,11 @@
  * machinery as the Loan Options Worksheet.
  */
 import { type ComponentType, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import AdminNav from '../components/AdminNav'
 import VaGuidePages from '../components/VaGuidePages'
 import FhaConvGuidePages from '../components/FhaConvGuidePages'
+import { ALLISON, RICH, type Signer } from '../components/LoanSheetPages'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import { buildSheetPdf, downloadBlob } from '../lib/sheetPdf'
 import type { Lead } from '../lib/types'
@@ -19,7 +20,7 @@ import './LoanWorksheet.css'
 
 export type GuideKind = 'va' | 'fha-conv'
 
-const GUIDES: Record<GuideKind, { title: string; file: string; blurb: string; Pages: ComponentType<{ name?: string }> }> = {
+const GUIDES: Record<GuideKind, { title: string; file: string; blurb: string; Pages: ComponentType<{ name?: string; signer?: Signer }> }> = {
   va: {
     title: 'VA buyer guide',
     file: 'VA Buyer Guide',
@@ -44,6 +45,12 @@ export default function AdminGuide({ kind }: { kind: GuideKind }) {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState<'' | 'save' | 'download'>('')
   const [status, setStatus] = useState<ReactNode>('')
+  // Who the handout comes from. Rich's copies drop The Mattheis Team and use
+  // his own license, contact details and application link. ?from=rich opens
+  // straight to his.
+  const [params, setParams] = useSearchParams()
+  const signer = params.get('from') === 'rich' ? RICH : ALLISON
+  const setSigner = (s: Signer) => setParams(s.key === 'rich' ? { from: 'rich' } : {}, { replace: true })
 
   useEffect(() => {
     if (DEMO_MODE || !supabase || !id) return
@@ -73,7 +80,7 @@ export default function AdminGuide({ kind }: { kind: GuideKind }) {
   })
 
   const printRef = useRef<HTMLDivElement>(null)
-  const fileName = () => `${guide.file}${name.trim() ? ` - ${safeFileName(name)}` : ''}.pdf`
+  const fileName = () => `${guide.file}${signer.key === 'rich' ? ' - Rich Surek' : ''}${name.trim() ? ` - ${safeFileName(name)}` : ''}.pdf`
 
   async function download() {
     setBusy('download'); setStatus('Building the PDF…')
@@ -137,6 +144,13 @@ export default function AdminGuide({ kind }: { kind: GuideKind }) {
               <button className="btn" onClick={download} disabled={!!busy}>{busy === 'download' ? 'Building…' : 'Download PDF'}</button>
             </div>
           </div>
+          <div className="tabs" style={{ marginBottom: 12 }}>
+            <span style={{ alignSelf: 'center', marginRight: 6, color: 'var(--ink-dim)' }}>Sent from:</span>
+            {[ALLISON, RICH].map((s) => (
+              <button key={s.key} type="button" className={`tab${signer.key === s.key ? ' on' : ''}`}
+                      onClick={() => setSigner(s)}>{s.fullName}</button>
+            ))}
+          </div>
           <label className="field" style={{ maxWidth: 420, display: 'block', marginBottom: 14 }}>
             <span>Prepared for (optional)</span>
             <input type="text" value={name} placeholder="Client name" style={{ width: '100%' }}
@@ -145,7 +159,7 @@ export default function AdminGuide({ kind }: { kind: GuideKind }) {
           {status && <p className="lw-status" style={{ margin: '0 0 12px' }}>{status}</p>}
           <div className="lw-stage" ref={stageRef}>
             <div className="lw-scale" ref={scaleRef}>
-              <Pages name={name} />
+              <Pages name={name} signer={signer} />
             </div>
           </div>
         </div>
@@ -153,7 +167,7 @@ export default function AdminGuide({ kind }: { kind: GuideKind }) {
 
       {/* Unscaled copy used only to build the PDF, kept off-screen. */}
       <div ref={printRef} aria-hidden="true" style={{ position: 'fixed', left: -10000, top: 0, width: 816, pointerEvents: 'none' }}>
-        <Pages name={name} />
+        <Pages name={name} signer={signer} />
       </div>
     </div>
   )

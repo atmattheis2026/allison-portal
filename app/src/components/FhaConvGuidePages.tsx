@@ -14,10 +14,8 @@
  * wording she approved for the worksheet; don't reword it.
  */
 import shore from '../assets/loan-sheet/shore.jpg'
-import mattheisLogo from '../assets/loan-sheet/mattheis-team.png'
-import surekLogo from '../assets/loan-sheet/surek-group.png'
-import applyQr from '../assets/loan-sheet/apply-qr.svg'
-import { EMAIL, Eho, Legal, NMLS_CO, NMLS_MLO, PHONE } from './LoanSheetPages'
+import { ALLISON, Legal, type Signer } from './LoanSheetPages'
+import { ApplyBox, FinePrint, LogoRow, SignOff } from './GuideParts'
 
 function RunHead({ section }: { section: string }) {
   return <div className="s-rh"><span>Your Loan Options · The Surek Group</span><span>{section}</span></div>
@@ -109,7 +107,7 @@ const FEES: [string, string, string][] = [
   ['Seller help', 'Seller can pay closing costs within FHA’s limits', 'Seller can pay within limits that depend on your down payment'],
 ]
 
-export default function FhaConvGuidePages({ name }: { name?: string }) {
+export default function FhaConvGuidePages({ name, signer = ALLISON }: { name?: string; signer?: Signer }) {
   const who = name?.trim()
   return (
     <>
@@ -139,8 +137,7 @@ export default function FhaConvGuidePages({ name }: { name?: string }) {
             When you're ready, I'll run both options side by side with your real numbers so you can choose with
             confidence.
           </p>
-          <div className="s-corm" style={{ fontSize: 30, color: '#B39A5E', lineHeight: 1 }}>Allison</div>
-          <div className="s-sig">Mortgage Loan Officer · NMLS #{NMLS_MLO}</div>
+          <SignOff signer={signer} />
         </div>
 
         <div className="s-abs" style={{ left: 478, right: 56, top: 360 }}>
@@ -159,12 +156,8 @@ export default function FhaConvGuidePages({ name }: { name?: string }) {
           ))}
         </div>
 
-        <div className="s-abs s-logos">
-          <img src={mattheisLogo} style={{ width: 230 }} alt="The Mattheis Team" />
-          <span className="s-vrule" />
-          <img src={surekLogo} style={{ height: 76 }} alt="The Surek Group" />
-        </div>
-        <Legal n={1} />
+        <LogoRow signer={signer} />
+        <Legal n={1} signer={signer} />
       </div>
 
       {/* ---------- page 2: mortgage insurance + down payment ---------- */}
@@ -193,7 +186,7 @@ export default function FhaConvGuidePages({ name }: { name?: string }) {
             </p>
           </div>
         </div>
-        <Legal n={2} />
+        <Legal n={2} signer={signer} />
       </div>
 
       {/* ---------- page 3: credit + side by side ---------- */}
@@ -216,7 +209,7 @@ export default function FhaConvGuidePages({ name }: { name?: string }) {
             </tbody>
           </table>
         </div>
-        <Legal n={3} />
+        <Legal n={3} signer={signer} />
       </div>
 
       {/* ---------- page 4: fees at closing ---------- */}
@@ -243,23 +236,10 @@ export default function FhaConvGuidePages({ name }: { name?: string }) {
             </p>
           </div>
 
-          <div className="s-cta" style={{ marginTop: 20 }}>
-            <img src={applyQr} style={{ width: 92, height: 92, flex: 'none' }} alt="Scan to apply" />
-            <div style={{ flex: 1 }}>
-              <div className="s-corm" style={{ fontSize: 22, lineHeight: 1.1, marginBottom: 5 }}>Ready when you are</div>
-              <p className="s-ctatxt">Scan to start your secure application with The Surek Group, or reach me directly.</p>
-              <div className="s-ctacontact">{PHONE} &nbsp;·&nbsp; <span style={{ textTransform: 'none', letterSpacing: '.02em' }}>{EMAIL}</span></div>
-            </div>
-            <div style={{ borderLeft: '1px solid #E6DFCF', paddingLeft: 16 }}><img src={surekLogo} style={{ height: 64 }} alt="The Surek Group" /></div>
-          </div>
-          <div className="s-disc">
-            Allison Mattheis, Mortgage Loan Officer, NMLS #{NMLS_MLO}. The Surek Group is a registered trademark and DBA of
-            US Lending Group Corporation, NMLS #{NMLS_CO}. www.nmlsconsumeraccess.org<br />
-            <Eho />Equal Housing Opportunity. This is not a commitment to lend. All loans are subject to credit approval and
-            program guidelines. Rates, terms and costs shown are estimates and could change.
-          </div>
+          <ApplyBox signer={signer} style={{ marginTop: 20 }} />
+          <FinePrint signer={signer} />
         </div>
-        <Legal n={4} />
+        <Legal n={4} signer={signer} />
       </div>
     </>
   )
