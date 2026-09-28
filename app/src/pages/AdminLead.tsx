@@ -1635,6 +1635,7 @@ export default function AdminLead() {
             </label>
             <Link className="btn" to={`/admin/leads/${id}/loan-worksheet`}>+ Loan options worksheet</Link>
             <Link className="btn" to={`/admin/leads/${id}/va-guide`}>+ VA buyer guide</Link>
+            <Link className="btn" to={`/admin/leads/${id}/fha-conv-guide`}>+ FHA vs conventional guide</Link>
           </div>
         </div>
 
