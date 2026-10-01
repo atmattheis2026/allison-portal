@@ -10,6 +10,7 @@ import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { Lead, TeamMember } from '../lib/types'
 import AdminNav from '../components/AdminNav'
 import { CardMenu, FollowUpButton, parseDate } from '../components/ClientCardParts'
+import PastClientForm from '../components/PastClientForm'
 import LoanClosedDialog, { type LoanClosedValues } from '../components/LoanClosedDialog'
 import './Admin.css'
 
@@ -48,6 +49,7 @@ export default function AdminLoans() {
   const [showInactive, setShowInactive] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [addingPast, setAddingPast] = useState(false)
   const [editing, setEditing] = useState<{ lead: Lead; markFileClosed: boolean } | null>(null)
   const nav = useNavigate()
 
@@ -203,11 +205,21 @@ export default function AdminLoans() {
       <header className="adminbar">
         <span className="wordmark" style={{ fontSize: 17.5 }}>Loan Clients</span>
         <nav className="adminnav">
-          <Link className="btn" to="/admin/leads">All clients</Link>
+          <button className="btn primary" onClick={() => setAddingPast(true)}>+ Add past client</button>
         </nav>
       </header>
       <AdminNav current="loans" />
 
+      {addingPast && (
+        <PastClientForm roster={roster} onCancel={() => setAddingPast(false)}
+                        onCreated={async (newId) => {
+                          // Stay here so several past clients can go in one after another.
+                          setAddingPast(false)
+                          if (!supabase) return
+                          const { data } = await supabase.from('leads').select('*').eq('id', newId).single()
+                          if (data) setRows((cur) => [data as Lead, ...(cur ?? [])])
+                        }} />
+      )}
       {editing && (
         <LoanClosedDialog
           leadId={editing.lead.id}

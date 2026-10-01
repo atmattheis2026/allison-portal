@@ -53,6 +53,7 @@ export interface Person {
  */
 export interface TeamMember {
   id: string
+  team_id?: string
   full_name: string
   roles: TeamRole[]
   license_number: string | null
