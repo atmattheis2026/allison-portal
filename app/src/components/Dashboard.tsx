@@ -77,6 +77,12 @@ export interface DashboardHandlers {
   onChangeRealtor?: (memberId: string | null) => void
   onPickLender?: (memberId: string) => void
   onAddNote?: (side: Side, body: string) => void
+  /** Fix a typo in a posted update, or take one down. The client sees the
+   *  corrected text; editing doesn't email them again (only new posts do). */
+  onEditNote?: (id: string, body: string) => void
+  onDeleteNote?: (id: string) => void
+  /** Rename one checklist step on this deal only (Settings lists untouched). */
+  onRenameMilestone?: (m: Milestone, label: string) => void
   /** Best-effort auto-fill of HOA/tax/school district/county from a pasted
    *  listing link. Lives on the parent (needs Supabase access), not here.
    *  Resolves to whether it actually found anything. */
@@ -188,6 +194,7 @@ export default function Dashboard({
           <AddressBlock tx={tx} editable={editable} onPatch={h.onPatchTransaction} />
           <div className="statusrow">
             <StatusPill tx={tx} editable={editable} onPatch={h.onPatchTransaction} />
+            {editable && <DealTypePicker tx={tx} onPatch={h.onPatchTransaction} />}
           </div>
         </div>
         {(tx.closing_date || editable || tx.closed_and_funded) && (
@@ -245,7 +252,7 @@ export default function Dashboard({
           )}
           {showRealEstateCol && (
             <NotesBoard title="Real Estate Updates" side="real_estate" notes={notes}
-                        editable={editable} onAdd={h.onAddNote} />
+                        editable={editable} onAdd={h.onAddNote} onEdit={h.onEditNote} onDelete={h.onDeleteNote} />
           )}
           {hasLoan && (
             <ChecklistSection
@@ -256,7 +263,7 @@ export default function Dashboard({
           )}
           {hasLoan && (
             <NotesBoard title="Loan Updates" side="loan" notes={notes} lending
-                        editable={editable} onAdd={h.onAddNote} />
+                        editable={editable} onAdd={h.onAddNote} onEdit={h.onEditNote} onDelete={h.onDeleteNote} />
           )}
           <ContactsSection contacts={contacts} editable={editable}
                            savedContacts={savedContacts}
@@ -965,7 +972,7 @@ function Section({ title, brandMark, count, lending, defaultOpen, children }: {
 function ChecklistSection({
   title, side, milestones, docLines, lending, brand, editable, defaultOpen, hiddenMilestones, foldFills,
   onToggleMilestone, onChangeMilestoneDate, onToggleDocLine, onChangeDocLine,
-  onRemoveMilestone, onRestoreMilestone, onAddMilestone,
+  onRemoveMilestone, onRestoreMilestone, onAddMilestone, onRenameMilestone,
 }: {
   title: string; side: Side; milestones: Milestone[]; docLines: SharedPayload['doc_lines']
   lending?: boolean; brand?: Brand; editable: boolean; defaultOpen?: boolean
@@ -973,6 +980,7 @@ function ChecklistSection({
   /** Desk layout: fold the fill-in lines under a step to "3 of 8 ▸". */
   foldFills?: boolean
 } & DashboardHandlers) {
+  const [renaming, setRenaming] = useState<string | null>(null)
   const items = milestones.filter((m) => m.side === side).sort((a, b) => a.sort_order - b.sort_order)
   const removed = (hiddenMilestones ?? []).filter((m) => m.side === side)
     .sort((a, b) => a.sort_order - b.sort_order)
@@ -1034,10 +1042,25 @@ function ChecklistSection({
         <div key={m.id}>
           {editable && onRemoveMilestone ? (
             <div className="chkwrap">
-              <ChecklistRow
-                m={m} editable={editable}
-                onToggle={onToggleMilestone} onDate={onChangeMilestoneDate}
-              />
+              {renaming === m.id ? (
+                <input className="chkrename" autoFocus defaultValue={m.label}
+                       onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== m.label) onRenameMilestone?.(m, v); setRenaming(null) }}
+                       onKeyDown={(e) => {
+                         if (e.key === 'Enter') e.currentTarget.blur()
+                         if (e.key === 'Escape') { e.currentTarget.value = m.label; e.currentTarget.blur() }
+                       }} />
+              ) : (
+                <ChecklistRow
+                  m={m} editable={editable}
+                  onToggle={onToggleMilestone} onDate={onChangeMilestoneDate}
+                />
+              )}
+              {/* The two steps with fill-in lines under them are matched by
+                  name (groupAfter), so renaming them would detach the lines. */}
+              {onRenameMilestone && !groupAfter[m.label] && (
+                <button type="button" className="chkremove" tabIndex={-1} onClick={() => setRenaming(m.id)}
+                        title="Rename this step (this deal only)" aria-label={`Rename ${m.label}`}>✎</button>
+              )}
               <button type="button" className="chkremove" onClick={() => onRemoveMilestone(m)}
                       tabIndex={-1}
                       title="Remove from this transaction" aria-label={`Remove ${m.label}`}>✕</button>
@@ -1200,11 +1223,14 @@ function FillLines({ lines, editable, onToggle, onChange }: {
  * that's what makes it a history instead of a note that can quietly change.
  * Clients see it read-only; only the admin view can post.
  */
-function NotesBoard({ title, side, notes, lending, editable, onAdd }: {
+function NotesBoard({ title, side, notes, lending, editable, onAdd, onEdit, onDelete }: {
   title: string; side: Side; notes: Note[]; lending?: boolean
   editable?: boolean; onAdd?: (side: Side, body: string) => void
+  onEdit?: (id: string, body: string) => void; onDelete?: (id: string) => void
 }) {
   const [draft, setDraft] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
   const items = notes.filter((n) => n.side === side)
   if (items.length === 0 && !editable) return null
 
@@ -1230,8 +1256,27 @@ function NotesBoard({ title, side, notes, lending, editable, onAdd }: {
               <div className="notemeta">
                 {n.author_name && <span className="noteauthor">{n.author_name}</span>}
                 <span className="notewhen">{fmtNoteWhen(n.created_at)}</span>
+                {editable && (onEdit || onDelete) && editingId !== n.id && (
+                  <span className="noteacts">
+                    {onEdit && <button type="button" onClick={() => { setEditingId(n.id); setEditText(n.body) }}>Edit</button>}
+                    {onDelete && <button type="button" onClick={() => {
+                      if (confirm('Delete this update? Your client will no longer see it.')) onDelete(n.id)
+                    }}>Delete</button>}
+                  </span>
+                )}
               </div>
-              <p className="notebody">{n.body}</p>
+              {editingId === n.id ? (
+                <div className="noteadd" style={{ marginTop: 4 }}>
+                  <textarea rows={3} value={editText} autoFocus onChange={(e) => setEditText(e.target.value)} />
+                  <span style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button type="button" className="btn" onClick={() => setEditingId(null)}>Cancel</button>
+                    <button type="button" className="btn primary" disabled={!editText.trim()}
+                            onClick={() => { onEdit?.(n.id, editText.trim()); setEditingId(null) }}>Save</button>
+                  </span>
+                </div>
+              ) : (
+                <p className="notebody">{n.body}</p>
+              )}
             </div>
           ))}
         </div>
@@ -1594,14 +1639,24 @@ function DeskLayout({
             {[client, !isLoanOnly && realtor?.full_name && `Agent: ${realtor.full_name}`,
               lenderName && `Lender: ${lenderName}`].filter(Boolean).join(' · ')}
           </div>
-          <StatusPill tx={tx} editable onPatch={h.onPatchTransaction} />
+          <span style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <StatusPill tx={tx} editable onPatch={h.onPatchTransaction} />
+            <DealTypePicker tx={tx} onPatch={h.onPatchTransaction} />
+          </span>
         </div>
         <div className="dchips">
           {tx.closed_and_funded ? (
-            <div className="dchip gold">
+            <label className="dchip gold">
               <div className="l">Final price</div>
-              <div className="v">{tx.final_purchase_price != null ? `$${tx.final_purchase_price.toLocaleString('en-US')}` : 'Not set'}</div>
-            </div>
+              <div className="v" style={{ display: 'flex', alignItems: 'baseline' }}>$
+                <input className="dchipprice" inputMode="decimal" placeholder="0"
+                       value={tx.final_purchase_price != null ? tx.final_purchase_price.toLocaleString('en-US') : ''}
+                       onChange={(e) => {
+                         const raw = e.target.value.replace(/[^0-9.]/g, '')
+                         h.onPatchTransaction?.({ final_purchase_price: raw === '' ? null : Number(raw) })
+                       }} />
+              </div>
+            </label>
           ) : (
             <label className="dchip gold">
               <div className="l">Closing</div>
@@ -1649,7 +1704,7 @@ function DeskLayout({
           />
         )}
         <div className="dside">
-          {sides.length > 0 && <UpdatesTabs sides={sides} notes={notes} onAdd={h.onAddNote} />}
+          {sides.length > 0 && <UpdatesTabs sides={sides} notes={notes} onAdd={h.onAddNote} onEdit={h.onEditNote} onDelete={h.onDeleteNote} />}
           <DeskTeamCard
             summary={[!isLoanOnly && `Agent: ${realtor?.full_name || 'not chosen'}`,
                       `Lender: ${lenderName || 'not chosen'}`].filter(Boolean).join(' · ')}>
@@ -1715,6 +1770,26 @@ function DeskPhoto({ tx, onUploadPhoto }: { tx: Transaction; onUploadPhoto?: (f:
   )
 }
 
+/** Buyer / Listing / Loan only. Changing it doesn't add or remove any
+ *  checklist steps (those stay as they are; use + Add a step or ✕). */
+function DealTypePicker({ tx, onPatch }: { tx: Transaction; onPatch?: (v: Partial<Transaction>) => void }) {
+  return (
+    <select className="dealtype" value={tx.deal_type} aria-label="Type of deal"
+            onChange={(e) => {
+              const next = e.target.value as Transaction['deal_type']
+              if (next === tx.deal_type) return
+              if (!confirm('Change the type of deal? The checklist steps stay as they are; add or remove steps if this deal needs different ones.')) {
+                e.target.value = tx.deal_type; return
+              }
+              onPatch?.({ deal_type: next })
+            }}>
+      <option value="buy">Buyer</option>
+      <option value="sell">Listing</option>
+      <option value="loan">Loan only</option>
+    </select>
+  )
+}
+
 /** The status tracker as one line across the page. */
 function HRail({ steps, currentIdx }: { steps: Milestone[]; currentIdx: number }) {
   return (
@@ -1755,10 +1830,12 @@ function FoldedFills({ lines, onToggle, onChange }: {
 }
 
 /** Real estate and loan updates in one box, one tab each. */
-function UpdatesTabs({ sides, notes, onAdd }: {
+function UpdatesTabs({ sides, notes, onAdd, onEdit, onDelete }: {
   sides: { side: Side; label: string }[]
   notes: Note[]
   onAdd?: (side: Side, body: string) => void
+  onEdit?: (id: string, body: string) => void
+  onDelete?: (id: string) => void
 }) {
   const [side, setSide] = useState<Side>(sides[0].side)
   const current = sides.find((s) => s.side === side) ?? sides[0]
@@ -1776,7 +1853,7 @@ function UpdatesTabs({ sides, notes, onAdd }: {
         </div>
       )}
       <NotesBoard key={current.side} title={`${current.label} updates`} side={current.side} notes={notes}
-                  lending={current.side === 'loan'} editable onAdd={onAdd} />
+                  lending={current.side === 'loan'} editable onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} />
     </div>
   )
 }

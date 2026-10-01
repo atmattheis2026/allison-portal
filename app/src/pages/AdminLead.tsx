@@ -326,6 +326,27 @@ export default function AdminLead() {
     setRemoteUpdate(false)
   }
 
+  /**
+   * Changing the agent or lender on a client file also changes it on their
+   * CURRENT deal, as long as that deal is still open. Closed and cancelled
+   * deals keep whoever worked them, so a client who comes back in two years
+   * with a new agent doesn't rewrite who handled their old deal (Allison,
+   * 2026-10-01: "I need agent specific transactions"). The person is also
+   * added to the deal's "who can see this deal" list.
+   */
+  async function syncCurrentDeal(field: 'realtor_member_id' | 'lender_member_id', memberId: string | null) {
+    const txId = lead?.converted_transaction_id
+    if (!txId || !memberId || DEMO_MODE || !supabase) return
+    const { data: tx } = await supabase.from('transactions')
+      .select('status, closed_and_funded').eq('id', txId).maybeSingle()
+    if (!tx || tx.closed_and_funded || tx.status === 'fell_through') return
+    const { error } = await supabase.from('transactions').update({ [field]: memberId }).eq('id', txId)
+    if (error) { setSaveError(error.message); return }
+    await supabase.from('transaction_assignees')
+      .upsert({ transaction_id: txId, team_member_id: memberId },
+              { onConflict: 'transaction_id,team_member_id', ignoreDuplicates: true })
+  }
+
   async function patchLead(values: Partial<Lead>) {
     justSavedRef.current = Date.now()
     setLead((cur) => (cur ? { ...cur, ...values } : cur))
@@ -923,7 +944,7 @@ export default function AdminLead() {
               <div className="field">
                 <label>Assigned agent</label>
                 <select value={lead.realtor_member_id ?? ''}
-                        onChange={(e) => patchLead({ realtor_member_id: e.target.value || null })}>
+                        onChange={(e) => { patchLead({ realtor_member_id: e.target.value || null }); syncCurrentDeal('realtor_member_id', e.target.value || null) }}>
                   <option value="">Not assigned yet</option>
                   {agentChoices.map((m) => (
                     <option key={m.id} value={m.id}>{m.full_name}</option>
@@ -938,7 +959,7 @@ export default function AdminLead() {
               <div className="field">
                 <label>Assigned lender</label>
                 <select value={lead.lender_member_id ?? ''}
-                        onChange={(e) => patchLead({ lender_member_id: e.target.value || null })}>
+                        onChange={(e) => { patchLead({ lender_member_id: e.target.value || null }); syncCurrentDeal('lender_member_id', e.target.value || null) }}>
                   <option value="">Not assigned yet</option>
                   {lenderChoices.map((m) => (
                     <option key={m.id} value={m.id}>{m.full_name}</option>
