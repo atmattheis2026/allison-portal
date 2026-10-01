@@ -4,6 +4,7 @@ import type {
   Transaction, TxStatus, TeamMember, Note, SavedContact,
 } from '../lib/types'
 import { STATUS_LABEL } from '../lib/types'
+import { useDeskLayout } from '../lib/useDeskLayout'
 import './Dashboard.css'
 
 /* ------------------------------------------------------------------ helpers */
@@ -120,14 +121,20 @@ interface Props extends DashboardHandlers {
    *  which get_shared_transaction() leaves out. Admin-only, like roster —
    *  undefined on the client page. */
   hiddenMilestones?: Milestone[]
+  /** Desk layout only (editing view on a computer): buttons for the top-right
+   *  of the summary strip, and extra content for the "On this deal" card. */
+  deskActions?: ReactNode
+  deskSide?: ReactNode
 }
 
 /* ------------------------------------------------------------------ main */
 
 export default function Dashboard({
   data, editable = false, viewNote = 'Transaction Portal · Client View',
-  headerExtra, roster, savedContacts, contactSuggestions, internalContacts, hiddenMilestones, ...h
+  headerExtra, roster, savedContacts, contactSuggestions, internalContacts, hiddenMilestones,
+  deskActions, deskSide, ...h
 }: Props) {
+  const wide = useDeskLayout()
   const { transaction: tx, realtor, brands, milestones, doc_lines, contacts, notes } = data
 
   const reBrand = brands.real_estate
@@ -152,6 +159,21 @@ export default function Dashboard({
     .sort((a, b) => a.sort_order - b.sort_order)
   const firstOpen = railSteps.findIndex((s) => !s.is_complete)
   const currentIdx = firstOpen === -1 ? railSteps.length : firstOpen
+
+  // Her editing view on a computer: everything for one deal on about one and
+  // a half screens instead of one long stack. The client view and every phone
+  // keep the layout below.
+  if (editable && wide) {
+    return (
+      <DeskLayout
+        data={data} styleVars={styleVars} roster={roster} savedContacts={savedContacts}
+        contactSuggestions={contactSuggestions} internalContacts={internalContacts}
+        hiddenMilestones={hiddenMilestones} deskActions={deskActions} deskSide={deskSide}
+        railSteps={railSteps} currentIdx={currentIdx} hasLoan={hasLoan}
+        showRealEstate={showRealEstateCol} isLoanOnly={isLoanOnly} h={h}
+      />
+    )
+  }
 
   return (
     <div className="dash" style={styleVars}>
@@ -894,7 +916,9 @@ function Section({ title, brandMark, count, lending, defaultOpen, children }: {
   return (
     <section className={`sec card${lending ? ' lending' : ''}`}>
       <button type="button" className="sechdr" onClick={() => setOpen((o) => !o)}
-              aria-expanded={open}>
+              aria-expanded={open}
+              // Always open on a computer, so the header isn't worth a Tab stop.
+              tabIndex={isWideNow() ? -1 : undefined}>
         <span className="sechead">
           <span className="sectitle">{title}</span>
           {brandMark && <span className="lendmark">{brandMark}</span>}
@@ -910,13 +934,15 @@ function Section({ title, brandMark, count, lending, defaultOpen, children }: {
 }
 
 function ChecklistSection({
-  title, side, milestones, docLines, lending, brand, editable, defaultOpen, hiddenMilestones,
+  title, side, milestones, docLines, lending, brand, editable, defaultOpen, hiddenMilestones, foldFills,
   onToggleMilestone, onChangeMilestoneDate, onToggleDocLine, onChangeDocLine,
   onRemoveMilestone, onRestoreMilestone, onAddMilestone,
 }: {
   title: string; side: Side; milestones: Milestone[]; docLines: SharedPayload['doc_lines']
   lending?: boolean; brand?: Brand; editable: boolean; defaultOpen?: boolean
   hiddenMilestones?: Milestone[]
+  /** Desk layout: fold the fill-in lines under a step to "3 of 8 ▸". */
+  foldFills?: boolean
 } & DashboardHandlers) {
   const items = milestones.filter((m) => m.side === side).sort((a, b) => a.sort_order - b.sort_order)
   const removed = (hiddenMilestones ?? []).filter((m) => m.side === side)
@@ -984,6 +1010,7 @@ function ChecklistSection({
                 onToggle={onToggleMilestone} onDate={onChangeMilestoneDate}
               />
               <button type="button" className="chkremove" onClick={() => onRemoveMilestone(m)}
+                      tabIndex={-1}
                       title="Remove from this transaction" aria-label={`Remove ${m.label}`}>✕</button>
             </div>
           ) : (
@@ -992,13 +1019,18 @@ function ChecklistSection({
               onToggle={onToggleMilestone} onDate={onChangeMilestoneDate}
             />
           )}
-          {groupAfter[m.label] && (
+          {groupAfter[m.label] && (foldFills ? (
+            <FoldedFills
+              lines={docLines.filter((d) => d.group_key === groupAfter[m.label])}
+              onToggle={onToggleDocLine} onChange={onChangeDocLine}
+            />
+          ) : (
             <FillLines
               lines={docLines.filter((d) => d.group_key === groupAfter[m.label])}
               editable={editable}
               onToggle={onToggleDocLine} onChange={onChangeDocLine}
             />
-          )}
+          ))}
         </div>
       ))}
       {extras}
@@ -1315,8 +1347,8 @@ function matchSuggestions(all: ContactSuggestion[], typed: string, role: string)
  * fills in their phone, email and photo too; typing a new name and leaving
  * the box saves it as typed, same as before.
  */
-function NameWithSuggestions({ value, role, suggestions, onCommit, onPick }: {
-  value: string; role: string; suggestions: ContactSuggestion[]
+function NameWithSuggestions({ value, role, suggestions, onCommit, onPick, placeholder = 'not set' }: {
+  value: string; role: string; suggestions: ContactSuggestion[]; placeholder?: string
   onCommit: (v: string) => void
   onPick: (p: ContactSuggestion) => void
 }) {
@@ -1339,7 +1371,7 @@ function NameWithSuggestions({ value, role, suggestions, onCommit, onPick }: {
       <input
         className="inlineEdit v"
         value={draft}
-        placeholder="not set"
+        placeholder={placeholder}
         onChange={(e) => { setDraft(e.target.value); setActive(0) }}
         onFocus={() => setFocused(true)}
         onBlur={() => { setFocused(false); if (draft !== value) onCommit(draft) }}
@@ -1473,5 +1505,356 @@ function ContactRow({
         </div>
       )}
     </div>
+  )
+}
+
+/* ------------------------------------------------------------ desk layout */
+
+/**
+ * Her editing view on a computer (1200px and up). Same pieces as the stacked
+ * layout, arranged for a transaction coordinator working at a desk: a summary
+ * strip, the tracker as one line, both checklists side by side with Updates
+ * beside them, then contacts as a table she can Tab across. Same data and
+ * same handlers as the client-facing layout — only the arrangement differs —
+ * so nothing here can drift from what the client sees.
+ */
+function DeskLayout({
+  data, styleVars, roster, savedContacts, contactSuggestions, internalContacts, hiddenMilestones,
+  deskActions, deskSide, railSteps, currentIdx, hasLoan, showRealEstate, isLoanOnly, h,
+}: {
+  data: SharedPayload
+  styleVars: React.CSSProperties
+  roster?: TeamMember[]; savedContacts?: SavedContact[]
+  contactSuggestions?: ContactSuggestion[]; internalContacts?: Contact[]
+  hiddenMilestones?: Milestone[]
+  deskActions?: ReactNode; deskSide?: ReactNode
+  railSteps: Milestone[]; currentIdx: number
+  hasLoan: boolean; showRealEstate: boolean; isLoanOnly: boolean
+  h: DashboardHandlers
+}) {
+  const { transaction: tx, realtor, brands, milestones, doc_lines, contacts, notes } = data
+  const clientLabel = tx.deal_type === 'sell' ? 'Sellers' : 'Buyers'
+  const client = contacts.find((c) => c.role_label === clientLabel)?.name?.trim()
+  const lenderName = tx.lender?.name?.trim()
+
+  // What needs attention: unchecked steps with a date, either already past
+  // (overdue) or the soonest one coming up (next due).
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const dated = milestones
+    .filter((m) => m.has_date && m.date_value && !m.is_complete)
+    .map((m) => ({ m, when: parseLocal(m.date_value!) }))
+    .sort((a, b) => a.when.getTime() - b.when.getTime())
+  const overdue = dated.filter((d) => d.when < today)
+  const next = dated.find((d) => d.when >= today)
+
+  const sides: { side: Side; label: string }[] = [
+    ...(showRealEstate ? [{ side: 'real_estate' as const, label: 'Real estate' }] : []),
+    ...(hasLoan ? [{ side: 'loan' as const, label: 'Loan' }] : []),
+  ]
+  const cols = (showRealEstate ? 1 : 0) + (hasLoan ? 1 : 0) + 1
+
+  return (
+    <div className="dash desk" style={styleVars}>
+      <div className="dtop card">
+        <DeskPhoto tx={tx} onUploadPhoto={h.onUploadPhoto} />
+        <div className="dtopmain">
+          <div className="dtopaddr">
+            <AddressBlock tx={tx} editable onPatch={h.onPatchTransaction} />
+          </div>
+          <div className="dtopsub">
+            {[client, !isLoanOnly && realtor?.full_name && `Agent: ${realtor.full_name}`,
+              lenderName && `Lender: ${lenderName}`].filter(Boolean).join(' · ')}
+          </div>
+          <StatusPill tx={tx} editable onPatch={h.onPatchTransaction} />
+        </div>
+        <div className="dchips">
+          {tx.closed_and_funded ? (
+            <div className="dchip gold">
+              <div className="l">Final price</div>
+              <div className="v">{tx.final_purchase_price != null ? `$${tx.final_purchase_price.toLocaleString('en-US')}` : 'Not set'}</div>
+            </div>
+          ) : (
+            <label className="dchip gold">
+              <div className="l">Closing</div>
+              <div className="v">
+                {tx.closing_date
+                  ? (() => { const d = daysUntil(tx.closing_date); return d < 0 ? 'Past' : d === 0 ? 'Today' : `${d} day${d === 1 ? '' : 's'}` })()
+                  : 'Not set'}
+              </div>
+              <input type="date" className="dchipdate" value={tx.closing_date ?? ''}
+                     onChange={(e) => h.onPatchTransaction?.({ closing_date: e.target.value || null })} />
+            </label>
+          )}
+          <div className={`dchip ${next ? 'warn' : 'calm'}`}>
+            <div className="l">Next due</div>
+            {next ? (
+              <><div className="v">{next.m.label}</div><div className="s">{fmtShort(next.m.date_value!)}</div></>
+            ) : <div className="v">All clear</div>}
+          </div>
+          <div className={`dchip ${overdue.length ? 'red' : 'calm'}`}
+               title={overdue.map((o) => `${o.m.label} (${fmtShort(o.m.date_value!)})`).join('\n')}>
+            <div className="l">Overdue</div>
+            {overdue.length ? (
+              <><div className="v">{overdue.length} item{overdue.length === 1 ? '' : 's'}</div>
+                <div className="s">{overdue[0].m.label}</div></>
+            ) : <div className="v">None</div>}
+          </div>
+        </div>
+        {deskActions && <div className="dactions">{deskActions}</div>}
+      </div>
+
+      {railSteps.length > 0 && <HRail steps={railSteps} currentIdx={currentIdx} />}
+
+      <div className="dgrid" style={{ gridTemplateColumns: cols === 3 ? '1fr 1fr minmax(340px, 1fr)' : '1.3fr minmax(360px, 1fr)' }}>
+        {showRealEstate && (
+          <ChecklistSection
+            title="Real Estate" side="real_estate" milestones={milestones}
+            docLines={[]} editable defaultOpen hiddenMilestones={hiddenMilestones} {...h}
+          />
+        )}
+        {hasLoan && (
+          <ChecklistSection
+            title="Loan" side="loan" milestones={milestones}
+            docLines={doc_lines} lending brand={brands.lending} foldFills
+            editable defaultOpen hiddenMilestones={hiddenMilestones} {...h}
+          />
+        )}
+        <div className="dside">
+          {sides.length > 0 && <UpdatesTabs sides={sides} notes={notes} onAdd={h.onAddNote} />}
+          <div className="card dteam">
+            <h3 className="cardtitle">On this deal</h3>
+            <TeamCards realtor={realtor} lender={tx.lender} roster={roster}
+                       realtorMemberId={tx.realtor_member_id} lenderMemberId={tx.lender_member_id}
+                       hideRealtor={isLoanOnly}
+                       realtorTitle={tx.realtor_title} lenderTitle={tx.lender_title}
+                       editable onPatch={h.onPatchTransaction}
+                       onChangeRealtor={h.onChangeRealtor}
+                       onPickLender={h.onPickLender} />
+            {deskSide}
+          </div>
+        </div>
+      </div>
+
+      <div className="dwide" style={{ gridTemplateColumns: showRealEstate ? 'minmax(0, 1.75fr) minmax(320px, 1fr)' : '1fr' }}>
+        <ContactsTable
+          contacts={contacts} internal={internalContacts} suggestions={contactSuggestions}
+          savedContacts={savedContacts} h={h}
+        />
+        {showRealEstate && (
+          <div className="ddetails">
+            <OfferDetailsSection tx={tx} editable onPatch={h.onPatchTransaction} />
+            <HomeInfoSection tx={tx} editable onPatch={h.onPatchTransaction}
+                             onFetchListingPreview={h.onFetchListingPreview}
+                             onSearchHomeFacts={h.onSearchHomeFacts} />
+          </div>
+        )}
+      </div>
+
+      <Disclaimers brands={brands} />
+    </div>
+  )
+}
+
+function DeskPhoto({ tx, onUploadPhoto }: { tx: Transaction; onUploadPhoto?: (f: File) => void }) {
+  return (
+    <label className="dphoto" title={tx.photo_url ? 'Change photo' : 'Add a photo'}>
+      {tx.photo_url ? <img src={tx.photo_url} alt="" /> : <span>+ Photo</span>}
+      <input type="file" accept="image/*" style={{ display: 'none' }}
+             onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadPhoto?.(f) }} />
+    </label>
+  )
+}
+
+/** The status tracker as one line across the page. */
+function HRail({ steps, currentIdx }: { steps: Milestone[]; currentIdx: number }) {
+  return (
+    <div className="hrail card">
+      {steps.map((s, i) => {
+        const cls = s.is_complete ? ' done' : i === currentIdx ? ' current' : ''
+        return (
+          <div key={s.id} className={`hstep${cls}`}>
+            <span className="node">{s.is_complete ? '✓' : i + 1}</span>
+            <span className="htext">
+              <span className="lbl">{s.rail_label || s.label}</span>
+              <span className="dt">{s.date_value ? fmtShort(s.date_value) : i === currentIdx ? 'in progress' : ' '}</span>
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Fill-in lines under a loan step, folded to a count until she opens them. */
+function FoldedFills({ lines, onToggle, onChange }: {
+  lines: SharedPayload['doc_lines']
+  onToggle?: (id: string, checked: boolean) => void
+  onChange?: (id: string, text: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  if (lines.length === 0) return null
+  const filled = lines.filter((l) => l.text.trim()).length
+  return (
+    <div className="ffold">
+      <button type="button" className="ffoldbtn" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        {open ? '▾' : '▸'} {filled} of {lines.length} filled in
+      </button>
+      {open && <FillLines lines={lines} editable onToggle={onToggle} onChange={onChange} />}
+    </div>
+  )
+}
+
+/** Real estate and loan updates in one box, one tab each. */
+function UpdatesTabs({ sides, notes, onAdd }: {
+  sides: { side: Side; label: string }[]
+  notes: Note[]
+  onAdd?: (side: Side, body: string) => void
+}) {
+  const [side, setSide] = useState<Side>(sides[0].side)
+  const current = sides.find((s) => s.side === side) ?? sides[0]
+  return (
+    <div className="dupdates">
+      {sides.length > 1 && (
+        <div className="dtabs" role="tablist">
+          {sides.map((s) => (
+            <button key={s.side} type="button" role="tab" aria-selected={s.side === current.side}
+                    className={`dtab${s.side === current.side ? ' on' : ''}${s.side === 'loan' ? ' lend' : ''}`}
+                    onClick={() => setSide(s.side)}>
+              {s.label} ({notes.filter((n) => n.side === s.side).length})
+            </button>
+          ))}
+        </div>
+      )}
+      <NotesBoard key={current.side} title={`${current.label} updates`} side={current.side} notes={notes}
+                  lending={current.side === 'loan'} editable onAdd={onAdd} />
+    </div>
+  )
+}
+
+/**
+ * Every contact on the deal as one table: role, name, phone, email, address.
+ * Tab goes across a row and then on to the next, so a whole contact can be
+ * typed without touching the mouse. The ⋯ and ✕ buttons are left out of the
+ * Tab order on purpose. Client-visible contacts first, then utilities, then
+ * agent-only ones (which the client never sees).
+ */
+function ContactsTable({ contacts, internal, suggestions, savedContacts, h }: {
+  contacts: Contact[]; internal?: Contact[]; suggestions?: ContactSuggestion[]
+  savedContacts?: SavedContact[]; h: DashboardHandlers
+}) {
+  const sorted = (rows: Contact[]) => [...rows].sort((a, b) => a.sort_order - b.sort_order)
+  const people = sorted(contacts.filter((c) => c.group_key === 'people'))
+  const utils = sorted(contacts.filter((c) => c.group_key === 'utilities'))
+  const agentOnly = sorted(internal ?? [])
+  const filled = contacts.filter((c) => c.name?.trim()).length
+  const savedFor = (c: Contact) =>
+    savedContacts?.filter((s) => s.group_key === c.group_key && s.role_label === c.role_label) ?? []
+
+  const clientRow = (c: Contact) => (
+    <ContactTableRow key={c.id} c={c} suggestions={suggestions} saved={savedFor(c)}
+                     onPatch={h.onPatchContact} onPickSaved={h.onPickSavedContact}
+                     onSaveContact={h.onSaveContact} onUploadPhoto={h.onUploadContactPhoto} />
+  )
+
+  return (
+    <div className="card dcontacts">
+      <div className="dcardhdr">
+        <h3 className="cardtitle">Contacts</h3>
+        <span className="count">{filled} / {contacts.length} · Tab moves across each row</span>
+      </div>
+      <table className="ctable">
+        <thead>
+          <tr><th>Role</th><th>Name</th><th>Phone</th><th>Email</th><th>Address / note</th><th aria-label="More" /></tr>
+        </thead>
+        <tbody>
+          {people.map(clientRow)}
+          {utils.length > 0 && <tr className="cgroup"><td colSpan={6}>Utility companies</td></tr>}
+          {utils.map(clientRow)}
+          {internal && (
+            <>
+              <tr className="cgroup"><td colSpan={6}>Agent only <span>· your client never sees these</span></td></tr>
+              {agentOnly.map((c) => (
+                <ContactTableRow key={c.id} c={c} suggestions={suggestions}
+                                 labelEditable={!FIXED_INTERNAL_ROLES.includes(c.role_label)}
+                                 onPatch={h.onPatchInternalContact}
+                                 onUploadPhoto={h.onUploadInternalContactPhoto}
+                                 onRemove={FIXED_INTERNAL_ROLES.includes(c.role_label) ? undefined
+                                   : () => h.onRemoveInternalContact?.(c.id)} />
+              ))}
+              <tr className="caddrow"><td colSpan={6}>
+                <button type="button" className="btn" onClick={h.onAddInternalContact}>+ Add agent-only contact</button>
+              </td></tr>
+            </>
+          )}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function ContactTableRow({ c, suggestions, saved, labelEditable, onPatch, onPickSaved, onSaveContact, onUploadPhoto, onRemove }: {
+  c: Contact; suggestions?: ContactSuggestion[]; saved?: SavedContact[]; labelEditable?: boolean
+  onPatch?: (id: string, v: Partial<Contact>) => void
+  onPickSaved?: (contactId: string, savedId: string) => void
+  onSaveContact?: (contact: Contact) => void
+  onUploadPhoto?: (contactId: string, file: File) => void
+  onRemove?: () => void
+}) {
+  const [more, setMore] = useState(false)
+  return (
+    <>
+      <tr className={more ? 'open' : undefined}>
+        <td className="ctrole">
+          {labelEditable ? (
+            <EditableText value={c.role_label} placeholder="Contact type"
+                          onCommit={(v) => onPatch?.(c.id, { role_label: v || 'Contact' })} />
+          ) : c.role_label}
+        </td>
+        <td>
+          {suggestions?.length ? (
+            <NameWithSuggestions value={c.name ?? ''} role={c.role_label} suggestions={suggestions} placeholder="Name"
+                                 onCommit={(v) => onPatch?.(c.id, { name: v || null })}
+                                 onPick={(p) => onPatch?.(c.id, {
+                                   name: p.name, phone: p.phone, email: p.email, photo_url: p.photo_url,
+                                   ...(p.note ? { note: p.note } : {}),
+                                 })} />
+          ) : (
+            <EditableText value={c.name ?? ''} placeholder="Name"
+                          onCommit={(v) => onPatch?.(c.id, { name: v || null })} />
+          )}
+        </td>
+        <td><EditableText value={c.phone ?? ''} placeholder="Phone"
+                          onCommit={(v) => onPatch?.(c.id, { phone: v || null })} /></td>
+        <td><EditableText value={c.email ?? ''} placeholder="Email"
+                          onCommit={(v) => onPatch?.(c.id, { email: v || null })} /></td>
+        <td><EditableText value={c.note ?? ''} placeholder="Address"
+                          onCommit={(v) => onPatch?.(c.id, { note: v || null })} /></td>
+        <td className="cacts">
+          <button type="button" tabIndex={-1} className={`tapicon${more ? ' on' : ''}`}
+                  onClick={() => setMore((m) => !m)} title="Photo and saved contacts">⋯</button>
+          {onRemove && <button type="button" tabIndex={-1} className="tapicon" onClick={onRemove} title="Remove">✕</button>}
+        </td>
+      </tr>
+      {more && (
+        <tr className="cmore"><td /><td colSpan={5}>
+          {!!saved?.length && (
+            <select value="" onChange={(e) => { if (e.target.value) onPickSaved?.(c.id, e.target.value) }}>
+              <option value="">Use a saved {c.role_label}…</option>
+              {saved.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          )}
+          <label className="btn">
+            <input type="file" accept="image/*" style={{ display: 'none' }}
+                   onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadPhoto?.(c.id, f) }} />
+            {c.photo_url ? 'Change photo/logo' : 'Add a photo/logo'}
+          </label>
+          {onSaveContact && c.name?.trim() && (
+            <button type="button" className="btn" onClick={() => onSaveContact(c)}>
+              Save "{c.name}" for next time
+            </button>
+          )}
+        </td></tr>
+      )}
+    </>
   )
 }

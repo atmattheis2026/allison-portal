@@ -389,3 +389,128 @@ input.inlineEdit.statusNote { font-size: 14.5px; color: var(--ink-dim); max-widt
 .suggestList li.on, .suggestList li:hover { background: var(--panel-2); }
 .suggestName { font-size: 16px; color: var(--ink); }
 .suggestMeta { font-size: 13.5px; color: var(--ink-faint); }
+
+/* =================== DESK LAYOUT ===================
+   Her editing view at 1200px and up (DeskLayout in Dashboard.tsx). Never used
+   on the client page or on a phone. */
+.desk { max-width: 1680px; margin: 0 auto; padding: 0 26px 48px; }
+.desk .card { border-radius: var(--r-lg); }
+
+.dtop { display: flex; align-items: center; gap: 18px; padding: 14px 18px; margin-top: 4px; }
+.dphoto { width: 112px; height: 78px; border-radius: var(--r-md); overflow: hidden; flex: none;
+          background: var(--panel-2); border: 1px solid var(--line); cursor: pointer;
+          display: grid; place-items: center; color: var(--ink-faint); font-size: 14px; }
+.dphoto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dphoto:hover { border-color: var(--gold-soft); }
+.dtopmain { flex: 1; min-width: 260px; display: flex; flex-direction: column; gap: 4px; }
+.dtopaddr { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.desk input.inlineEdit.address { font-size: 30px; margin: 0; width: auto; min-width: 280px; flex: 1 1 340px; }
+.desk input.inlineEdit.cityline { font-size: 17px; margin: 0; width: auto; flex: 1 1 200px; color: var(--gold-bright); }
+.dtopsub { font-size: 15px; color: var(--ink-dim); }
+.desk .statusEdit { flex-direction: row; align-items: center; gap: 10px; }
+.desk .pill { padding: 3px 12px 3px 7px; font-size: 14px; }
+.desk input.inlineEdit.statusNote { font-size: 14px; width: 240px; max-width: 260px; }
+
+.dchips { display: flex; gap: 10px; flex: none; }
+.dchip { border-radius: var(--r-md); padding: 9px 14px; min-width: 132px; max-width: 200px;
+         display: flex; flex-direction: column; gap: 1px; }
+.dchip .l { font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.dchip .v { font-size: 17px; font-weight: 700; line-height: 1.2;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dchip .s { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dchip.gold { background: #F4EBD6; color: var(--gold-bright); cursor: pointer; }
+.dchip.warn { background: #FBEFD9; color: #7A4F0E; }
+.dchip.red  { background: #F6E1DE; color: var(--danger); }
+.dchip.calm { background: var(--panel-2); color: var(--ink-dim); }
+.dchipdate { margin-top: 3px; padding: 2px 6px; font-size: 13.5px; width: 100%;
+             background: rgba(255,255,255,.6); border: 1px solid rgba(140,107,34,.3); }
+.dactions { display: flex; flex-direction: column; gap: 8px; flex: none; }
+.dactions .btn { justify-content: center; white-space: nowrap; }
+
+/* tracker as one line */
+.hrail { display: flex; align-items: center; padding: 12px 20px; margin-top: 14px; }
+.hstep { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--ink-faint); }
+.hstep:not(:last-child)::after { content: ''; flex: 1; height: 2px; background: var(--line); margin: 0 12px; min-width: 16px; }
+.hstep.done:not(:last-child)::after { background: var(--gold-soft); }
+.hstep .node { width: 28px; height: 28px; border-radius: 50%; flex: none; display: grid; place-items: center;
+               font-size: 13.5px; font-weight: 700; border: 1.5px solid var(--line); background: var(--panel); }
+.hstep.done .node { background: var(--gold); border-color: var(--gold); color: #0A0D13; }
+.hstep.current .node { border-color: var(--gold); color: var(--gold-bright); box-shadow: 0 0 0 4px rgba(201,164,76,.12); }
+.hstep .htext { display: flex; flex-direction: column; min-width: 0; }
+.hstep .lbl { font-size: 15px; color: var(--ink-dim); white-space: nowrap; }
+.hstep.done .lbl { color: var(--ink); }
+.hstep.current .lbl { color: var(--gold-bright); font-weight: 700; }
+.hstep .dt { font-size: 13px; color: var(--ink-faint); white-space: nowrap; }
+
+/* checklists + updates */
+.dgrid { display: grid; gap: 14px; margin-top: 14px; align-items: start; }
+.dside { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.desk .sec > .sechdr { padding: 14px 18px; border-bottom: none; }
+.desk .sec .sectitle { font-size: 18px; }
+.desk .secbody { padding: 4px 8px 12px; }
+.desk .chk { min-height: 38px; padding: 5px 8px; gap: 10px; }
+.desk .chk .txt { font-size: 15.5px; }
+.desk .chkwrap { border-bottom: 1px solid var(--line-soft); }
+.desk .chkremove { width: 28px; height: 28px; font-size: 13px; opacity: .55; }
+.desk .chkremove:hover { opacity: 1; }
+.desk .dateinput { width: 136px; font-size: 14px; padding: 3px 6px; }
+.desk .chk.editable:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: -2px; background: #FFFBF0; }
+.desk .addstep { padding-top: 10px; }
+.desk .addstep .btn { font-size: 14px; padding: 5px 12px; }
+.ffold { padding: 0 8px 4px 37px; }
+.ffoldbtn { font-size: 14px; color: var(--lend-bright); font-weight: 600; padding: 2px 0; }
+.ffold .fill { padding-left: 4px; }
+
+.dtabs { display: flex; gap: 4px; margin-bottom: -1px; position: relative; z-index: 1; }
+.dtab { padding: 8px 14px; font-size: 15px; font-weight: 600; color: var(--ink-faint);
+        border: 1px solid transparent; border-bottom: none; border-radius: var(--r-md) var(--r-md) 0 0; }
+.dtab.on { background: var(--panel); border-color: var(--line); color: var(--gold-bright); }
+.dtab.on.lend { color: var(--lend-bright); }
+.dupdates .dtabs + .notesboard { border-top-left-radius: 0; }
+.desk .notesboard { padding: 16px 18px; }
+.desk .notesboard .cardtitle { font-size: 17px; margin-bottom: 10px; }
+.desk .notelist { max-height: 300px; overflow-y: auto; }
+.desk .notebody { font-size: 15.5px; }
+.desk .noteadd textarea { font-size: 15.5px; }
+
+.dteam { padding: 16px 18px; }
+.desk .dteam .cardtitle { font-size: 17px; margin-bottom: 10px; }
+.desk .dteam .team { grid-template-columns: 1fr; gap: 8px; padding: 0; min-width: 0; }
+.desk .dteam .person { padding: 8px 10px; }
+.desk .dteam .person .avatar { width: 38px; height: 38px; }
+.desk .dteam .person .name { font-size: 16px; }
+
+/* contacts table + deal details */
+.dwide { display: grid; gap: 14px; margin-top: 14px; align-items: start; }
+.dcontacts { overflow: visible; }
+.dcardhdr { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 14px 18px 8px; }
+.dcardhdr .cardtitle { margin: 0; font-size: 18px; }
+.ctable { width: 100%; border-collapse: collapse; font-size: 15px; table-layout: fixed; }
+.ctable th { text-align: left; font-size: 13.5px; font-weight: 700; color: var(--ink-faint);
+             padding: 8px 10px; background: var(--panel-2); border-top: 1px solid var(--line-soft);
+             border-bottom: 1px solid var(--line); }
+.ctable th:nth-child(1) { width: 17%; } .ctable th:nth-child(2) { width: 22%; }
+.ctable th:nth-child(3) { width: 17%; } .ctable th:nth-child(4) { width: 22%; }
+.ctable th:nth-child(6) { width: 74px; }
+.ctable td { padding: 3px 6px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+.ctable td.ctrole { color: var(--ink-faint); font-size: 14.5px; padding-left: 10px;
+                    line-height: 1.25; }
+.ctable input.inlineEdit, .ctable input.inlineEdit.v { font-size: 15px; padding: 5px 4px; text-align: left; }
+.ctable .inlineEdit:focus { box-shadow: 0 0 0 2px var(--gold-soft); border-radius: 4px; }
+.ctable .suggestWrap { display: block; }
+.ctable .suggestList { left: 0; right: auto; }
+.ctable .cacts { text-align: right; white-space: nowrap; }
+.ctable .cacts .tapicon { display: inline-grid; width: 28px; height: 28px; font-size: 13px; margin-left: 4px; }
+.ctable tr.cgroup td { font-size: 13.5px; font-weight: 700; color: var(--ink-dim); background: #FBFAF6;
+                       padding: 8px 10px; text-transform: uppercase; letter-spacing: .04em; }
+.ctable tr.cgroup td span { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--ink-faint); }
+.ctable tr.caddrow td { padding: 10px; border-bottom: none; }
+.ctable tr.caddrow .btn { font-size: 14px; padding: 5px 12px; }
+.ctable tr.cmore td { background: #FBFAF6; padding: 8px 6px 10px; }
+.ctable tr.cmore td > * { margin-right: 8px; }
+.ctable tr.cmore .btn { font-size: 14px; padding: 5px 12px; display: inline-flex; cursor: pointer; }
+.ctable tr.cmore select { font-size: 14px; padding: 5px 8px; }
+
+.ddetails { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.desk .ddetails .sec > .sechdr { padding: 14px 18px; }
+.desk .disclaimers { margin-top: 24px; }
