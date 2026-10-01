@@ -191,6 +191,11 @@ file, then opens the new deal. Every answer leaves a dated line in the file's
 (`lead_notes`), because that board is client-visible and emails the client on
 every insert. "Not active" does not archive the file: archiving hides it with
 no way back in the app and turns off their client link.
+The client file is found through Deal history (`lead_transactions`), not
+`leads.converted_transaction_id`: cancelling clears that pointer, so looking
+it up there broke cancel → make active → cancel again (2026-10-01). "Make
+active again" points the file back at the deal unless the file has since
+moved on to a different deal.
 
 ## Agent Recruiting (recruiting/training/mentorship)
 
