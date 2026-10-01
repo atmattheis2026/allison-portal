@@ -275,3 +275,5 @@
 .starbtn:hover { opacity: 1; color: var(--gold-bright); }
 .starbtn.on, .staricon.on { color: #C8961E; opacity: 1; }
 .clientcard.starred { background: #FFFCF3; }
+.starbtn.others:not(.on) { color: var(--ink-dim); opacity: .8; }
+.starwho { font-weight: 700; color: #8A6512; }

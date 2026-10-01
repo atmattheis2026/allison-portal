@@ -370,6 +370,14 @@ button before the name on each card and on the client file's Buyer bar, a
 "★ Favorites" filter on the Clients page, and a faint gold card background.
 For repeat buyers she talks to often. It doesn't change the order; her own
 drag order does that. Without 081 the star says which file to run.
+**Stars are per person since migration 082** (`lead_stars`, one row per
+client + person, `author_name` stored for initials): Allison does loans and
+TC work for Ryan and Rich, so the same client can be a favorite for one and
+not another. Your ☆/★ is yours; others' stars show as a grey ★ and initials on
+the card's second line ("★ AM, RG"). The Favorites filter offers My / each
+person's / Anyone's. Visibility rides on `leads` RLS; you can only add or
+remove your own star. 082 copies 081's shared stars to Allison. If 082 isn't
+run, the page falls back to 081's shared `starred` column.
 
 ## Agent Recruiting (recruiting/training/mentorship)
 

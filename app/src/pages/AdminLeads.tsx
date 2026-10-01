@@ -61,7 +61,12 @@ export default function AdminLeads() {
   const [agentFilter, setAgentFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState<'' | 'buy' | 'loan'>('')
   const [dueOnly, setDueOnly] = useState(false)
-  const [starOnly, setStarOnly] = useState(false)
+  // '' = everyone, 'me' = my favorites, 'any' = anyone's, else a profile id.
+  const [starFilter, setStarFilter] = useState('')
+  // Each person's own stars (082). null = that table isn't there yet, so the
+  // older one-shared-star column (081) is used instead.
+  const [stars, setStars] = useState<Record<string, Star[]> | null>({})
+  const [me, setMe] = useState<{ id: string; name: string | null }>({ id: 'me', name: null })
   const [dragOver, setDragOver] = useState<string | null>(null)
   const [dropAt, setDropAt] = useState<{ id: string; after: boolean } | null>(null)
   const nav = useNavigate()
@@ -124,6 +129,18 @@ export default function AdminLeads() {
         }
         setLatestNotes(latest)
       }
+
+      // Favorite stars, one per person. In batches like the notes.
+      const { data: myProfile } = await supabase!.from('profiles').select('full_name').eq('id', auth.user.id).maybeSingle()
+      setMe({ id: auth.user.id, name: (myProfile as { full_name?: string } | null)?.full_name || null })
+      const starMap: Record<string, Star[]> = {}
+      for (let i = 0; i < leadIds.length; i += 100) {
+        const { data: chunk, error: starErr } = await supabase!.from('lead_stars')
+          .select('lead_id, profile_id, author_name').in('lead_id', leadIds.slice(i, i + 100))
+        if (starErr) { setStars(null); return }
+        for (const st of (chunk as (Star & { lead_id: string })[]) ?? []) (starMap[st.lead_id] ??= []).push(st)
+      }
+      setStars(starMap)
     }
     load()
   }, [nav])
@@ -286,13 +303,21 @@ export default function AdminLeads() {
     if (typeFilter === 'buy' && !r.wants_buying) return false
     if (typeFilter === 'loan' && !r.wants_loan) return false
     if (dueOnly && !isDue(r)) return false
-    if (starOnly && !r.starred) return false
+    if (starFilter) {
+      const who = stars ? (stars[r.id] ?? []) : (r.starred ? [{ profile_id: me.id, author_name: null }] : [])
+      if (starFilter === 'any' ? who.length === 0
+        : !who.some((st) => st.profile_id === (starFilter === 'me' ? me.id : starFilter))) return false
+    }
     if (!needle) return true
     return [r.full_name, r.full_name_2, r.email, r.followup_note, latestNotes[r.id]?.[0]?.body]
       .some((f) => f?.toLowerCase().includes(needle))
       || (digits.length >= 3 && (r.phone ?? '').replace(/\D/g, '').includes(digits))
   })
   const inactiveRows = shownRows.filter((r) => r.lead_status === 'inactive')
+  // Everyone who has starred at least one client, for the Favorites filter.
+  const starrers = Object.values(stars ?? {}).flat()
+    .reduce<{ id: string; name: string }[]>((list, st) => list.some((p) => p.id === st.profile_id) ? list
+      : [...list, { id: st.profile_id, name: st.author_name || 'Teammate' }], [])
 
   // Drag a card onto Upcoming, Nurture or the Inactive button. Under contract
   // is set by the deal itself, so it's neither a source nor a target.
@@ -327,7 +352,21 @@ export default function AdminLeads() {
   const hasOrder = rows.length === 0 || 'board_position' in rows[0]
   // 081 adds starred (favorite clients).
   const hasStar = rows.length === 0 || 'starred' in rows[0]
-  function toggleStar(r: Lead) {
+  const isMine = (r: Lead) => (stars ? (stars[r.id] ?? []).some((st) => st.profile_id === me.id) : !!r.starred)
+  async function toggleStar(r: Lead) {
+    if (stars) {
+      const mine = isMine(r)
+      setStars((cur) => cur && ({ ...cur, [r.id]: mine
+        ? (cur[r.id] ?? []).filter((st) => st.profile_id !== me.id)
+        : [...(cur[r.id] ?? []), { profile_id: me.id, author_name: me.name }] }))
+      if (DEMO_MODE || !supabase) return
+      setStageError(null)
+      const { error } = mine
+        ? await supabase.from('lead_stars').delete().eq('lead_id', r.id).eq('profile_id', me.id)
+        : await supabase.from('lead_stars').insert({ lead_id: r.id, author_name: me.name })
+      if (error) setStageError(error.message)
+      return
+    }
     if (!hasStar) {
       setStageError('To save favorites, run supabase/migrations/081_client_favorites.sql in Supabase\'s SQL Editor, then reload.')
       return
@@ -406,7 +445,7 @@ export default function AdminLeads() {
     const due = isDue(r)
     const notes = latestNotes[r.id] ?? []
     return (
-      <div className={`clientcard${due ? ' due' : ''}${r.starred ? ' starred' : ''}${dropAt?.id === r.id ? (dropAt.after ? ' dropafter' : ' dropbefore') : ''}`} key={r.id}
+      <div className={`clientcard${due ? ' due' : ''}${isMine(r) ? ' starred' : ''}${dropAt?.id === r.id ? (dropAt.after ? ' dropafter' : ' dropbefore') : ''}`} key={r.id}
            draggable={hasStages && (!underContract || hasOrder)}
            onDragStart={(e) => { e.dataTransfer.setData('text/client-id', r.id); e.dataTransfer.effectAllowed = 'move' }}
            onDragEnd={() => { setDropAt(null); setDragOver(null) }}
@@ -415,10 +454,11 @@ export default function AdminLeads() {
           {!underContract && band && (
             <span title={TIMEFRAME_BAND_LABEL[band]} className="clientdot" style={{ background: TIMEFRAME_BAND_COLOR[band] }} />
           )}
-          <button type="button" className={`starbtn${r.starred ? ' on' : ''}`} onClick={() => toggleStar(r)}
-                  title={r.starred ? 'Favorite. Click to remove the star' : 'Mark as a favorite'}
-                  aria-label={r.starred ? 'Remove favorite' : 'Mark as favorite'} aria-pressed={!!r.starred}>
-            {r.starred ? '★' : '☆'}
+          <button type="button" className={`starbtn${isMine(r) ? ' on' : ''}${(stars?.[r.id]?.length ?? 0) > 0 ? ' others' : ''}`}
+                  onClick={() => toggleStar(r)}
+                  title={isMine(r) ? 'Your favorite. Click to remove your star' : 'Mark as your favorite'}
+                  aria-label={isMine(r) ? 'Remove your star' : 'Mark as your favorite'} aria-pressed={isMine(r)}>
+            {isMine(r) || (stars?.[r.id]?.length ?? 0) > 0 ? '★' : '☆'}
           </button>
           <Link to={`/admin/leads/${r.id}`} className="clientname">
             {r.full_name || 'Unnamed client'}{r.full_name_2 ? ` & ${r.full_name_2}` : ''}
@@ -439,6 +479,11 @@ export default function AdminLeads() {
           ? `Buyer broker signed ${r.buyer_broker_signed_date ? daysAgo(r.buyer_broker_signed_date) : ''}`
             + (r.buyer_broker_expires ? ` · expires ${parseDate(r.buyer_broker_expires).toLocaleDateString()}` : '')
           : undefined}>
+          {stars && (stars[r.id]?.length ?? 0) > 0 && (
+                <span className="starwho" title={`Favorite of ${stars[r.id].map((st) => st.profile_id === me.id ? 'you' : st.author_name || 'a teammate').join(', ')}`}>
+                  ★ {stars[r.id].map((st) => initials(st.profile_id === me.id ? me.name : st.author_name)).join(', ')}{' · '}
+                </span>
+              )}
           {[agentName(r.realtor_member_id) ?? 'No agent',
             r.wants_buying && r.wants_loan ? 'Buyer + loan' : r.wants_loan ? 'Loan' : 'Buyer',
             r.wants_loan && r.loan_status ? r.loan_status : null,
@@ -511,8 +556,16 @@ export default function AdminLeads() {
             Follow-ups due
           </label>
           <label className="clientcheck">
-            <input type="checkbox" checked={starOnly} onChange={(e) => setStarOnly(e.target.checked)} />
-            <span className="staricon on">★</span> Favorites
+            <select value={starFilter} onChange={(e) => setStarFilter(e.target.value)} aria-label="Favorites">
+              <option value="">All clients</option>
+              <option value="me">★ My favorites</option>
+              {stars && <>
+                {starrers.filter((p) => p.id !== me.id).map((p) => (
+                  <option key={p.id} value={p.id}>★ {p.name}'s favorites</option>
+                ))}
+                <option value="any">★ Anyone's favorites</option>
+              </>}
+            </select>
           </label>
           <label className="clientsort">Sort by
           <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
@@ -571,7 +624,7 @@ export default function AdminLeads() {
                   <p className="clientcolhelp">{col.help}</p>
                   <div className="clientcolbody">
                     {ordered.length === 0 && <p className="muted" style={{ fontSize: 14.5, margin: '6px 2px' }}>
-                      {needle || agentFilter || typeFilter || dueOnly || starOnly ? 'No matches here.' : 'No one here right now.'}</p>}
+                      {needle || agentFilter || typeFilter || dueOnly || starFilter ? 'No matches here.' : 'No one here right now.'}</p>}
                     {ordered.map(renderCard)}
                   </div>
                 </section>
@@ -794,6 +847,14 @@ function CardMenu({ stage, onMove, copied, onCopy, onDelete }: {
       )}
     </>
   )
+}
+
+type Star = { profile_id: string; author_name: string | null }
+
+function initials(name: string | null) {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '•'
+  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase()
 }
 
 function CalendarIcon() {
