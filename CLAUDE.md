@@ -172,6 +172,17 @@ date → next step; contacts = name → phone → email → address → next row
 don't interrupt that. `AdminNav` turns into a fixed dark side menu at 1200px+
 (`.sidenav` in `theme.css`, `body:has(.sidenav)` shifts the page), on every
 admin page.
+**Side menu file lists (2026-10-01).** On a computer, Transactions, Active
+Clients and Closed in the side menu each fold open (▸, with a count) to list
+their files (`useSideFileLists` / `SideGroup` in `AdminNav.tsx`); the open
+state is remembered per title in localStorage, the current file is
+highlighted. The lists are plain selects, filtered to her `team_id`, so
+**who sees which file is decided by RLS, not by the menu**: a transaction
+coordinator (role) or "sees every transaction" person sees every file,
+everyone else only what they're assigned to. Migration 077 brought client
+files (`leads` select + `lead_visible()`) in line with deals: it adds the TC
+role and the assigned lender (`lender_member_id`) to who can see a file.
+If 077 isn't run, the menu still works with the old, narrower lead rule.
 The "On this deal" card (realtor/LO pickers + who-can-see chips) is folded to
 one summary line with a **Change** button (`DeskTeamCard`); on the stacked
 layout the "Assigned to" card does the same. Allison: set once, rarely changed.

@@ -79,6 +79,8 @@ export default function AdminList() {
   const nav = useNavigate()
 
   const [needsSetup, setNeedsSetup] = useState(false)
+  // A failed load used to look exactly like "No transactions yet".
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [roster, setRoster] = useState<TeamMember[]>([])
   const [assignedByTx, setAssignedByTx] = useState<Record<string, string[]>>({})
   const [clientNameByTx, setClientNameByTx] = useState<Record<string, string | null>>({})
@@ -137,7 +139,7 @@ export default function AdminList() {
         .select('id,address_line,city_state_zip,photo_url,status,deal_type,closing_date,closed_and_funded,final_purchase_price,realtor_member_id,lender_member_id,lender_name,share_token')
         .is('archived_at', null)
         .order('created_at', { ascending: false })
-      if (error) console.error(error)
+      if (error) { console.error(error); setLoadError(error.message) }
       const txRows = (data as Row[]) ?? []
       setRows(txRows)
 
@@ -314,9 +316,9 @@ export default function AdminList() {
             placeholder="Search by agent, lender, client, or city…"
             style={{ flex: 1, minWidth: 220, maxWidth: 420 }}
           />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none', whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 1 auto', minWidth: 0, whiteSpace: 'nowrap' }}>
             <label className="muted" style={{ fontSize: 15.5 }}>Sort by</label>
-            <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
+            <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)} style={{ minWidth: 0, maxWidth: '100%' }}>
               <option value="recent">Recently added</option>
               <option value="agent">Agent</option>
               <option value="lender">Lender</option>
@@ -333,7 +335,16 @@ export default function AdminList() {
         </div>
       )}
 
-      {rows.length === 0 ? (
+      {loadError ? (
+        <div className="centered">
+          <div style={{ maxWidth: 460 }}>
+            <p style={{ color: 'var(--danger)', fontWeight: 700, lineHeight: 1.6 }}>
+              Your transactions didn't load. Nothing has been deleted.
+            </p>
+            <p className="muted" style={{ lineHeight: 1.6 }}>The database said: {loadError}</p>
+          </div>
+        </div>
+      ) : rows.length === 0 ? (
         <div className="centered">
           <div style={{ maxWidth: 360 }}>
             <p className="muted" style={{ lineHeight: 1.7 }}>
