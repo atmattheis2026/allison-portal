@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import Dashboard from '../components/Dashboard'
+import Dashboard, { type ContactSuggestion } from '../components/Dashboard'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import { DEMO_BY_TOKEN, DEMO_PAYLOAD, SAVED_CONTACTS, TEAM_MEMBERS, TRANSACTION_ASSIGNEES } from '../lib/demoData'
 import { ROLE_LABEL, type Contact, type Milestone, type SavedContact, type SharedPayload, type Side, type TeamMember, type Transaction, type TxStatus } from '../lib/types'
@@ -36,6 +36,7 @@ export default function AdminTransaction() {
   // get_shared_transaction() already leaves out — so the client never sees
   // them, and they need their own fetch here, same as internalContacts.
   const [hiddenMilestones, setHiddenMilestones] = useState<Milestone[]>([])
+  const [contactSuggestions, setContactSuggestions] = useState<ContactSuggestion[]>([])
   const [remoteUpdate, setRemoteUpdate] = useState(false)
   // The questions asked right after "Cancel transaction" about the client.
   const [followUp, setFollowUp] = useState<FollowUp | null>(null)
@@ -55,6 +56,8 @@ export default function AdminTransaction() {
       setRoster(TEAM_MEMBERS)
       setAssignedIds(new Set(TRANSACTION_ASSIGNEES[id ?? ''] ?? []))
       setSavedContacts(SAVED_CONTACTS)
+      setContactSuggestions(buildSuggestions(SAVED_CONTACTS,
+        Object.values(DEMO_BY_TOKEN).flatMap((p) => p.contacts)))
       setInternalContacts([])
       setHiddenMilestones([])
       return
@@ -75,6 +78,7 @@ export default function AdminTransaction() {
           : `team_id.eq.${row.team_id}`
         supabase!.from('team_members').select('*').or(rosterFilter).order('sort_order')
           .then(({ data: rows }) => setRoster((rows as TeamMember[]) ?? []))
+        loadContactBook(row.team_id)
         const t = row?.share_token as string | undefined
         if (!t) { setLoadError('This transaction has no share token on file.'); return }
         setToken(t)
@@ -87,12 +91,25 @@ export default function AdminTransaction() {
     supabase.from('transaction_assignees').select('team_member_id').eq('transaction_id', id)
       .then(({ data: rows }) =>
         setAssignedIds(new Set((rows ?? []).map((r) => r.team_member_id as string))))
-    supabase.from('saved_contacts').select('*').order('sort_order')
-      .then(({ data: rows }) => setSavedContacts((rows as SavedContact[]) ?? []))
     supabase.from('contacts').select('*').eq('transaction_id', id).eq('internal_only', true).order('sort_order')
       .then(({ data: rows }) => setInternalContacts((rows as Contact[]) ?? []))
     supabase.from('milestones').select('*').eq('transaction_id', id).eq('internal_only', true).order('sort_order')
       .then(({ data: rows }) => setHiddenMilestones((rows as Milestone[]) ?? []))
+  }
+
+  /** Saved contacts plus every named contact on this team's deals, for the
+   *  as-you-type name suggestions. Filtered to the deal's team because
+   *  Allison's account can read every team's rows (is_platform_admin). */
+  async function loadContactBook(teamId: string) {
+    if (!supabase) return
+    const [{ data: saved }, { data: onDeals }] = await Promise.all([
+      supabase.from('saved_contacts').select('*').eq('team_id', teamId).order('sort_order'),
+      supabase.from('contacts').select('*, transactions!inner(team_id)')
+        .eq('transactions.team_id', teamId).not('name', 'is', null).limit(5000),
+    ])
+    const savedRows = (saved as SavedContact[]) ?? []
+    setSavedContacts(savedRows)
+    setContactSuggestions(buildSuggestions(savedRows, (onDeals as Contact[]) ?? []))
   }
 
   useEffect(() => { loadAll() }, [id])
@@ -747,6 +764,7 @@ export default function AdminTransaction() {
         editable
         roster={roster}
         savedContacts={savedContacts}
+        contactSuggestions={contactSuggestions}
         internalContacts={internalContacts}
         hiddenMilestones={hiddenMilestones}
         headerExtra={
@@ -900,4 +918,23 @@ function AssignedTo({ roster, assignedIds, onToggle }: {
       </div>
     </div>
   )
+}
+
+/** One entry per person (same name and phone), saved contacts first, keeping
+ *  whichever copy has the most filled in. */
+function buildSuggestions(saved: SavedContact[], onDeals: Contact[]): ContactSuggestion[] {
+  const byKey = new Map<string, ContactSuggestion>()
+  const score = (p: ContactSuggestion) => [p.phone, p.email, p.note, p.photo_url].filter(Boolean).length
+  const rows: ContactSuggestion[] = [
+    ...saved.map((s) => ({ name: s.name, role_label: s.role_label, phone: s.phone, email: s.email, note: null, photo_url: s.photo_url })),
+    ...onDeals.map((c) => ({ name: c.name ?? '', role_label: c.role_label, phone: c.phone, email: c.email, note: c.note, photo_url: c.photo_url })),
+  ]
+  for (const p of rows) {
+    const name = p.name.trim()
+    if (!name) continue
+    const key = `${name.toLowerCase()}|${(p.phone ?? '').replace(/\D/g, '')}`
+    const cur = byKey.get(key)
+    if (!cur || score({ ...p, name }) > score(cur)) byKey.set(key, { ...p, name })
+  }
+  return [...byKey.values()]
 }

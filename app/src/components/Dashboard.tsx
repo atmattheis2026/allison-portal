@@ -108,6 +108,9 @@ interface Props extends DashboardHandlers {
   /** Saved vendors for the Contacts section — title companies, inspectors,
    *  utilities. Same admin-only story as roster. */
   savedContacts?: SavedContact[]
+  /** Everyone she's ever put on a deal (plus saved contacts), offered as she
+   *  types a contact's name. Admin only. */
+  contactSuggestions?: ContactSuggestion[]
   /** Contacts flagged internal_only — fetched separately since
    *  get_shared_transaction() excludes them. Same admin-only story as
    *  roster: undefined on the client-facing page, so the section that
@@ -123,7 +126,7 @@ interface Props extends DashboardHandlers {
 
 export default function Dashboard({
   data, editable = false, viewNote = 'Transaction Portal · Client View',
-  headerExtra, roster, savedContacts, internalContacts, hiddenMilestones, ...h
+  headerExtra, roster, savedContacts, contactSuggestions, internalContacts, hiddenMilestones, ...h
 }: Props) {
   const { transaction: tx, realtor, brands, milestones, doc_lines, contacts, notes } = data
 
@@ -235,12 +238,14 @@ export default function Dashboard({
           )}
           <ContactsSection contacts={contacts} editable={editable}
                            savedContacts={savedContacts}
+                           suggestions={contactSuggestions}
                            onPatch={h.onPatchContact}
                            onPickSaved={h.onPickSavedContact}
                            onSaveContact={h.onSaveContact}
                            onUploadContactPhoto={h.onUploadContactPhoto} />
           {editable && internalContacts && (
             <AgentOnlyContactsSection contacts={internalContacts}
+                                      suggestions={contactSuggestions}
                                       onPatch={h.onPatchInternalContact}
                                       onAdd={h.onAddInternalContact}
                                       onRemove={h.onRemoveInternalContact}
@@ -1196,9 +1201,10 @@ function fmtNoteWhen(iso: string): string {
 }
 
 function ContactsSection({
-  contacts, editable, savedContacts, onPatch, onPickSaved, onSaveContact, onUploadContactPhoto,
+  contacts, editable, savedContacts, suggestions, onPatch, onPickSaved, onSaveContact, onUploadContactPhoto,
 }: {
   contacts: Contact[]; editable?: boolean; savedContacts?: SavedContact[]
+  suggestions?: ContactSuggestion[]
   onPatch?: (id: string, v: Partial<Contact>) => void
   onPickSaved?: (contactId: string, savedId: string) => void
   onSaveContact?: (contact: Contact) => void
@@ -1222,13 +1228,13 @@ function ContactsSection({
       {shown(people).map((c) => (
         <ContactRow key={c.id} c={c} editable={editable} onPatch={onPatch}
                     saved={savedFor(c)} onPickSaved={onPickSaved} onSaveContact={onSaveContact}
-                    onUploadContactPhoto={onUploadContactPhoto} />
+                    suggestions={suggestions} onUploadContactPhoto={onUploadContactPhoto} />
       ))}
       {shown(utils).length > 0 && <div className="glabel">Utility Companies</div>}
       {shown(utils).map((c) => (
         <ContactRow key={c.id} c={c} editable={editable} onPatch={onPatch}
                     saved={savedFor(c)} onPickSaved={onPickSaved} onSaveContact={onSaveContact}
-                    onUploadContactPhoto={onUploadContactPhoto} />
+                    suggestions={suggestions} onUploadContactPhoto={onUploadContactPhoto} />
       ))}
     </Section>
   )
@@ -1245,8 +1251,9 @@ const FIXED_INTERNAL_ROLES = [
  * client link never sees this, since get_shared_transaction() excludes
  * internal_only rows entirely.
  */
-function AgentOnlyContactsSection({ contacts, onPatch, onAdd, onRemove, onUploadContactPhoto }: {
+function AgentOnlyContactsSection({ contacts, suggestions, onPatch, onAdd, onRemove, onUploadContactPhoto }: {
   contacts: Contact[]
+  suggestions?: ContactSuggestion[]
   onPatch?: (id: string, v: Partial<Contact>) => void
   onAdd?: () => void
   onRemove?: (id: string) => void
@@ -1263,12 +1270,12 @@ function AgentOnlyContactsSection({ contacts, onPatch, onAdd, onRemove, onUpload
         on file but don't want on their page.
       </p>
       {fixed.map((c) => (
-        <ContactRow key={c.id} c={c} editable onPatch={onPatch}
+        <ContactRow key={c.id} c={c} editable onPatch={onPatch} suggestions={suggestions}
                     onUploadContactPhoto={onUploadContactPhoto} />
       ))}
       {extra.length > 0 && <div className="glabel">Additional</div>}
       {extra.map((c) => (
-        <ContactRow key={c.id} c={c} editable onPatch={onPatch}
+        <ContactRow key={c.id} c={c} editable onPatch={onPatch} suggestions={suggestions}
                     onUploadContactPhoto={onUploadContactPhoto}
                     labelEditable onRemove={onRemove ? () => onRemove(c.id) : undefined} />
       ))}
@@ -1277,12 +1284,100 @@ function AgentOnlyContactsSection({ contacts, onPatch, onAdd, onRemove, onUpload
   )
 }
 
+export interface ContactSuggestion {
+  name: string
+  role_label: string
+  phone: string | null
+  email: string | null
+  note: string | null
+  photo_url: string | null
+}
+
+/** Names that start with what she's typed (first or last name), the same
+ *  kind of contact first, then A–Z. */
+function matchSuggestions(all: ContactSuggestion[], typed: string, role: string) {
+  const q = typed.trim().toLowerCase()
+  if (!q) return []
+  return all
+    .filter((p) => {
+      const n = p.name.toLowerCase()
+      return n.startsWith(q) || n.split(/\s+/).some((w) => w.startsWith(q))
+    })
+    .sort((a, b) =>
+      Number(!a.name.toLowerCase().startsWith(q)) - Number(!b.name.toLowerCase().startsWith(q))
+      || Number(a.role_label !== role) - Number(b.role_label !== role)
+      || a.name.localeCompare(b.name))
+    .slice(0, 8)
+}
+
+/**
+ * A contact's name box that lists matching people as she types. Picking one
+ * fills in their phone, email and photo too; typing a new name and leaving
+ * the box saves it as typed, same as before.
+ */
+function NameWithSuggestions({ value, role, suggestions, onCommit, onPick }: {
+  value: string; role: string; suggestions: ContactSuggestion[]
+  onCommit: (v: string) => void
+  onPick: (p: ContactSuggestion) => void
+}) {
+  const [draft, setDraft] = useState(value)
+  const [seen, setSeen] = useState(value)
+  if (seen !== value) { setSeen(value); setDraft(value) }
+  const [focused, setFocused] = useState(false)
+  const [active, setActive] = useState(0)
+
+  const matches = focused && draft !== value ? matchSuggestions(suggestions, draft, role) : []
+
+  function pick(p: ContactSuggestion) {
+    setDraft(p.name)
+    setFocused(false)
+    onPick(p)
+  }
+
+  return (
+    <span className="suggestWrap">
+      <input
+        className="inlineEdit v"
+        value={draft}
+        placeholder="not set"
+        onChange={(e) => { setDraft(e.target.value); setActive(0) }}
+        onFocus={() => setFocused(true)}
+        onBlur={() => { setFocused(false); if (draft !== value) onCommit(draft) }}
+        onKeyDown={(e) => {
+          if (matches.length && e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => Math.min(i + 1, matches.length - 1)) }
+          else if (matches.length && e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)) }
+          else if (e.key === 'Enter') {
+            if (matches[active]) { e.preventDefault(); pick(matches[active]) }
+            e.currentTarget.blur()
+          }
+          else if (e.key === 'Escape') { setDraft(value); e.currentTarget.blur() }
+        }}
+      />
+      {matches.length > 0 && (
+        <ul className="suggestList" role="listbox">
+          {matches.map((p, i) => (
+            <li key={`${p.name}|${p.phone ?? ''}|${p.role_label}`} role="option" aria-selected={i === active}
+                className={i === active ? 'on' : undefined}
+                // pointerdown + preventDefault keeps the box focused, so the
+                // tap lands on the name instead of closing the list first.
+                onPointerDown={(e) => { e.preventDefault(); pick(p) }}>
+              <span className="suggestName">{p.name}</span>
+              <span className="suggestMeta">{[p.role_label, p.phone].filter(Boolean).join(' · ')}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </span>
+  )
+}
+
 function ContactRow({
-  c, editable, onPatch, saved, onPickSaved, onSaveContact, onUploadContactPhoto,
+  c, editable, onPatch, saved, suggestions, onPickSaved, onSaveContact, onUploadContactPhoto,
   labelEditable, onRemove,
 }: {
   c: Contact; editable?: boolean; onPatch?: (id: string, v: Partial<Contact>) => void
   saved?: SavedContact[]
+  suggestions?: ContactSuggestion[]
   onPickSaved?: (contactId: string, savedId: string) => void
   onSaveContact?: (contact: Contact) => void
   onUploadContactPhoto?: (contactId: string, file: File) => void
@@ -1324,8 +1419,17 @@ function ContactRow({
           <span className="k">{c.role_label}</span>
         )}
         <div className="rt">
-          <EditableText className="v" value={c.name ?? ''} placeholder="not set"
-                        onCommit={(v) => onPatch?.(c.id, { name: v || null })} />
+          {suggestions?.length ? (
+            <NameWithSuggestions value={c.name ?? ''} role={c.role_label} suggestions={suggestions}
+                                 onCommit={(v) => onPatch?.(c.id, { name: v || null })}
+                                 onPick={(p) => onPatch?.(c.id, {
+                                   name: p.name, phone: p.phone, email: p.email, photo_url: p.photo_url,
+                                   ...(p.note ? { note: p.note } : {}),
+                                 })} />
+          ) : (
+            <EditableText className="v" value={c.name ?? ''} placeholder="not set"
+                          onCommit={(v) => onPatch?.(c.id, { name: v || null })} />
+          )}
           <button type="button" className={`tapicon${open ? ' on' : ''}`}
                   onClick={() => setOpen((o) => !o)}
                   title="Phone and email">⋯</button>
