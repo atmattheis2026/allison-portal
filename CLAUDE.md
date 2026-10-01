@@ -343,6 +343,16 @@ sort by follow-up date. The client file has the same stage + follow-up fields
 in "What do they need?". Migration 079 adds the two statuses and columns; until
 it's run the page hides those controls and says what to run. The cancel flow's
 "not active right now" now moves the client to Nurture.
+Built for a book of ~600 clients (2026-10-01): cards drag between Upcoming,
+Nurture and the Inactive button (Under contract is never a drop target or
+draggable — it follows the deal). The follow-up is one small button per card
+(`FollowUpButton`) that opens a box with date + note, Save / Mark done; the box
+is `position: fixed` from the button's spot because the columns scroll on a
+computer and would cut it off. Search (name, phone, email, follow-up note,
+latest update), agent / buyer-loan / "Follow-ups due" filters, and Sort by
+(default: next follow-up). No hand-ordering within a column — with hundreds of
+clients, search/filter/sort was the better answer. Latest-update loading is in
+batches of 100 ids (one long URL fails).
 
 ## Agent Recruiting (recruiting/training/mentorship)
 
