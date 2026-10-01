@@ -172,6 +172,9 @@ date → next step; contacts = name → phone → email → address → next row
 don't interrupt that. `AdminNav` turns into a fixed dark side menu at 1200px+
 (`.sidenav` in `theme.css`, `body:has(.sidenav)` shifts the page), on every
 admin page.
+The "On this deal" card (realtor/LO pickers + who-can-see chips) is folded to
+one summary line with a **Change** button (`DeskTeamCard`); on the stacked
+layout the "Assigned to" card does the same. Allison: set once, rarely changed.
 
 **Editing is inline, not a separate form.** The admin view is the same Dashboard
 component with `editable`, so the thing she changes is the thing her client sees.
