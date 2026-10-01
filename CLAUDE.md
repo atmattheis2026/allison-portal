@@ -82,6 +82,16 @@ link) with the lead's own updates and referral form underneath. A client
 under contract keeps their /l/ link (leads aren't archived on conversion since
 055), and before 074 that link showed none of the deal's progress.
 
+**Her live database didn't match the migrations for deal visibility (found
+2026-10-01).** It still had 019's `transactions.team_select` with no
+`is_platform_admin()` bypass (023 was partly pasted, see 043), so Allison's
+deals depended on a Settings › Team entry; deleting a duplicate roster entry
+hid all of them. Migration 078 reinstalls 023's policy. Lesson: deleting a
+`team_members` row cascades its `transaction_assignees` and can cut someone
+off; and check her real database (SQL Editor, impersonating with
+`request.jwt.claims` + `set local role authenticated`) before trusting that a
+migration file reflects what's live.
+
 **Do not remove RLS policies.** Every table is locked to the user's team. Turning
 that off means her whole business is readable by anyone with the app's public key.
 
