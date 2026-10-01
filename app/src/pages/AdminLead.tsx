@@ -1022,14 +1022,8 @@ export default function AdminLead() {
           <span className="buyerbar-names">
             {lead.full_name || 'Unnamed buyer'}{lead.full_name_2 ? ` & ${lead.full_name_2}` : ''}
           </span>
-          {'starred' in lead && (
-            <button type="button" className={`starbtn${lead.starred ? ' on' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); patchLead({ starred: !lead.starred }) }}
-                    title={lead.starred ? 'Favorite. Click to remove the star' : 'Mark as a favorite'}
-                    aria-label={lead.starred ? 'Remove favorite' : 'Mark as favorite'} aria-pressed={!!lead.starred}>
-              {lead.starred ? '★' : '☆'}
-            </button>
-          )}
+          <LeadStar leadId={lead.id} shared={'starred' in lead ? !!lead.starred : null}
+                    onShared={(v) => patchLead({ starred: v })} />
           <button type="button" className="btn"
                   onClick={(e) => { e.stopPropagation(); setBuyerOpen((o) => !o) }}>
             {buyerOpen ? 'Hide details' : 'Show details'}
@@ -1843,6 +1837,68 @@ function DocumentsList({ documents, onRemove }: {
         <button type="button" className="doctoggle" onClick={() => setShowAll((v) => !v)}>
           {showAll ? 'Show fewer' : `Show all ${documents.length}`}
         </button>
+      )}
+    </>
+  )
+}
+
+// The signed-in person's own favorite star on this client (082), plus the
+// initials of anyone else who starred them. Falls back to 081's one shared
+// star when the lead_stars table isn't there yet.
+function LeadStar({ leadId, shared, onShared }: {
+  leadId: string; shared: boolean | null; onShared: (v: boolean) => void
+}) {
+  const [rows, setRows] = useState<{ profile_id: string; author_name: string | null }[] | null>(null)
+  const [me, setMe] = useState<{ id: string; name: string | null } | null>(null)
+  useEffect(() => {
+    if (DEMO_MODE || !supabase) { setRows([]); setMe({ id: 'me', name: null }); return }
+    let live = true
+    ;(async () => {
+      const { data: auth } = await supabase!.auth.getUser()
+      if (!auth.user) return
+      const { data: prof } = await supabase!.from('profiles').select('full_name').eq('id', auth.user.id).maybeSingle()
+      const { data, error } = await supabase!.from('lead_stars').select('profile_id, author_name').eq('lead_id', leadId)
+      if (!live) return
+      setMe({ id: auth.user.id, name: (prof as { full_name?: string } | null)?.full_name || null })
+      setRows(error ? null : (data as { profile_id: string; author_name: string | null }[]) ?? [])
+    })()
+    return () => { live = false }
+  }, [leadId])
+
+  if (!me) return null
+  if (rows === null) {
+    if (shared === null) return null
+    return (
+      <button type="button" className={`starbtn${shared ? ' on' : ''}`}
+              onClick={(e) => { e.stopPropagation(); onShared(!shared) }}
+              title={shared ? 'Favorite. Click to remove the star' : 'Mark as a favorite'} aria-pressed={shared}>
+        {shared ? '★' : '☆'}
+      </button>
+    )
+  }
+  const mine = rows.some((r) => r.profile_id === me.id)
+  const others = rows.filter((r) => r.profile_id !== me.id)
+  async function toggle(e: React.MouseEvent) {
+    e.stopPropagation()
+    const before = rows
+    setRows(mine ? rows!.filter((r) => r.profile_id !== me!.id) : [...rows!, { profile_id: me!.id, author_name: me!.name }])
+    if (DEMO_MODE || !supabase) return
+    const { error } = mine
+      ? await supabase.from('lead_stars').delete().eq('lead_id', leadId).eq('profile_id', me!.id)
+      : await supabase.from('lead_stars').insert({ lead_id: leadId, author_name: me!.name })
+    if (error) { setRows(before); alert(`Couldn't save the star: ${error.message}`) }
+  }
+  return (
+    <>
+      <button type="button" className={`starbtn${mine ? ' on' : ''}`} onClick={toggle}
+              title={mine ? 'Your favorite. Click to remove your star' : 'Mark as your favorite'} aria-pressed={mine}>
+        {mine ? '★' : '☆'}
+      </button>
+      {others.length > 0 && (
+        <span className="starwho" style={{ marginLeft: 0 }}
+              title={`Also a favorite of ${others.map((r) => r.author_name || 'a teammate').join(', ')}`}>
+          ★ {others.map((r) => r.author_name || 'Teammate').join(', ')}
+        </span>
       )}
     </>
   )
