@@ -365,6 +365,11 @@ another sort is showing, or neighbors have no position, the whole column is
 renumbered in the on-screen order and the sort switches to "My order";
 otherwise only the moved card changes (midpoint). Without 080 the page says
 which file to run.
+**Favorite clients (2026-10-01, migration 081).** `leads.starred`: a ☆/★
+button before the name on each card and on the client file's Buyer bar, a
+"★ Favorites" filter on the Clients page, and a faint gold card background.
+For repeat buyers she talks to often. It doesn't change the order; her own
+drag order does that. Without 081 the star says which file to run.
 
 ## Agent Recruiting (recruiting/training/mentorship)
 
