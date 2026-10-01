@@ -317,16 +317,22 @@ export interface Lead {
   /** 'active' until converted, 'under_contract' once a transaction exists,
    *  'closed' once that transaction is marked Closed & Funded. Independent
    *  of archived_at — a converted/closed lead stays visible on purpose. */
-  lead_status: 'active' | 'under_contract' | 'closed'
+  lead_status: 'active' | 'under_contract' | 'closed' | 'nurture' | 'inactive'
+  /** Scheduled follow-up (migration 079): when, and what it's for. Missing
+   *  entirely on a database without 079. Private, never on the client page. */
+  next_followup?: string | null
+  followup_note?: string | null
   closed_date: string | null
   created_at: string
   archived_at: string | null
 }
 
 export const LEAD_STATUS_LABEL: Record<Lead['lead_status'], string> = {
-  active: 'Active buyer',
+  active: 'Upcoming',
   under_contract: 'Under contract',
   closed: 'Closed',
+  nurture: 'Nurture',
+  inactive: 'Inactive',
 }
 
 export interface LeadAppointment {

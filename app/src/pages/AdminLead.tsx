@@ -4,7 +4,7 @@ import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { Lead, LeadAppointment, LeadHome, LeadMaybeHome, LeadPriority, LeadPersonalNote, LeadReferral, LeadDocument, LeadNote, TeamMember, TxStatus } from '../lib/types'
 import {
   leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL, REFERRAL_SOURCES, BUDGET_RANGES,
-  parseAddressFromListingUrl, LOAN_TYPES, LOAN_STATUSES, STATUS_LABEL, LOAN_REFERRAL_SOURCES,
+  parseAddressFromListingUrl, LOAN_TYPES, LOAN_STATUSES, STATUS_LABEL, LOAN_REFERRAL_SOURCES, LEAD_STATUS_LABEL,
 } from '../lib/types'
 import AdminNav from '../components/AdminNav'
 import { useDeskLayout } from '../lib/useDeskLayout'
@@ -851,7 +851,7 @@ export default function AdminLead() {
       <div className="admin">
       <header className="adminbar">
         <span className="wordmark" style={{ fontSize: 17.5 }}>
-          <Link to="/admin/leads" className="muted" style={{ textDecoration: 'none' }}>Active Clients</Link>
+          <Link to="/admin/leads" className="muted" style={{ textDecoration: 'none' }}>Clients</Link>
           {' / '}{lead.full_name || 'Unnamed buyer'}
         </span>
         <nav className="adminnav">
@@ -862,7 +862,7 @@ export default function AdminLead() {
               Last change didn't save
             </span>
           )}
-          <Link className="btn" to="/admin/leads">← Active Clients</Link>
+          <Link className="btn" to="/admin/leads">← Clients</Link>
           <button className="btn" onClick={copyLink}>{copied ? 'Copied' : 'Copy client link'}</button>
           {lead.converted_transaction_id ? (
             <Link className="btn primary" to={`/admin/t/${lead.converted_transaction_id}`}>
@@ -895,7 +895,7 @@ export default function AdminLead() {
         />
       )}
 
-      {lead.lead_status !== 'active' && (
+      {(lead.lead_status === 'under_contract' || lead.lead_status === 'closed') && (
         <div style={{
           maxWidth: desk ? 1680 : 1040, margin: '0 auto 18px', padding: '12px 18px',
           borderRadius: 'var(--r-md)', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -939,6 +939,33 @@ export default function AdminLead() {
               entered gets deleted.
             </p>
           </div>
+          {'next_followup' in lead && (
+            <div className="field2" style={{ marginTop: 12 }}>
+              <div className="field">
+                <label>Where they are</label>
+                {lead.lead_status === 'under_contract' || lead.lead_status === 'closed' ? (
+                  <div style={{ fontWeight: 700, paddingTop: 6 }}>{LEAD_STATUS_LABEL[lead.lead_status]}</div>
+                ) : (
+                  <select value={lead.lead_status}
+                          onChange={(e) => patchLead({ lead_status: e.target.value as Lead['lead_status'] })}>
+                    <option value="active">Upcoming: actively looking</option>
+                    <option value="nurture">Nurture: 6+ months out</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                )}
+              </div>
+              <div className="field">
+                <label>Next follow-up (just for you)</label>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <input type="date" style={{ width: 'auto' }} value={lead.next_followup ?? ''}
+                         onChange={(e) => patchLead({ next_followup: e.target.value || null })} />
+                  <input style={{ flex: '1 1 160px', minWidth: 0 }} placeholder="What for? e.g. check on pre-approval"
+                         value={lead.followup_note ?? ''}
+                         onChange={(e) => patchLead({ followup_note: e.target.value || null })} />
+                </div>
+              </div>
+            </div>
+          )}
           {assignOpen ? (
             <div className="field2" style={{ marginTop: 12 }}>
               <div className="field">

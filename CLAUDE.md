@@ -331,6 +331,19 @@ explicitly). If 076 isn't run on her database the columns are missing from
 `select('*')`, and the card shows how to run it instead of fields that would
 silently fail to save.
 
+**Clients page = three columns (2026-10-01, Allison's design).** "Active
+Clients" is now labeled "Clients" (route and file names unchanged). On
+`/admin/leads` (`AdminLeads.tsx`): **Under contract** (automatic, lead_status
+'under_contract') | **Upcoming** ('active') | **Nurture** ('nurture', 6+ months
+out), stacked on a phone; **Inactive** ('inactive') folds below. Each card
+shows the client's last two Updates under their name, a stage dropdown, and a
+scheduled follow-up (`next_followup` date + `followup_note`, private); due or
+overdue follow-ups are highlighted and counted at the top, and Upcoming/Nurture
+sort by follow-up date. The client file has the same stage + follow-up fields
+in "What do they need?". Migration 079 adds the two statuses and columns; until
+it's run the page hides those controls and says what to run. The cancel flow's
+"not active right now" now moves the client to Nurture.
+
 ## Agent Recruiting (recruiting/training/mentorship)
 
 Labeled "Agent Network" until 2026-08-13 — every user-visible label now says

@@ -202,7 +202,7 @@ export default function AdminLoanWorksheet() {
     <div className="admin">
       <header className="adminbar">
         <span className="wordmark" style={{ fontSize: 17.5 }}>
-          <Link to="/admin/leads" className="muted" style={{ textDecoration: 'none' }}>Active Clients</Link>
+          <Link to="/admin/leads" className="muted" style={{ textDecoration: 'none' }}>Clients</Link>
           {lead && <>{' / '}<Link to={`/admin/leads/${id}`} className="muted" style={{ textDecoration: 'none' }}>{lead.full_name || 'Unnamed buyer'}</Link></>}
           {' / '}Loan options worksheet
         </span>
