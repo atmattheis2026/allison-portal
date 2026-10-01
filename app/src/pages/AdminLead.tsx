@@ -786,40 +786,22 @@ export default function AdminLead() {
 
         <div className="card setcard">
           <h2>Documents</h2>
-          <p className="sethelp">
-            Preapproval letters, IDs, signed agreements — anything worth keeping on hand.
-            Just for you and your team; the client never sees this list.
-          </p>
-          {documents.length === 0 ? (
-            <p className="muted" style={{ fontSize: 15 }}>Nothing uploaded yet.</p>
-          ) : (
-            <div className="notelist">
-              {documents.map((doc) => (
-                <div className="note" key={doc.id}>
-                  <p className="notebody" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <a href={doc.file_url} target="_blank" rel="noreferrer">{doc.file_name}</a>
-                    <span className="notewhen">
-                      {new Date(doc.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                    <button type="button" className="btn" style={{ flex: 'none', marginLeft: 'auto', color: 'var(--danger, #cc3311)' }}
-                            onClick={() => removeDocument(doc)}>
-                      Delete
-                    </button>
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="savebar">
+          <p className="sethelp">Just for you and your team. The client never sees this list.</p>
+          <DocumentsList documents={documents} onRemove={removeDocument} />
+          <div className="docactions">
             <label className="btn" style={{ cursor: 'pointer' }}>
               <input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" style={{ display: 'none' }}
                      disabled={uploadingDoc}
                      onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadDocument(f) }} />
-              {uploadingDoc ? 'Uploading…' : '+ Upload document'}
+              {uploadingDoc ? 'Uploading…' : '+ Upload'}
             </label>
-            <Link className="btn" to={`/admin/leads/${id}/loan-worksheet`}>+ Loan options worksheet</Link>
-            <Link className="btn" to={`/admin/leads/${id}/va-guide`}>+ VA buyer guide</Link>
-            <Link className="btn" to={`/admin/leads/${id}/fha-conv-guide`}>+ FHA vs conventional guide</Link>
+            <select className="btn doccreate" value="" aria-label="Create a document"
+                    onChange={(e) => { if (e.target.value) nav(`/admin/leads/${id}/${e.target.value}`) }}>
+              <option value="">+ Create…</option>
+              <option value="loan-worksheet">Loan options worksheet</option>
+              <option value="va-guide">VA buyer guide</option>
+              <option value="fha-conv-guide">FHA vs conventional guide</option>
+            </select>
           </div>
         </div>
 
@@ -1742,4 +1724,57 @@ function choicesFor(roster: TeamMember[], chosenId: string | null, tagged: (m: T
     seen.add(key(m))
     return true
   })
+}
+
+/**
+ * A client's documents as slim one-line rows: type, name, date, and a small
+ * ✕. The newest five show; the rest are behind "Show all", with a search box
+ * once the list gets long. Allison found the old full-size rows with a big
+ * Delete button on each "very overwhelming" (2026-10-01).
+ */
+function DocumentsList({ documents, onRemove }: {
+  documents: LeadDocument[]; onRemove: (doc: LeadDocument) => void
+}) {
+  const [showAll, setShowAll] = useState(false)
+  const [q, setQ] = useState('')
+  if (documents.length === 0) return <p className="muted" style={{ fontSize: 15 }}>Nothing uploaded yet.</p>
+
+  const matching = q.trim()
+    ? documents.filter((d) => d.file_name.toLowerCase().includes(q.trim().toLowerCase()))
+    : documents
+  const shown = showAll || q.trim() ? matching : matching.slice(0, 5)
+  const kind = (name: string) => {
+    const ext = name.split('.').pop()?.toLowerCase() ?? ''
+    return ext === 'pdf' ? 'PDF' : ext === 'doc' || ext === 'docx' ? 'DOC' : ['png', 'jpg', 'jpeg'].includes(ext) ? 'IMG' : 'FILE'
+  }
+
+  return (
+    <>
+      {documents.length > 8 && (
+        <input className="docsearch" value={q} placeholder={`Search ${documents.length} documents…`}
+               onChange={(e) => setQ(e.target.value)} />
+      )}
+      <div className="doclist">
+        {shown.map((doc) => (
+          <div className="docrow" key={doc.id}>
+            <span className={`dockind ${kind(doc.file_name).toLowerCase()}`}>{kind(doc.file_name)}</span>
+            <a className="docname" href={doc.file_url} target="_blank" rel="noreferrer" title={doc.file_name}>
+              {doc.file_name}
+            </a>
+            <span className="docdate">
+              {new Date(doc.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </span>
+            <button type="button" className="docdel" tabIndex={-1} title={`Delete ${doc.file_name}`}
+                    aria-label={`Delete ${doc.file_name}`} onClick={() => onRemove(doc)}>✕</button>
+          </div>
+        ))}
+        {q.trim() && matching.length === 0 && <p className="muted" style={{ fontSize: 14.5, margin: '6px 0' }}>No match.</p>}
+      </div>
+      {!q.trim() && documents.length > 5 && (
+        <button type="button" className="doctoggle" onClick={() => setShowAll((v) => !v)}>
+          {showAll ? 'Show fewer' : `Show all ${documents.length}`}
+        </button>
+      )}
+    </>
+  )
 }

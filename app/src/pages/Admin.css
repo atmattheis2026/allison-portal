@@ -155,3 +155,29 @@
                         text-transform: none; letter-spacing: 0; margin-bottom: 4px; }
 .leaddesk .sethelp { margin-bottom: 12px; }
 .leaddesk .savebar { position: static; background: none; margin-top: 10px; padding: 0; }
+
+/* Client file Documents card: slim one-line rows (DocumentsList). */
+.doclist { display: flex; flex-direction: column; }
+.docrow { display: flex; align-items: center; gap: 10px; padding: 7px 2px;
+          border-bottom: 1px solid var(--line-soft); min-width: 0; }
+.docrow:last-child { border-bottom: none; }
+.dockind { flex: none; font-size: 12px; font-weight: 700; letter-spacing: .03em; width: 38px;
+           text-align: center; padding: 2px 0; border-radius: 5px;
+           background: var(--panel-2); color: var(--ink-dim); }
+.dockind.pdf { background: #F6E1DE; color: #9A3B32; }
+.dockind.doc { background: #E2EAF3; color: #2C4B63; }
+.dockind.img { background: #E3F0E7; color: #2F6B4D; }
+.docname { flex: 1; min-width: 0; font-size: 15px; line-height: 1.3; color: var(--ink); text-decoration: none;
+           overflow: hidden; overflow-wrap: break-word;
+           display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.docname:hover { text-decoration: underline; color: var(--gold-bright); }
+.docdate { flex: none; font-size: 13.5px; color: var(--ink-faint); }
+.docdel { flex: none; width: 26px; height: 26px; border-radius: 50%; font-size: 12.5px;
+          color: var(--ink-faint); opacity: .5; display: grid; place-items: center; }
+.docrow:hover .docdel { opacity: 1; }
+.docdel:hover { color: var(--danger); background: var(--panel-2); }
+.doctoggle { font-size: 14.5px; font-weight: 600; color: var(--gold-bright); padding: 6px 2px 0; }
+.docsearch { width: 100%; font-size: 14.5px; padding: 6px 10px; margin-bottom: 6px; }
+.docactions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.docactions .btn { font-size: 14.5px; padding: 6px 12px; min-height: 0; }
+.doccreate { appearance: auto; background: var(--panel); cursor: pointer; width: auto; flex: none; }
