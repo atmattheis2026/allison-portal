@@ -7,6 +7,7 @@ import {
   parseAddressFromListingUrl, LOAN_TYPES, LOAN_STATUSES, STATUS_LABEL, LOAN_REFERRAL_SOURCES,
 } from '../lib/types'
 import AdminNav from '../components/AdminNav'
+import { useDeskLayout } from '../lib/useDeskLayout'
 import './Admin.css'
 
 /** One row of a client's lifetime deal history — every transaction ever
@@ -227,6 +228,9 @@ export default function AdminLead() {
   const [uploadingDoc, setUploadingDoc] = useState(false)
   const [notes, setNotes] = useState<LeadNote[]>([])
   const [buyerOpen, setBuyerOpen] = useState(false)
+  // Agent/lender are set once and rarely changed, so they stay folded.
+  const [assignOpen, setAssignOpen] = useState(false)
+  const desk = useDeskLayout()
   const [dealHistory, setDealHistory] = useState<DealHistoryRow[]>([])
   const [copied, setCopied] = useState(false)
   const [converting, setConverting] = useState(false)
@@ -699,6 +703,131 @@ export default function AdminLead() {
   }
   if (!lead) return <div className="centered"><div className="spinner" /></div>
 
+  // Agent and lender dropdowns: only people tagged for that job (plus whoever
+  // is already chosen), each name once even if they're on the roster twice.
+  const agentChoices = choicesFor(roster, lead.realtor_member_id, (m) => m.roles.includes('realtor'))
+  const lenderChoices = choicesFor(roster, lead.lender_member_id,
+    (m) => m.roles.includes('loan_officer') || m.roles.includes('mortgage_broker'))
+
+  // On a computer, Updates and the just-for-you cards get their own third
+  // column instead of sitting above and below everything else.
+  const updatesCard = (
+        <div className="card setcard notesboard">
+          <h2>Updates</h2>
+          <p className="sethelp">Posted here shows up on their client page — check this first.</p>
+          {notes.length === 0 ? (
+            <p className="muted" style={{ fontSize: 15 }}>No updates posted yet.</p>
+          ) : (
+            <div className="notelist">
+              {notes.map((n) => (
+                <div className="note" key={n.id}>
+                  <div className="notemeta">
+                    {n.author_name && <span className="noteauthor">{n.author_name}</span>}
+                    <span className="notewhen">{new Date(n.created_at).toLocaleDateString('en-US', {
+                      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+                    })}</span>
+                  </div>
+                  <p className="notebody">{n.body}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="noteadd">
+            <textarea rows={2} value={noteDraft} placeholder="Post an update…"
+                      onChange={(e) => setNoteDraft(e.target.value)} />
+            <button type="button" className="btn" onClick={postNote} disabled={!noteDraft.trim()}>Post</button>
+          </div>
+        </div>
+  )
+  const tailCards = (
+    <>
+        <div className="card setcard">
+          <h2>Personal details</h2>
+          <p className="sethelp">Kids, pets, birthdays, anniversaries, anything worth remembering. Just for you.</p>
+          {personalNotes.map((p) => (
+            <div className="tmplrow" key={p.id}>
+              <input type="text" value={p.text} placeholder="e.g. Emma's birthday, Anniversary, Dog's name"
+                     onChange={(e) => patchPersonalNote(p.id, { text: e.target.value })} />
+              <input type="date" value={p.date_value ?? ''} style={{ flex: 'none', width: 155 }}
+                     onChange={(e) => patchPersonalNote(p.id, { date_value: e.target.value || null })} />
+              <button type="button" className="del" onClick={() => removePersonalNote(p.id)}>✕</button>
+            </div>
+          ))}
+          <div className="savebar"><button className="btn" onClick={addPersonalNote}>+ Add</button></div>
+        </div>
+
+        <div className="card setcard">
+          <h2>Referrals from friends &amp; family</h2>
+          <p className="sethelp">
+            Anyone they've mentioned who might also buy or sell. The client can add these
+            themselves from their own page too — those show up here tagged "From client."
+          </p>
+          {referrals.map((r) => (
+            <div className="tmplrow" key={r.id}>
+              <input type="text" value={r.name} placeholder="Name"
+                     onChange={(e) => patchReferral(r.id, { name: e.target.value })} />
+              <input type="text" value={r.phone ?? ''} placeholder="Phone"
+                     onChange={(e) => patchReferral(r.id, { phone: e.target.value })} />
+              <input type="email" value={r.email ?? ''} placeholder="Email"
+                     onChange={(e) => patchReferral(r.id, { email: e.target.value })} />
+              {r.submitted_by === 'client' && (
+                <span className="tag" style={{ flex: 'none' }}>From client</span>
+              )}
+              <button type="button" className="del" onClick={() => removeReferral(r.id)}>✕</button>
+            </div>
+          ))}
+          <div className="savebar"><button className="btn" onClick={addReferral}>+ Add</button></div>
+        </div>
+
+        <div className="card setcard">
+          <h2>Documents</h2>
+          <p className="sethelp">
+            Preapproval letters, IDs, signed agreements — anything worth keeping on hand.
+            Just for you and your team; the client never sees this list.
+          </p>
+          {documents.length === 0 ? (
+            <p className="muted" style={{ fontSize: 15 }}>Nothing uploaded yet.</p>
+          ) : (
+            <div className="notelist">
+              {documents.map((doc) => (
+                <div className="note" key={doc.id}>
+                  <p className="notebody" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <a href={doc.file_url} target="_blank" rel="noreferrer">{doc.file_name}</a>
+                    <span className="notewhen">
+                      {new Date(doc.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                    <button type="button" className="btn" style={{ flex: 'none', marginLeft: 'auto', color: 'var(--danger, #cc3311)' }}
+                            onClick={() => removeDocument(doc)}>
+                      Delete
+                    </button>
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="savebar">
+            <label className="btn" style={{ cursor: 'pointer' }}>
+              <input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" style={{ display: 'none' }}
+                     disabled={uploadingDoc}
+                     onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadDocument(f) }} />
+              {uploadingDoc ? 'Uploading…' : '+ Upload document'}
+            </label>
+            <Link className="btn" to={`/admin/leads/${id}/loan-worksheet`}>+ Loan options worksheet</Link>
+            <Link className="btn" to={`/admin/leads/${id}/va-guide`}>+ VA buyer guide</Link>
+            <Link className="btn" to={`/admin/leads/${id}/fha-conv-guide`}>+ FHA vs conventional guide</Link>
+          </div>
+        </div>
+
+        <div className="card setcard">
+          <h2>General notes</h2>
+          <p className="sethelp">Just for you — this never shows to the client.</p>
+          <textarea rows={4} value={lead.general_notes ?? ''}
+                    onChange={(e) => patchLead({ general_notes: e.target.value })}
+                    style={{ width: '100%' }} />
+        </div>
+    </>
+  )
+
   return (
     <>
       {remoteUpdate && (
@@ -736,33 +865,6 @@ export default function AdminLead() {
       </header>
       <AdminNav current="leads" />
 
-      <div className="card setcard" style={{ maxWidth: 1040, margin: '0 auto 18px' }}>
-        <div className="field">
-          <label>Agent — tap a name to assign</label>
-          <div className="tabs">
-            {roster.map((m) => (
-              <button key={m.id} type="button"
-                      className={`tab${lead.realtor_member_id === m.id ? ' on' : ''}`}
-                      onClick={() => patchLead({ realtor_member_id: m.id })}>
-                {m.full_name}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="field" style={{ marginBottom: 0 }}>
-          <label>Lender — tap a name to assign</label>
-          <div className="tabs">
-            {roster.map((m) => (
-              <button key={m.id} type="button"
-                      className={`tab${lead.lender_member_id === m.id ? ' on' : ''}`}
-                      onClick={() => patchLead({ lender_member_id: m.id })}>
-                {m.full_name}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {showLinkPicker && (
         <LinkTransactionPicker onCancel={() => setShowLinkPicker(false)} onLink={linkTransaction} />
       )}
@@ -778,7 +880,7 @@ export default function AdminLead() {
 
       {lead.lead_status !== 'active' && (
         <div style={{
-          maxWidth: 1040, margin: '0 auto 18px', padding: '12px 18px',
+          maxWidth: desk ? 1680 : 1040, margin: '0 auto 18px', padding: '12px 18px',
           borderRadius: 'var(--r-md)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexWrap: 'wrap', gap: 12,
           background: lead.lead_status === 'under_contract' ? '#3b82f622' : '#2ecc4022',
@@ -800,7 +902,8 @@ export default function AdminLead() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gap: 18, maxWidth: 1040, margin: '0 auto' }}>
+      <div className={desk ? 'leaddesk' : undefined}
+           style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 18, maxWidth: desk ? 1680 : 1040, margin: '0 auto' }}>
         <div className="card setcard">
           <div className="field">
             <label>What do they need?</label>
@@ -819,58 +922,46 @@ export default function AdminLead() {
               entered gets deleted.
             </p>
           </div>
-          <div className="field2" style={{ marginTop: 12 }}>
-            <div className="field">
-              <label>Assigned agent</label>
-              <select value={lead.realtor_member_id ?? ''}
-                      onChange={(e) => patchLead({ realtor_member_id: e.target.value || null })}>
-                <option value="">Not assigned yet</option>
-                {roster.map((m) => (
-                  <option key={m.id} value={m.id}>{m.full_name}</option>
-                ))}
-              </select>
+          {assignOpen ? (
+            <div className="field2" style={{ marginTop: 12 }}>
+              <div className="field">
+                <label>Assigned agent</label>
+                <select value={lead.realtor_member_id ?? ''}
+                        onChange={(e) => patchLead({ realtor_member_id: e.target.value || null })}>
+                  <option value="">Not assigned yet</option>
+                  {agentChoices.map((m) => (
+                    <option key={m.id} value={m.id}>{m.full_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label>Assigned lender</label>
+                <select value={lead.lender_member_id ?? ''}
+                        onChange={(e) => patchLead({ lender_member_id: e.target.value || null })}>
+                  <option value="">Not assigned yet</option>
+                  {lenderChoices.map((m) => (
+                    <option key={m.id} value={m.id}>{m.full_name}</option>
+                  ))}
+                </select>
+              </div>
+              <button type="button" className="btn" style={{ alignSelf: 'end' }} onClick={() => setAssignOpen(false)}>Done</button>
             </div>
-            <div className="field">
-              <label>Assigned lender</label>
-              <select value={lead.lender_member_id ?? ''}
-                      onChange={(e) => patchLead({ lender_member_id: e.target.value || null })}>
-                <option value="">Not assigned yet</option>
-                {roster.map((m) => (
-                  <option key={m.id} value={m.id}>{m.full_name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="card setcard notesboard">
-          <h2>Updates</h2>
-          <p className="sethelp">Posted here shows up on their client page — check this first.</p>
-          {notes.length === 0 ? (
-            <p className="muted" style={{ fontSize: 15 }}>No updates posted yet.</p>
           ) : (
-            <div className="notelist">
-              {notes.map((n) => (
-                <div className="note" key={n.id}>
-                  <div className="notemeta">
-                    {n.author_name && <span className="noteauthor">{n.author_name}</span>}
-                    <span className="notewhen">{new Date(n.created_at).toLocaleDateString('en-US', {
-                      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-                    })}</span>
-                  </div>
-                  <p className="notebody">{n.body}</p>
-                </div>
-              ))}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 12 }}>
+              <span style={{ fontSize: 15.5, color: 'var(--ink-dim)' }}>
+                <strong>Agent:</strong> {roster.find((m) => m.id === lead.realtor_member_id)?.full_name || 'not assigned'}
+                {' · '}
+                <strong>Lender:</strong> {roster.find((m) => m.id === lead.lender_member_id)?.full_name || 'not assigned'}
+              </span>
+              <button type="button" className="btn" style={{ flex: 'none' }} onClick={() => setAssignOpen(true)}>Change</button>
             </div>
           )}
-          <div className="noteadd">
-            <textarea rows={2} value={noteDraft} placeholder="Post an update…"
-                      onChange={(e) => setNoteDraft(e.target.value)} />
-            <button type="button" className="btn" onClick={postNote} disabled={!noteDraft.trim()}>Post</button>
-          </div>
         </div>
 
-        <div className="leadgrid">
+        {!desk && updatesCard}
+
+        <div className="leadgrid" style={desk ? { gridTemplateColumns: lead.wants_buying
+                 ? 'minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, 1fr)' } : undefined}>
         <div className="leadcol">
         <div className="card setcard buyerbar" onClick={() => setBuyerOpen((o) => !o)}>
           <span className="buyerbar-tag">Buyer</span>
@@ -1057,7 +1148,7 @@ export default function AdminLead() {
             <h2>Loan referral</h2>
             <p className="sethelp">Who sent you this loan. Just for you — this never shows to the client.</p>
             {!('loan_referral_source' in lead) ? (
-              <p className="sethelp" style={{ color: 'var(--danger, #cc3311)', fontWeight: 600 }}>
+              <p className="sethelp" style={{ color: 'var(--danger, #cc3311)', fontWeight: 600, overflowWrap: 'anywhere' }}>
                 One database step first: in Supabase, open the SQL Editor, paste in
                 supabase/migrations/076_loan_referral.sql, and press Run. Then reload this page.
               </p>
@@ -1604,94 +1695,32 @@ export default function AdminLead() {
         </div>
         </div>
         )}
-        </div>
-
-        <div className="card setcard">
-          <h2>Personal details</h2>
-          <p className="sethelp">Kids, pets, birthdays, anniversaries, anything worth remembering. Just for you.</p>
-          {personalNotes.map((p) => (
-            <div className="tmplrow" key={p.id}>
-              <input type="text" value={p.text} placeholder="e.g. Emma's birthday, Anniversary, Dog's name"
-                     onChange={(e) => patchPersonalNote(p.id, { text: e.target.value })} />
-              <input type="date" value={p.date_value ?? ''} style={{ flex: 'none', width: 155 }}
-                     onChange={(e) => patchPersonalNote(p.id, { date_value: e.target.value || null })} />
-              <button type="button" className="del" onClick={() => removePersonalNote(p.id)}>✕</button>
-            </div>
-          ))}
-          <div className="savebar"><button className="btn" onClick={addPersonalNote}>+ Add</button></div>
-        </div>
-
-        <div className="card setcard">
-          <h2>Referrals from friends &amp; family</h2>
-          <p className="sethelp">
-            Anyone they've mentioned who might also buy or sell. The client can add these
-            themselves from their own page too — those show up here tagged "From client."
-          </p>
-          {referrals.map((r) => (
-            <div className="tmplrow" key={r.id}>
-              <input type="text" value={r.name} placeholder="Name"
-                     onChange={(e) => patchReferral(r.id, { name: e.target.value })} />
-              <input type="text" value={r.phone ?? ''} placeholder="Phone"
-                     onChange={(e) => patchReferral(r.id, { phone: e.target.value })} />
-              <input type="email" value={r.email ?? ''} placeholder="Email"
-                     onChange={(e) => patchReferral(r.id, { email: e.target.value })} />
-              {r.submitted_by === 'client' && (
-                <span className="tag" style={{ flex: 'none' }}>From client</span>
-              )}
-              <button type="button" className="del" onClick={() => removeReferral(r.id)}>✕</button>
-            </div>
-          ))}
-          <div className="savebar"><button className="btn" onClick={addReferral}>+ Add</button></div>
-        </div>
-
-        <div className="card setcard">
-          <h2>Documents</h2>
-          <p className="sethelp">
-            Preapproval letters, IDs, signed agreements — anything worth keeping on hand.
-            Just for you and your team; the client never sees this list.
-          </p>
-          {documents.length === 0 ? (
-            <p className="muted" style={{ fontSize: 15 }}>Nothing uploaded yet.</p>
-          ) : (
-            <div className="notelist">
-              {documents.map((doc) => (
-                <div className="note" key={doc.id}>
-                  <p className="notebody" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <a href={doc.file_url} target="_blank" rel="noreferrer">{doc.file_name}</a>
-                    <span className="notewhen">
-                      {new Date(doc.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                    <button type="button" className="btn" style={{ flex: 'none', marginLeft: 'auto', color: 'var(--danger, #cc3311)' }}
-                            onClick={() => removeDocument(doc)}>
-                      Delete
-                    </button>
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="savebar">
-            <label className="btn" style={{ cursor: 'pointer' }}>
-              <input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" style={{ display: 'none' }}
-                     disabled={uploadingDoc}
-                     onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadDocument(f) }} />
-              {uploadingDoc ? 'Uploading…' : '+ Upload document'}
-            </label>
-            <Link className="btn" to={`/admin/leads/${id}/loan-worksheet`}>+ Loan options worksheet</Link>
-            <Link className="btn" to={`/admin/leads/${id}/va-guide`}>+ VA buyer guide</Link>
-            <Link className="btn" to={`/admin/leads/${id}/fha-conv-guide`}>+ FHA vs conventional guide</Link>
+        {desk && (
+          <div className="leadcol">
+            {updatesCard}
+            {tailCards}
           </div>
+        )}
         </div>
 
-        <div className="card setcard">
-          <h2>General notes</h2>
-          <p className="sethelp">Just for you — this never shows to the client.</p>
-          <textarea rows={4} value={lead.general_notes ?? ''}
-                    onChange={(e) => patchLead({ general_notes: e.target.value })}
-                    style={{ width: '100%' }} />
-        </div>
+        {!desk && tailCards}
       </div>
       </div>
     </>
   )
+}
+
+/** Roster people for one dropdown: tagged for the job, the current pick
+ *  always included, and each name only once. */
+function choicesFor(roster: TeamMember[], chosenId: string | null, tagged: (m: TeamMember) => boolean) {
+  const seen = new Set<string>()
+  const key = (m: TeamMember) => (m.full_name || m.id).trim().toLowerCase()
+  const chosen = roster.find((m) => m.id === chosenId)
+  if (chosen) seen.add(key(chosen))
+  return roster.filter((m) => {
+    if (m === chosen) return true
+    if (!tagged(m) || seen.has(key(m))) return false
+    seen.add(key(m))
+    return true
+  })
 }
