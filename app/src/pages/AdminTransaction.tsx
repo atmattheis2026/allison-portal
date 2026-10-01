@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import Dashboard from '../components/Dashboard'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import { DEMO_BY_TOKEN, DEMO_PAYLOAD, SAVED_CONTACTS, TEAM_MEMBERS, TRANSACTION_ASSIGNEES } from '../lib/demoData'
-import { ROLE_LABEL, type Contact, type Milestone, type SavedContact, type SharedPayload, type Side, type TeamMember, type Transaction } from '../lib/types'
+import { ROLE_LABEL, type Contact, type Milestone, type SavedContact, type SharedPayload, type Side, type TeamMember, type Transaction, type TxStatus } from '../lib/types'
 import AdminNav from '../components/AdminNav'
 import './Admin.css'
 
@@ -61,9 +61,20 @@ export default function AdminTransaction() {
     }
     // The admin view reads through the same assembling function so both pages
     // are guaranteed to show identical data. She authenticates separately.
-    supabase.from('transactions').select('share_token').eq('id', id).single()
+    supabase.from('transactions').select('share_token, team_id, realtor_member_id, lender_member_id').eq('id', id).single()
       .then(({ data: row, error }) => {
         if (error) { setLoadError(error.message); return }
+        // Only this deal's own team. Allison's account can see every team's
+        // roster (is_platform_admin), which put other teams' people, and
+        // duplicate names, in the Realtor and Loan Officer dropdowns.
+        // Plus whoever is already on this deal, even from another team, so
+        // their name still shows in the dropdown rather than "Choose…".
+        const onDeal = [row.realtor_member_id, row.lender_member_id].filter(Boolean)
+        const rosterFilter = onDeal.length
+          ? `team_id.eq.${row.team_id},id.in.(${onDeal.join(',')})`
+          : `team_id.eq.${row.team_id}`
+        supabase!.from('team_members').select('*').or(rosterFilter).order('sort_order')
+          .then(({ data: rows }) => setRoster((rows as TeamMember[]) ?? []))
         const t = row?.share_token as string | undefined
         if (!t) { setLoadError('This transaction has no share token on file.'); return }
         setToken(t)
@@ -73,8 +84,6 @@ export default function AdminTransaction() {
             setData(payload as SharedPayload)
           })
       })
-    supabase.from('team_members').select('*').order('sort_order')
-      .then(({ data: rows }) => setRoster((rows as TeamMember[]) ?? []))
     supabase.from('transaction_assignees').select('team_member_id').eq('transaction_id', id)
       .then(({ data: rows }) =>
         setAssignedIds(new Set((rows ?? []).map((r) => r.team_member_id as string))))
@@ -254,6 +263,12 @@ export default function AdminTransaction() {
     },
 
     onPatchTransaction: (values: Partial<Transaction>) => {
+      // Picking "Cancelled" (or picking anything else on a cancelled deal) in
+      // the status dropdown does exactly what the buttons do, client
+      // questions included.
+      const wasCancelled = data?.transaction.status === 'fell_through'
+      if (values.status === 'fell_through' && !wasCancelled) { cancelTransaction(true); return }
+      if (values.status && values.status !== 'fell_through' && wasCancelled) { reactivateTransaction(values.status); return }
       patch((d) => ({ ...d, transaction: { ...d.transaction, ...values } }))
       if (!id) return
       write('transactions', id, values as Record<string, unknown>)
@@ -547,9 +562,9 @@ export default function AdminTransaction() {
   // archived deals, so an archived one couldn't even be opened here again.
   // The client's file is freed up too, so "Convert to transaction" works
   // for their next deal; this one stays in their Deal history.
-  async function cancelTransaction() {
+  async function cancelTransaction(alreadyChosen = false) {
     if (!id || !data) return
-    if (!confirm('Cancel this transaction? It moves off your main list into "Cancelled." Nothing on it is deleted, and you can make it active again any time.')) return
+    if (!alreadyChosen && !confirm('Cancel this transaction? It moves off your main list into "Cancelled." Nothing on it is deleted, and you can make it active again any time.')) return
     patch((d) => ({ ...d, transaction: { ...d.transaction, status: 'fell_through' } }))
     await write('transactions', id, { status: 'fell_through' })
     if (DEMO_MODE || !supabase) {
@@ -625,11 +640,11 @@ export default function AdminTransaction() {
     nav(`/admin/t/${newId}`)
   }
 
-  async function reactivateTransaction() {
+  async function reactivateTransaction(nextStatus: TxStatus = 'under_contract') {
     if (!id) return
     setFollowUp(null)
-    patch((d) => ({ ...d, transaction: { ...d.transaction, status: 'under_contract' } }))
-    await write('transactions', id, { status: 'under_contract' })
+    patch((d) => ({ ...d, transaction: { ...d.transaction, status: nextStatus } }))
+    await write('transactions', id, { status: nextStatus })
     if (DEMO_MODE || !supabase) return
     // Undo what cancelling did to the client file: point it back at this deal,
     // unless it has since moved on to a different one.
@@ -690,7 +705,7 @@ export default function AdminTransaction() {
               <span style={{ fontWeight: 700, color: 'var(--danger, #cc3311)' }}>
                 ✕ Cancelled — this deal is inactive. Everything on it is still saved.
               </span>
-              <button className="btn" onClick={reactivateTransaction}>Make active again</button>
+              <button className="btn" onClick={() => reactivateTransaction()}>Make active again</button>
             </>
           ) : data.transaction.closed_and_funded ? (
             <>
@@ -706,7 +721,7 @@ export default function AdminTransaction() {
                 Once funds have disbursed, mark this closed to move the client's file to Closed.
               </span>
               <span style={{ display: 'flex', gap: 9 }}>
-                <button className="btn" onClick={cancelTransaction}>Cancel transaction</button>
+                <button className="btn" onClick={() => cancelTransaction()}>Cancel transaction</button>
                 <button className="btn primary" onClick={markClosed}>Closed &amp; Funded</button>
               </span>
             </>
