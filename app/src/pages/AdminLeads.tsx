@@ -106,7 +106,7 @@ export default function AdminLeads() {
         const latest: Record<string, LatestNote[]> = {}
         for (const n of (noteData as LatestNote[]) ?? []) {
           const list = (latest[n.lead_id] ??= [])
-          if (list.length < 2) list.push(n)
+          if (list.length < 1) list.push(n)
         }
         setLatestNotes(latest)
       }
