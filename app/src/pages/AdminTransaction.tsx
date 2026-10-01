@@ -3,8 +3,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import Dashboard, { type ContactSuggestion } from '../components/Dashboard'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import { DEMO_BY_TOKEN, DEMO_PAYLOAD, SAVED_CONTACTS, TEAM_MEMBERS, TRANSACTION_ASSIGNEES } from '../lib/demoData'
-import { ROLE_LABEL, type Contact, type Milestone, type SavedContact, type SharedPayload, type Side, type TeamMember, type Transaction, type TxStatus } from '../lib/types'
+import { ROLE_LABEL, type Contact, type Lead, type Milestone, type SavedContact, type SharedPayload, type Side, type TeamMember, type Transaction, type TxStatus } from '../lib/types'
 import AdminNav from '../components/AdminNav'
+import LoanClosedDialog, { type LoanClosedValues } from '../components/LoanClosedDialog'
 import { useDeskLayout } from '../lib/useDeskLayout'
 import './Admin.css'
 
@@ -41,6 +42,8 @@ export default function AdminTransaction() {
   const [remoteUpdate, setRemoteUpdate] = useState(false)
   // The questions asked right after "Cancel transaction" about the client.
   const [followUp, setFollowUp] = useState<FollowUp | null>(null)
+  // After Closed & Funded: the loan client's lender / rate / notes pop-up.
+  const [loanClosed, setLoanClosed] = useState<{ leadId: string; name: string; initial: Partial<LoanClosedValues> } | null>(null)
   const [startingNew, setStartingNew] = useState(false)
   const nav = useNavigate()
   // On a computer the deal page uses the desk layout: the assigned-to chips
@@ -290,6 +293,11 @@ export default function AdminTransaction() {
       const wasCancelled = data?.transaction.status === 'fell_through'
       if (values.status === 'fell_through' && !wasCancelled) { cancelTransaction(true); return }
       if (values.status && values.status !== 'fell_through' && wasCancelled) { reactivateTransaction(values.status); return }
+      if (values.status === 'closed' && data?.transaction.status !== 'closed') {
+        const t = new Date()
+        askLoanDetails(data?.transaction.closed_and_funded_date
+          ?? `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`)
+      }
       patch((d) => ({ ...d, transaction: { ...d.transaction, ...values } }))
       if (!id) return
       write('transactions', id, values as Record<string, unknown>)
@@ -593,6 +601,29 @@ export default function AdminTransaction() {
     const { error } = await supabase.rpc('mark_transaction_closed', { p_transaction_id: id, p_closed_date: dateStr })
     if (error) { alert(error.message); return }
     patch((d) => ({ ...d, transaction: { ...d.transaction, closed_and_funded: true, closed_and_funded_date: dateStr, status: 'closed' } }))
+    askLoanDetails(dateStr)
+  }
+
+  // If a client on this deal needs a loan, ask for the lender, rate and
+  // notes, so they land in "Refi plan" on the Loan Clients page.
+  async function askLoanDetails(dateStr: string) {
+    if (!id || DEMO_MODE || !supabase) return
+    const { data: history } = await supabase.from('lead_transactions').select('lead_id').eq('transaction_id', id)
+    const leadIds = (history ?? []).map((h) => h.lead_id as string)
+    if (!leadIds.length) return
+    const { data: leads } = await supabase.from('leads').select('*').in('id', leadIds).eq('wants_loan', true)
+    const lead = ((leads ?? []) as Lead[])[0]
+    if (!lead) return
+    setLoanClosed({
+      leadId: lead.id,
+      name: lead.full_name || 'This client',
+      initial: {
+        loan_closed_date: lead.loan_closed_date ?? dateStr,
+        loan_closed_lender: lead.loan_closed_lender ?? null,
+        loan_closed_rate: lead.loan_closed_rate ?? null,
+        loan_closed_notes: lead.loan_closed_notes ?? null,
+      },
+    })
   }
 
   // Cancelling keeps everything on the deal (notes, contacts, checklists) —
@@ -778,6 +809,10 @@ export default function AdminTransaction() {
         </div>
         )}
       </div>
+      {loanClosed && (
+        <LoanClosedDialog leadId={loanClosed.leadId} name={loanClosed.name} initial={loanClosed.initial}
+                          markFileClosed onClose={() => setLoanClosed(null)} />
+      )}
       {followUp && (
         <div className="admin" style={{ paddingTop: 0, paddingBottom: 0 }}>
           <CancelFollowUp

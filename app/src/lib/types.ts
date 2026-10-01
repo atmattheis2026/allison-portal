@@ -324,6 +324,11 @@ export interface Lead {
   followup_note?: string | null
   board_position?: number | null
   starred?: boolean
+  /** Loan closing details (migration 083): lender, rate, notes for a future refi. */
+  loan_closed_date?: string | null
+  loan_closed_lender?: string | null
+  loan_closed_rate?: number | null
+  loan_closed_notes?: string | null
   closed_date: string | null
   created_at: string
   archived_at: string | null

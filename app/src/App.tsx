@@ -4,6 +4,7 @@ import ClientLeadView from './pages/ClientLeadView'
 import AdminTransaction from './pages/AdminTransaction'
 import AdminList from './pages/AdminList'
 import AdminLeads from './pages/AdminLeads'
+import AdminLoans from './pages/AdminLoans'
 import AdminLead from './pages/AdminLead'
 import AdminLoanWorksheet from './pages/AdminLoanWorksheet'
 import AdminGuide from './pages/AdminGuide'
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/admin/t/:id" element={<AdminTransaction />} />
         <Route path="/admin/leads" element={<AdminLeads />} />
+        <Route path="/admin/loans" element={<AdminLoans />} />
         <Route path="/admin/leads/:id" element={<AdminLead />} />
         <Route path="/admin/leads/:id/loan-worksheet" element={<AdminLoanWorksheet />} />
         <Route path="/admin/leads/:id/va-guide" element={<AdminGuide kind="va" key="va-lead" />} />
