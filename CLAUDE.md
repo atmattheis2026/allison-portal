@@ -101,6 +101,16 @@ first, then "Others on your team" (everyone else), so the right person can
 always be picked even if their tags are wrong. **Broker associate counts as
 an agent and mortgage broker as a lender** (Allison, 2026-10-01); picking
 someone sets the deal's realtor/lender title to match their tag.
+**Everything on a deal is editable (2026-10-01):** checklist step names (✎,
+this deal only; not the two steps with fill-in lines, which `groupAfter`
+matches by name), posted Updates (Edit/Delete; edits don't re-email the
+client, only inserts trigger `notify_client`), the final price after closing,
+and the deal type (Buyer/Listing/Loan only; changing it doesn't touch the
+checklist). This supersedes "updates are never edited" in NotesBoard's note.
+**Agent/lender per deal is history, on purpose.** Changing the agent/lender on
+a client file also updates their *current* deal only while it's open
+(`syncCurrentDeal` in `AdminLead.tsx`); closed and cancelled deals keep
+whoever worked them (Allison: "I need agent specific transactions").
 
 **Do not remove RLS policies.** Every table is locked to the user's team. Turning
 that off means her whole business is readable by anyone with the app's public key.

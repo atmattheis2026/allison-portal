@@ -363,6 +363,24 @@ export default function AdminTransaction() {
       }))
     },
 
+    onEditNote: (noteId: string, body: string) => {
+      patch((d) => ({ ...d, notes: d.notes.map((n) => (n.id === noteId ? { ...n, body } : n)) }))
+      write('notes', noteId, { body })
+    },
+
+    onDeleteNote: async (noteId: string) => {
+      justSavedRef.current = Date.now()
+      patch((d) => ({ ...d, notes: d.notes.filter((n) => n.id !== noteId) }))
+      if (DEMO_MODE || !supabase) return
+      const { error } = await supabase.from('notes').delete().eq('id', noteId)
+      if (error) alert(`Couldn't delete it: ${error.message}`)
+    },
+
+    onRenameMilestone: (m: Milestone, label: string) => {
+      patch((d) => ({ ...d, milestones: d.milestones.map((x) => (x.id === m.id ? { ...x, label } : x)) }))
+      write('milestones', m.id, { label })
+    },
+
     onPickLender: (memberId: string) => {
       const member = roster.find((m) => m.id === memberId)
       if (!member) return
