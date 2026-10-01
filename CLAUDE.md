@@ -190,6 +190,11 @@ does contain duplicate names (same person invited twice), so keep that dedupe.
 in the header (it used to fail silently). The "Other" loan type box checks
 `'loan_type_other' in lead` (migration 059) and shows the one-line SQL to run
 when the column is missing, same idea as the Loan referral card.
+Documents card (2026-10-01): `DocumentsList` in `AdminLead.tsx`, slim rows
+(type badge, name clamped to 2 lines, short date, small ✕ that still
+confirms), newest 5 then "Show all N", a search box past 8 files. The three
+guide buttons are one "+ Create…" menu beside "+ Upload". She found the
+full-size rows with a Delete button each "very overwhelming".
 
 **Editing is inline, not a separate form.** The admin view is the same Dashboard
 component with `editable`, so the thing she changes is the thing her client sees.
