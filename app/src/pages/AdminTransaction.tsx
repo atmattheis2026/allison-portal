@@ -557,14 +557,21 @@ export default function AdminTransaction() {
       setFollowUp({ leadId: 'demo', name: buyer?.name || 'This client', step: 'active' })
       return
     }
-    const { data: leads } = await supabase.from('leads').select('id, full_name').eq('converted_transaction_id', id)
-    for (const l of leads ?? []) {
+    // Found through Deal history, not the file's "current deal" pointer:
+    // cancelling clears that pointer, so a deal cancelled, made active and
+    // cancelled again would otherwise lose track of its client.
+    const leads = await linkedClientFiles(id)
+    // Only free up a file that's still on this deal (or on none). One that
+    // has already moved on to a newer deal is left alone.
+    const ours = leads.filter((l) => !l.converted_transaction_id || l.converted_transaction_id === id)
+    for (const l of ours) {
+      if (!l.converted_transaction_id) continue
       const { error } = await supabase.rpc('reactivate_lead', { p_lead_id: l.id })
       if (error) console.error('reactivate_lead failed', error)
     }
     // Then ask what's next for the client, so their file and a new deal (if
     // any) get set up right here instead of in three other places.
-    const lead = leads?.[0]
+    const lead = ours[0]
     if (lead) setFollowUp({ leadId: lead.id, name: lead.full_name || 'This client', step: 'active' })
   }
 
@@ -620,8 +627,30 @@ export default function AdminTransaction() {
 
   async function reactivateTransaction() {
     if (!id) return
+    setFollowUp(null)
     patch((d) => ({ ...d, transaction: { ...d.transaction, status: 'under_contract' } }))
     await write('transactions', id, { status: 'under_contract' })
+    if (DEMO_MODE || !supabase) return
+    // Undo what cancelling did to the client file: point it back at this deal,
+    // unless it has since moved on to a different one.
+    for (const l of await linkedClientFiles(id)) {
+      if (l.converted_transaction_id) continue
+      const { error } = await supabase.from('leads')
+        .update({ converted_transaction_id: id, lead_status: 'under_contract' }).eq('id', l.id)
+      if (error) console.error('relink lead failed', error)
+    }
+  }
+
+  /** Every client file that has this deal in its Deal history. */
+  async function linkedClientFiles(txId: string) {
+    if (!supabase) return []
+    const { data: history } = await supabase.from('lead_transactions')
+      .select('lead_id').eq('transaction_id', txId)
+    const leadIds = (history ?? []).map((h) => h.lead_id as string)
+    if (!leadIds.length) return []
+    const { data: leads } = await supabase.from('leads')
+      .select('id, full_name, converted_transaction_id').in('id', leadIds)
+    return (leads ?? []) as Array<{ id: string; full_name: string | null; converted_transaction_id: string | null }>
   }
 
   if (loadError) {
