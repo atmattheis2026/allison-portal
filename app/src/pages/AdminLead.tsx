@@ -1022,6 +1022,14 @@ export default function AdminLead() {
           <span className="buyerbar-names">
             {lead.full_name || 'Unnamed buyer'}{lead.full_name_2 ? ` & ${lead.full_name_2}` : ''}
           </span>
+          {'starred' in lead && (
+            <button type="button" className={`starbtn${lead.starred ? ' on' : ''}`}
+                    onClick={(e) => { e.stopPropagation(); patchLead({ starred: !lead.starred }) }}
+                    title={lead.starred ? 'Favorite. Click to remove the star' : 'Mark as a favorite'}
+                    aria-label={lead.starred ? 'Remove favorite' : 'Mark as favorite'} aria-pressed={!!lead.starred}>
+              {lead.starred ? '★' : '☆'}
+            </button>
+          )}
           <button type="button" className="btn"
                   onClick={(e) => { e.stopPropagation(); setBuyerOpen((o) => !o) }}>
             {buyerOpen ? 'Hide details' : 'Show details'}

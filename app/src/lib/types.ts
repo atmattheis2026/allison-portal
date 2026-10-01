@@ -323,6 +323,7 @@ export interface Lead {
   next_followup?: string | null
   followup_note?: string | null
   board_position?: number | null
+  starred?: boolean
   closed_date: string | null
   created_at: string
   archived_at: string | null

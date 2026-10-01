@@ -270,3 +270,8 @@
 .clientcard.dropbefore { box-shadow: 0 -4px 0 var(--gold); }
 .clientcard.dropafter { box-shadow: 0 4px 0 var(--gold); }
 .followbtn.overdue { border-color: #D9A441; background: #F8E3BE; color: #7A3E0E; }
+/* Favorite clients: a gold star beside the name. */
+.starbtn { flex: none; font-size: 20px; line-height: 1; padding: 0 2px; color: var(--ink-faint); opacity: .55; }
+.starbtn:hover { opacity: 1; color: var(--gold-bright); }
+.starbtn.on, .staricon.on { color: #C8961E; opacity: 1; }
+.clientcard.starred { background: #FFFCF3; }

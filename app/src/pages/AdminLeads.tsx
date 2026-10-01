@@ -61,6 +61,7 @@ export default function AdminLeads() {
   const [agentFilter, setAgentFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState<'' | 'buy' | 'loan'>('')
   const [dueOnly, setDueOnly] = useState(false)
+  const [starOnly, setStarOnly] = useState(false)
   const [dragOver, setDragOver] = useState<string | null>(null)
   const [dropAt, setDropAt] = useState<{ id: string; after: boolean } | null>(null)
   const nav = useNavigate()
@@ -285,6 +286,7 @@ export default function AdminLeads() {
     if (typeFilter === 'buy' && !r.wants_buying) return false
     if (typeFilter === 'loan' && !r.wants_loan) return false
     if (dueOnly && !isDue(r)) return false
+    if (starOnly && !r.starred) return false
     if (!needle) return true
     return [r.full_name, r.full_name_2, r.email, r.followup_note, latestNotes[r.id]?.[0]?.body]
       .some((f) => f?.toLowerCase().includes(needle))
@@ -323,6 +325,15 @@ export default function AdminLeads() {
 
   // 080 adds board_position, which saves her hand-arranged order.
   const hasOrder = rows.length === 0 || 'board_position' in rows[0]
+  // 081 adds starred (favorite clients).
+  const hasStar = rows.length === 0 || 'starred' in rows[0]
+  function toggleStar(r: Lead) {
+    if (!hasStar) {
+      setStageError('To save favorites, run supabase/migrations/081_client_favorites.sql in Supabase\'s SQL Editor, then reload.')
+      return
+    }
+    patchRow(r.id, { starred: !r.starred })
+  }
 
   // Drop a card onto another card: it goes just above/below that one (and
   // into that column, if it came from another). The order is worked out on
@@ -395,7 +406,7 @@ export default function AdminLeads() {
     const due = isDue(r)
     const notes = latestNotes[r.id] ?? []
     return (
-      <div className={`clientcard${due ? ' due' : ''}${dropAt?.id === r.id ? (dropAt.after ? ' dropafter' : ' dropbefore') : ''}`} key={r.id}
+      <div className={`clientcard${due ? ' due' : ''}${r.starred ? ' starred' : ''}${dropAt?.id === r.id ? (dropAt.after ? ' dropafter' : ' dropbefore') : ''}`} key={r.id}
            draggable={hasStages && (!underContract || hasOrder)}
            onDragStart={(e) => { e.dataTransfer.setData('text/client-id', r.id); e.dataTransfer.effectAllowed = 'move' }}
            onDragEnd={() => { setDropAt(null); setDragOver(null) }}
@@ -404,6 +415,11 @@ export default function AdminLeads() {
           {!underContract && band && (
             <span title={TIMEFRAME_BAND_LABEL[band]} className="clientdot" style={{ background: TIMEFRAME_BAND_COLOR[band] }} />
           )}
+          <button type="button" className={`starbtn${r.starred ? ' on' : ''}`} onClick={() => toggleStar(r)}
+                  title={r.starred ? 'Favorite. Click to remove the star' : 'Mark as a favorite'}
+                  aria-label={r.starred ? 'Remove favorite' : 'Mark as favorite'} aria-pressed={!!r.starred}>
+            {r.starred ? '★' : '☆'}
+          </button>
           <Link to={`/admin/leads/${r.id}`} className="clientname">
             {r.full_name || 'Unnamed client'}{r.full_name_2 ? ` & ${r.full_name_2}` : ''}
           </Link>
@@ -494,9 +510,13 @@ export default function AdminLeads() {
             <input type="checkbox" checked={dueOnly} onChange={(e) => setDueOnly(e.target.checked)} />
             Follow-ups due
           </label>
+          <label className="clientcheck">
+            <input type="checkbox" checked={starOnly} onChange={(e) => setStarOnly(e.target.checked)} />
+            <span className="staricon on">★</span> Favorites
+          </label>
           <label className="clientsort">Sort by
           <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
-            <option value="mine">My order (drag to arrange)</option>
+            <option value="mine">My order</option>
             <option value="followup">Next follow-up</option>
             <option value="updated">Most recent update</option>
             <option value="recent">Recently added</option>
@@ -551,7 +571,7 @@ export default function AdminLeads() {
                   <p className="clientcolhelp">{col.help}</p>
                   <div className="clientcolbody">
                     {ordered.length === 0 && <p className="muted" style={{ fontSize: 14.5, margin: '6px 2px' }}>
-                      {needle || agentFilter || typeFilter || dueOnly ? 'No matches here.' : 'No one here right now.'}</p>}
+                      {needle || agentFilter || typeFilter || dueOnly || starOnly ? 'No matches here.' : 'No one here right now.'}</p>}
                     {ordered.map(renderCard)}
                   </div>
                 </section>
