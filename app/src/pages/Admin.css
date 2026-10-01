@@ -293,3 +293,16 @@
 .brokertag.ok { color: #1E7A34; }
 .brokertag.soon { color: #A86A00; }
 .brokertag.no { color: #B8320F; }
+/* Pop-up box (loan closing details). */
+.modalback { position: fixed; inset: 0; z-index: 80; background: rgba(20, 26, 34, .45);
+             display: flex; align-items: flex-start; justify-content: center; padding: 8vh 16px 16px; overflow-y: auto; }
+.modalcard { background: var(--panel); border-radius: var(--r-lg); box-shadow: 0 18px 50px rgba(20,26,34,.3);
+             width: 100%; max-width: 480px; padding: 20px; display: grid; gap: 12px; }
+.modalcard label { display: grid; gap: 4px; font-size: 14.5px; font-weight: 700; color: var(--ink-dim); }
+.modalcard input, .modalcard textarea { font-weight: 500; }
+.modalrow { display: flex; gap: 10px; flex-wrap: wrap; }
+.modalrow > label { flex: 1 1 160px; }
+.ratebox { display: flex; align-items: center; gap: 6px; }
+.ratebox input { min-width: 0; }
+.loanrate { font-weight: 800; color: var(--ink); }
+.clientnote.linkish { text-align: left; padding: 0; background: none; border: 0; cursor: pointer; font: inherit; font-size: 13.5px; }

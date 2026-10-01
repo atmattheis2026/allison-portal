@@ -36,6 +36,7 @@ allison-portal/
         AdminList.tsx     her list of transactions    /admin
         AdminTransaction.tsx  her editing view        /admin/t/<id>
         AdminSettings.tsx  branding + checklist editor /admin/settings
+        AdminLoans.tsx    Loan Clients board      /admin/loans
         AdminNetworkLeads.tsx  Agent Recruiting list   /admin/network
         MentorHome.tsx    a mentor's own filtered list /mentor
         AdminResources.tsx  Database Manager reference page /admin/resources
@@ -388,6 +389,25 @@ or "Broker agmt expired". Not shown for loan-only or under-contract clients.
 The follow-up date chips were taken out of the key (Allison: cluttered).
 Labels use her abbreviation BBA (buyer broker agreement): "BBA ✓", "BBA ends
 <date>", "No BBA", "BBA expired".
+
+**Loan Clients page (2026-10-01, migration 083).** `/admin/loans`
+(`AdminLoans.tsx`, side menu "Loan Clients" under Clients): every
+`wants_loan` client file in three columns, **In contract**
+(lead_status 'under_contract', checked first so a returning client moves back)
+| **Refi plan** ('closed' or `loan_closed_date` set: rate, lender, loan type,
+closed date, notes) | **Nurture** (everything else but 'inactive', which
+folds below). Columns follow status, so no dragging. Filters: search, loan
+officer, "Refi rate at least __%" (refi column only); sort incl. rate highest
+first. Follow-up button and ⋯ menu are shared with Clients via
+`components/ClientCardParts.tsx` (`CardMenu` takes `extra` actions).
+**Closing pop-up:** `LoanClosedDialog` asks lender (suggests ones typed
+before), interest rate, closing date, notes of interest, and saves
+`loan_closed_*` on the client file. It opens on the deal page after Closed &
+Funded (or picking "Closed" in the status dropdown) when a client file in the
+deal's history `wants_loan`, and also sets that file to 'closed' (same as
+`mark_transaction_closed`). On Loan Clients, ⋯ → "Loan closed…" does the same
+for a loan-only client with no deal; refi cards have "Edit loan details".
+Internal only; `get_shared_lead` lists its keys explicitly.
 
 ## Agent Recruiting (recruiting/training/mentorship)
 

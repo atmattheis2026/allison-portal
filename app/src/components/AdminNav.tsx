@@ -19,7 +19,7 @@ import { useDeskLayout } from '../lib/useDeskLayout'
  * also where a Database Manager lands when they sign in, see AdminList.tsx.
  */
 export default function AdminNav({ current }: {
-  current: 'transactions' | 'leads' | 'closed' | 'rolodex' | 'network' | 'resources' | 'settings'
+  current: 'transactions' | 'leads' | 'loans' | 'closed' | 'rolodex' | 'network' | 'resources' | 'settings'
 }) {
   const [seesAllTransactions, setSeesAllTransactions] = useState(DEMO_MODE)
   const canSeeHomePage = useCanSeeHomePage()
@@ -50,6 +50,7 @@ export default function AdminNav({ current }: {
     ...(canSeeHomePage ? [{ key: 'resources' as const, label: 'Resource Library', to: '/admin/resources' }] : []),
     { key: 'transactions', label: 'Transactions', to: '/admin' },
     { key: 'leads', label: 'Clients', to: '/admin/leads' },
+    { key: 'loans', label: 'Loan Clients', to: '/admin/loans' },
     { key: 'closed', label: 'Closed', to: '/admin/closed' },
     ...(canSeeRolodex ? [{ key: 'rolodex' as const, label: 'Rolodex', to: '/admin/rolodex' }] : []),
     { key: 'network', label: 'Agent Recruiting', to: '/admin/network' },
@@ -82,7 +83,7 @@ export default function AdminNav({ current }: {
 
 /* ------------------------------------------------------- side menu lists */
 
-type FileListKey = 'resources' | 'transactions' | 'leads' | 'closed' | 'rolodex' | 'network' | 'settings'
+type FileListKey = 'resources' | 'transactions' | 'leads' | 'loans' | 'closed' | 'rolodex' | 'network' | 'settings'
 interface SideFile {
   id: string; label: string
   /** In-app page to open… */
@@ -141,7 +142,7 @@ function useSideFileLists(enabled: boolean): FileLists | null {
           .select('id, address_line, status, closed_and_funded, closed_and_funded_date, created_at')
           .eq('team_id', team).is('archived_at', null).order('created_at', { ascending: false }),
         supabase!.from('leads')
-          .select('id, full_name, full_name_2, lead_status, phone')
+          .select('id, full_name, full_name_2, lead_status, phone, wants_loan')
           .eq('team_id', team).is('archived_at', null).not('lead_status', 'in', '(closed,inactive)').order('full_name'),
         supabase!.from('resource_folders').select('id, name, category, parent_folder_id')
           .eq('team_id', team).order('name'),
@@ -156,7 +157,7 @@ function useSideFileLists(enabled: boolean): FileLists | null {
       if (cancelled) return
 
       const tx = (txs.data ?? []) as { id: string; address_line: string; status: string; closed_and_funded: boolean; closed_and_funded_date: string | null }[]
-      const leadRows = (leads.data ?? []) as { id: string; full_name: string | null; full_name_2: string | null; phone: string | null }[]
+      const leadRows = (leads.data ?? []) as { id: string; full_name: string | null; full_name_2: string | null; phone: string | null; wants_loan?: boolean }[]
       const folderRows = (folders.data ?? []) as { id: string; name: string; parent_folder_id: string | null }[]
       const folderName = new Map(folderRows.map((f) => [f.id, f.name]))
       const docRows = (docs.data ?? []) as { id: string; title: string | null; file_name: string | null; file_url: string | null; url: string | null; folder_id: string | null }[]
@@ -169,6 +170,11 @@ function useSideFileLists(enabled: boolean): FileLists | null {
           .slice(0, 25)
           .map((t) => ({ id: t.id, label: t.address_line || 'Untitled property', to: `/admin/t/${t.id}` })),
         leads: leadRows.map((l) => ({
+          id: l.id,
+          label: (l.full_name || 'Unnamed client') + (l.full_name_2 ? ` & ${l.full_name_2}` : ''),
+          to: `/admin/leads/${l.id}`,
+        })),
+        loans: leadRows.filter((l) => l.wants_loan).map((l) => ({
           id: l.id,
           label: (l.full_name || 'Unnamed client') + (l.full_name_2 ? ` & ${l.full_name_2}` : ''),
           to: `/admin/leads/${l.id}`,
