@@ -420,6 +420,16 @@ closing-date prompt. A closed loan file's banner shows rate · lender and
 lender, closing date, loan officer, notes; creates a 'closed', `wants_loan`
 file with `loan_closed_*` so it lands in Refi plan (and on the Closed page,
 not Clients). Same duplicate check as New client.
+**Loan Clients drag + stage label (2026-10-01, migration 084).** Cards drag
+up and down within a column, saved in `leads.loan_board_position` (separate
+from the Clients page's `board_position`, so arranging one board never
+reshuffles the other); "My order" is the default sort, same placement rules
+as `placeCard` on Clients. Dropping a Nurture/Inactive card on Refi plan opens
+"Loan closed…"; other cross-column drops just show a hint, since columns
+follow status. A label sits first beside the name: **Closed** (Refi plan,
+fixed), else a small dropdown **Active / Shopping** saved in `leads.loan_stage`
+(null shows Active for In contract, Shopping for Nurture); "Closed…" in it
+opens the loan-closed pop-up. Without 084 the page says which file to run.
 The client file's agent/lender lists load the file's team **plus** the
 signed-in person's team: Toni Greenwald's file couldn't get an agent or loan
 officer picked (Allison, 2026-10-01), most likely a file on another team.

@@ -330,6 +330,10 @@ export interface Lead {
   loan_closed_lender?: string | null
   loan_closed_rate?: number | null
   loan_closed_notes?: string | null
+  /** Her own order on the Loan Clients page (migration 084). */
+  loan_board_position?: number | null
+  /** Label beside the name on Loan Clients (migration 084). */
+  loan_stage?: 'active' | 'shopping' | null
   closed_date: string | null
   created_at: string
   archived_at: string | null

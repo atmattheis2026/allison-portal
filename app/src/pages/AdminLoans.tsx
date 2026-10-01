@@ -1,8 +1,9 @@
 // Loan Clients (Allison, 2026-10-01): every client file that wants a loan,
 // in three columns. In contract = has an open deal. Refi plan = their loan
 // closed, showing lender, rate and notes for a future refinance. Nurture =
-// everyone else who isn't inactive. Columns follow the file's status, so
-// there's nothing to drag: closing a deal (or "Loan closed…" in the ⋯ menu)
+// everyone else who isn't inactive. Columns follow the file's status: cards
+// drag up and down within a column (her own order, migration 084), and a
+// Nurture card dropped on Refi plan opens "Loan closed…". Closing a deal (or "Loan closed…" in the ⋯ menu)
 // moves a client to Refi plan.
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -30,7 +31,7 @@ function columnFor(r: Lead): Column | 'inactive' {
   return 'nurture'
 }
 
-type SortMode = 'followup' | 'rate' | 'rate_low' | 'type' | 'name' | 'recent'
+type SortMode = 'mine' | 'followup' | 'rate' | 'rate_low' | 'type' | 'name' | 'recent'
 
 function loanTypeOf(r: Lead) { return r.loan_type === 'Other' ? (r.loan_type_other || 'Other') : r.loan_type }
 
@@ -45,11 +46,15 @@ export default function AdminLoans() {
   const [lenderFilter, setLenderFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [minRate, setMinRate] = useState('')
-  const [sortMode, setSortMode] = useState<SortMode>('followup')
+  const [sortMode, setSortMode] = useState<SortMode>('mine')
   const [showInactive, setShowInactive] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [addingPast, setAddingPast] = useState(false)
+  const [dropAt, setDropAt] = useState<{ id: string; after: boolean } | null>(null)
+  const [dropCol, setDropCol] = useState<Column | null>(null)
+  const [hint, setHint] = useState<string | null>(null)
+  function flashHint(text: string) { setHint(text); setTimeout(() => setHint((cur) => (cur === text ? null : cur)), 6000) }
   const [editing, setEditing] = useState<{ lead: Lead; markFileClosed: boolean } | null>(null)
   const nav = useNavigate()
 
@@ -71,6 +76,18 @@ export default function AdminLoans() {
     if (!rows) return null
     const list = [...rows]
     switch (sortMode) {
+      case 'mine':
+        // Her own drag-and-drop order; not-yet-placed clients on top by
+        // follow-up date, so nothing new gets buried.
+        list.sort((a, b) => {
+          const pa = a.loan_board_position ?? null, pb = b.loan_board_position ?? null
+          if (pa === null && pb === null) return (a.next_followup ?? '9999').localeCompare(b.next_followup ?? '9999')
+            || b.created_at.localeCompare(a.created_at)
+          if (pa === null) return -1
+          if (pb === null) return 1
+          return pa - pb
+        })
+        break
       case 'rate':
         list.sort((a, b) => (b.loan_closed_rate ?? -1) - (a.loan_closed_rate ?? -1))
         break
@@ -130,6 +147,97 @@ export default function AdminLoans() {
     if (error) setError(error.message)
   }
 
+  // 084 adds loan_board_position, her own order on this page.
+  const hasOrder = rows.length === 0 || 'loan_board_position' in rows[0]
+  const hasStage = rows.length === 0 || 'loan_stage' in rows[0]
+
+  // Drop a card on another card in the same column: it goes just above or
+  // below it. Worked out on the whole column as sorted (filtered-out clients
+  // included), same as the Clients page. Dropping a Nurture client into Refi
+  // plan opens "Loan closed…", since that column means the loan closed.
+  async function placeCard(id: string, targetId: string | null, toCol: Column, after: boolean) {
+    const moving = rows!.find((x) => x.id === id)
+    if (!moving || id === targetId) return
+    const fromCol = columnFor(moving)
+    if (fromCol !== toCol) {
+      if (toCol === 'refi' && (fromCol === 'nurture' || fromCol === 'inactive') && hasLoanCols) {
+        setEditing({ lead: moving, markFileClosed: true })
+      } else {
+        flashHint(toCol === 'in_contract'
+          ? 'In contract fills itself from the deal, so cards can\'t be dragged into it.'
+          : 'That column follows the client\'s status, so cards can\'t be dragged there.')
+      }
+      return
+    }
+    if (!targetId) return
+    if (!hasOrder) {
+      flashHint('To save your own order here, run supabase/migrations/084_loan_board_order_and_stage.sql in Supabase\'s SQL Editor, then reload.')
+      return
+    }
+    const col = sorted!.filter((x) => columnFor(x) === toCol && x.id !== id)
+    const i = col.findIndex((x) => x.id === targetId) + (after ? 1 : 0)
+    const prev = col[i - 1]?.loan_board_position ?? null, next = col[i]?.loan_board_position ?? null
+    const usable = sortMode === 'mine' && (i === 0 || prev !== null) && (i === col.length || next !== null)
+    if (usable) {
+      const pos = prev === null ? (next ?? 0) - 1000 : next === null ? prev + 1000 : (prev + next) / 2
+      patchRow(id, { loan_board_position: pos })
+      return
+    }
+    // First arrangement (or another sort was showing): number the whole
+    // column in the on-screen order, with the card dropped in.
+    const order = [...col.slice(0, i), moving, ...col.slice(i)]
+    const changes = order.map((x, n) => ({ x, pos: (n + 1) * 1000 }))
+      .filter(({ x, pos }) => x.loan_board_position !== pos || x.id === id)
+    setRows((cur) => cur?.map((r) => {
+      const c = changes.find((ch) => ch.x.id === r.id)
+      return c ? { ...r, loan_board_position: c.pos } : r
+    }) ?? cur)
+    setSortMode('mine')
+    if (DEMO_MODE || !supabase) return
+    setError(null)
+    for (let k = 0; k < changes.length; k += 25) {
+      const results = await Promise.all(changes.slice(k, k + 25).map(({ x, pos }) =>
+        supabase!.from('leads').update({ loan_board_position: pos }).eq('id', x.id)))
+      const bad = results.find((res) => res.error)
+      if (bad?.error) { setError(bad.error.message); return }
+    }
+  }
+
+  function cardDropHandlers(r: Lead) {
+    return {
+      onDragOver: (e: React.DragEvent) => {
+        if (!e.dataTransfer.types.includes('text/client-id')) return
+        e.preventDefault(); e.stopPropagation()
+        const box = e.currentTarget.getBoundingClientRect()
+        const after = e.clientY > box.top + box.height / 2
+        setDropCol(null)
+        setDropAt((cur) => (cur?.id === r.id && cur.after === after ? cur : { id: r.id, after }))
+      },
+      onDragLeave: () => setDropAt((cur) => (cur?.id === r.id ? null : cur)),
+      onDrop: (e: React.DragEvent) => {
+        e.preventDefault(); e.stopPropagation()
+        const after = dropAt?.id === r.id ? dropAt.after : false
+        setDropAt(null)
+        const c = columnFor(r)
+        placeCard(e.dataTransfer.getData('text/client-id'), r.id, c === 'inactive' ? 'nurture' : c, after)
+      },
+    }
+  }
+
+  function columnDropHandlers(c: Column) {
+    return {
+      onDragOver: (e: React.DragEvent) => {
+        if (!e.dataTransfer.types.includes('text/client-id')) return
+        e.preventDefault(); setDropCol(c)
+      },
+      onDragLeave: () => setDropCol((cur) => (cur === c ? null : cur)),
+      onDrop: (e: React.DragEvent) => {
+        e.preventDefault(); setDropCol(null)
+        placeCard(e.dataTransfer.getData('text/client-id'), null, c, false)
+      },
+    }
+  }
+
   function copyLink(token: string) {
     navigator.clipboard.writeText(`${window.location.origin}/l/${token}`)
     setCopied(token)
@@ -148,13 +256,36 @@ export default function AdminLoans() {
         ? [{ label: 'Loan closed…', onClick: () => setEditing({ lead: r, markFileClosed: true }) }]
         : []
     return (
-      <div className={`clientcard${due ? ' due' : ''}`} key={r.id}>
+      <div className={`clientcard${due ? ' due' : ''}${dropAt?.id === r.id ? (dropAt.after ? ' dropafter' : ' dropbefore') : ''}`}
+           key={r.id} draggable
+           onDragStart={(e) => { e.dataTransfer.setData('text/client-id', r.id); e.dataTransfer.effectAllowed = 'move' }}
+           onDragEnd={() => { setDropAt(null); setDropCol(null) }}
+           {...cardDropHandlers(r)}>
         <div className="clienttop">
           {/* Rate and loan type sit right beside the name. */}
           <span className="loannamewrap">
             <Link to={`/admin/leads/${r.id}`} className="clientname">
               {r.full_name || 'Unnamed client'}{r.full_name_2 ? ` & ${r.full_name_2}` : ''}
             </Link>
+            {col === 'refi' ? (
+              <span className="stagetag closed">Closed</span>
+            ) : (() => {
+              const stage = r.loan_stage ?? (col === 'in_contract' ? 'active' : 'shopping')
+              return (
+                <select className={`stagetag ${stage}`} value={stage} aria-label="Loan stage"
+                        title="Where their loan is. Pick Closed when it funds."
+                        onChange={(e) => {
+                          const v = e.target.value
+                          if (v === 'closed') { if (hasLoanCols) setEditing({ lead: r, markFileClosed: true }); return }
+                          if (!hasStage) { flashHint('To save Active / Shopping, run supabase/migrations/084_loan_board_order_and_stage.sql in Supabase\'s SQL Editor, then reload.'); return }
+                          patchRow(r.id, { loan_stage: v as 'active' | 'shopping' })
+                        }}>
+                  <option value="active">Active</option>
+                  <option value="shopping">Shopping</option>
+                  <option value="closed">Closed…</option>
+                </select>
+              )
+            })()}
             {r.loan_closed_rate != null && (
               <button type="button" className="loantag rate" title="Interest rate they closed at. Click to edit"
                       onClick={() => setEditing({ lead: r, markFileClosed: false })}>{r.loan_closed_rate}%</button>
@@ -233,8 +364,11 @@ export default function AdminLoans() {
           }}
           onClose={(saved: (LoanClosedValues & Partial<Lead>) | null) => {
             const id = editing.lead.id
+            const closing = editing.markFileClosed
             setEditing(null)
             if (saved) setRows((cur) => cur?.map((r) => (r.id === id ? { ...r, ...saved } : r)) ?? cur)
+            // Newly closed: top of Refi plan, where she can drag it from.
+            if (saved && closing && hasOrder) patchRow(id, { loan_board_position: null })
           }} />
       )}
 
@@ -261,6 +395,7 @@ export default function AdminLoans() {
           )}
           <label className="clientsort">Sort by
             <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
+              <option value="mine">My order</option>
               <option value="followup">Next follow-up</option>
               <option value="rate">Rate (highest first)</option>
               <option value="rate_low">Rate (lowest first)</option>
@@ -277,6 +412,9 @@ export default function AdminLoans() {
           One database step turns on lender, rate and refi notes: in Supabase's SQL Editor, run
           supabase/migrations/083_loan_closing_details.sql, then reload this page.
         </p>
+      )}
+      {hint && (
+        <p className="sethelp" style={{ margin: '0 24px 14px', fontWeight: 600, color: 'var(--ink-dim)', overflowWrap: 'anywhere' }}>{hint}</p>
       )}
       {error && (
         <p className="sethelp" style={{ margin: '0 24px 14px', color: 'var(--danger)', fontWeight: 600 }}>
@@ -296,7 +434,8 @@ export default function AdminLoans() {
             {COLUMNS.map((c) => {
               const list = inColumn(c.key)
               return (
-                <section key={c.key} className="clientcol" style={{ borderTopColor: c.color }}>
+                <section key={c.key} className={`clientcol${dropCol === c.key ? ' dropping' : ''}`}
+                         style={{ borderTopColor: c.color }} {...columnDropHandlers(c.key)}>
                   <h2 className="clientcolhdr">{c.label} <span className="clientcount">{list.length}</span></h2>
                   <p className="clientcolhelp">{c.help}</p>
                   <div className="clientcolbody">
