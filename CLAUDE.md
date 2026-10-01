@@ -221,6 +221,16 @@ itself), Rolodex (everyone, one entry per name+phone, each linking to
 tabs via `?tab=`). A search box shows once a list passes 6 items, and always
 for the Rolodex.
 
+**Top-left logo is per person (2026-10-01, migration 085).** The side menu's
+top left shows the signed-in person's logo on a light card (`.sidebrand.logo`,
+since the logos have dark lettering): `team_members.brand_logo_url` (their row
+with `profile_id` = them), uploaded via "+ Menu logo" in Settings › Team, else
+the bundled `mattheis-team.png` for Allison and `surek-group.png` for anyone
+named Surek (Rich), else their name as text (`useMyBrand` in `AdminNav.tsx`,
+cleared on sign-out). Settings only sends `brand_logo_url` when the column
+exists. Ryan uploads his own. Client pages keep the brands from Settings ›
+Branding; this is only the staff menu.
+
 **"Home Page" is now labeled "Resource Library" (2026-10-01, Allison's
 request).** Only the visible labels changed; the route, table and file names
 (`/admin/resources`, `resources`, `AdminResources.tsx`, `useCanSeeHomePage`)

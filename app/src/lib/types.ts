@@ -58,6 +58,8 @@ export interface TeamMember {
   roles: TeamRole[]
   license_number: string | null
   headshot_url: string | null
+  /** Their logo for the top left of the side menu (migration 085). */
+  brand_logo_url?: string | null
   phone: string | null
   email: string | null
   sees_all_transactions: boolean

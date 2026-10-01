@@ -6,6 +6,8 @@ import { NETWORK_AGENT_STATUS_LABEL } from '../lib/types'
 import { useCanSeeHomePage } from '../lib/useCanSeeHomePage'
 import { useIsDatabaseManager } from '../lib/useIsDatabaseManager'
 import { useDeskLayout } from '../lib/useDeskLayout'
+import mattheisLogo from '../assets/loan-sheet/mattheis-team.png'
+import surekLogo from '../assets/loan-sheet/surek-group.png'
 
 /**
  * Consistent quick-jump links shown at the top of every admin page, so
@@ -29,9 +31,11 @@ export default function AdminNav({ current }: {
   const location = useLocation()
   const desk = useDeskLayout()
   const fileLists = useSideFileLists(desk)
+  const brand = useMyBrand()
 
   async function signOut() {
     if (DEMO_MODE || !supabase) return
+    cachedBrand = null
     await supabase.auth.signOut()
     nav('/login')
   }
@@ -62,7 +66,9 @@ export default function AdminNav({ current }: {
   // theme.css). Every admin page gets the side menu the same way.
   return (
     <nav className="sidenav" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--line-soft)', marginBottom: 18 }}>
-      <span className="sidebrand">Mattheis &amp; Co.</span>
+      {brand?.logo
+        ? <span className="sidebrand logo"><img src={brand.logo} alt={brand.name} /></span>
+        : <span className="sidebrand">{brand ? brand.name : '\u00a0'}</span>}
       {items.map((it) => {
         const link = it.key === current
           ? <span key={it.key} className="btn current" aria-current="page" style={{ opacity: .5, pointerEvents: 'none' }}>{it.label}</span>
@@ -79,6 +85,34 @@ export default function AdminNav({ current }: {
       )}
     </nav>
   )
+}
+
+/* ------------------------------------------------------- top-left logo */
+
+// Each person's own logo at the top left (Allison, 2026-10-01): their menu
+// logo from Settings › Team (migration 085), else the bundled one for
+// Allison (The Mattheis Team) and Rich (The Surek Group), else their name.
+let cachedBrand: { logo: string | null; name: string } | null = null
+function useMyBrand() {
+  const [brand, setBrand] = useState(cachedBrand ?? (DEMO_MODE ? { logo: mattheisLogo, name: 'The Mattheis Team' } : null))
+  useEffect(() => {
+    if (cachedBrand || DEMO_MODE || !supabase) return
+    ;(async () => {
+      const { data: auth } = await supabase!.auth.getUser()
+      if (!auth.user) return
+      const { data } = await supabase!.from('team_members').select('*').eq('profile_id', auth.user.id)
+      const rows = (data as TeamMember[] | null) ?? []
+      const mine = rows.find((m) => m.brand_logo_url) ?? rows[0]
+      const name = (mine?.full_name || '').toLowerCase()
+      const email = (auth.user.email || '').toLowerCase()
+      const bundled = name.includes('surek') ? surekLogo
+        : name.includes('mattheis') && name.includes('allison') || email === 'allisonsellsflorida@gmail.com' ? mattheisLogo
+        : null
+      cachedBrand = { logo: mine?.brand_logo_url || bundled, name: mine?.full_name || 'Mattheis & Co.' }
+      setBrand(cachedBrand)
+    })()
+  }, [])
+  return brand
 }
 
 /* ------------------------------------------------------- side menu lists */
