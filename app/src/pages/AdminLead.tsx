@@ -239,6 +239,7 @@ export default function AdminLead() {
   const [reactivating, setReactivating] = useState(false)
   const [noteDraft, setNoteDraft] = useState('')
   const [saveFlash, setSaveFlash] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [fetchingId, setFetchingId] = useState<string | null>(null)
   const [remoteUpdate, setRemoteUpdate] = useState(false)
   // Set on every local write so the realtime listener can tell "I just saved
@@ -329,7 +330,11 @@ export default function AdminLead() {
     justSavedRef.current = Date.now()
     setLead((cur) => (cur ? { ...cur, ...values } : cur))
     if (DEMO_MODE || !supabase || !id) return
-    await supabase.from('leads').update(values).eq('id', id)
+    const { error } = await supabase.from('leads').update(values).eq('id', id)
+    // A failed save used to be silent: the box kept what she typed, then it
+    // was gone on reload. Say so right away instead.
+    if (error) { console.error('lead update failed', error); setSaveError(error.message); return }
+    setSaveError(null)
     flashSaved()
   }
 
@@ -845,6 +850,12 @@ export default function AdminLead() {
         </span>
         <nav className="adminnav">
           {saveFlash && <span className="muted" style={{ fontSize: 15 }}>Saved</span>}
+          {saveError && (
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--danger, #cc3311)' }}
+                  title={saveError}>
+              Last change didn't save
+            </span>
+          )}
           <Link className="btn" to="/admin/leads">← Active Clients</Link>
           <button className="btn" onClick={copyLink}>{copied ? 'Copied' : 'Copy client link'}</button>
           {lead.converted_transaction_id ? (
@@ -1111,11 +1122,19 @@ export default function AdminLead() {
                   <option value="">Not set</option>
                   {LOAN_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
-                {lead.loan_type === 'Other' && (
+                {lead.loan_type === 'Other' && ('loan_type_other' in lead ? (
                   <input style={{ marginTop: 8 }} value={lead.loan_type_other ?? ''}
                          placeholder="What kind of loan?"
                          onChange={(e) => patchLead({ loan_type_other: e.target.value || null })} />
-                )}
+                ) : (
+                  // Her database doesn't have this column yet (migration 059),
+                  // so typing here could never save. Say how to add it.
+                  <p className="sethelp" style={{ marginTop: 8, color: 'var(--danger, #cc3311)', fontWeight: 600, overflowWrap: 'anywhere' }}>
+                    One database step first: in Supabase's SQL Editor, run
+                    {' '}<code>alter table leads add column if not exists loan_type_other text;</code>{' '}
+                    then reload this page.
+                  </p>
+                ))}
               </div>
               <div className="field">
                 <label>Application status</label>
