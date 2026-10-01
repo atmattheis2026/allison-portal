@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import Dashboard from '../components/Dashboard'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import { DEMO_BY_TOKEN, DEMO_PAYLOAD, SAVED_CONTACTS, TEAM_MEMBERS, TRANSACTION_ASSIGNEES } from '../lib/demoData'
@@ -37,6 +37,10 @@ export default function AdminTransaction() {
   // them, and they need their own fetch here, same as internalContacts.
   const [hiddenMilestones, setHiddenMilestones] = useState<Milestone[]>([])
   const [remoteUpdate, setRemoteUpdate] = useState(false)
+  // The questions asked right after "Cancel transaction" about the client.
+  const [followUp, setFollowUp] = useState<FollowUp | null>(null)
+  const [startingNew, setStartingNew] = useState(false)
+  const nav = useNavigate()
   // Every write on this page goes through write()/toggleAssignee()/
   // ensureAssignee() — this timestamp lets the realtime listener tell "I just
   // saved this myself" apart from "someone else changed it," so it doesn't
@@ -544,16 +548,74 @@ export default function AdminTransaction() {
   // The client's file is freed up too, so "Convert to transaction" works
   // for their next deal; this one stays in their Deal history.
   async function cancelTransaction() {
-    if (!id) return
+    if (!id || !data) return
     if (!confirm('Cancel this transaction? It moves off your main list into "Cancelled." Nothing on it is deleted, and you can make it active again any time.')) return
     patch((d) => ({ ...d, transaction: { ...d.transaction, status: 'fell_through' } }))
     await write('transactions', id, { status: 'fell_through' })
-    if (DEMO_MODE || !supabase) return
-    const { data: leads } = await supabase.from('leads').select('id').eq('converted_transaction_id', id)
+    if (DEMO_MODE || !supabase) {
+      const buyer = data.contacts.find((c) => c.role_label === 'Buyers' || c.role_label === 'Sellers')
+      setFollowUp({ leadId: 'demo', name: buyer?.name || 'This client', step: 'active' })
+      return
+    }
+    const { data: leads } = await supabase.from('leads').select('id, full_name').eq('converted_transaction_id', id)
     for (const l of leads ?? []) {
       const { error } = await supabase.rpc('reactivate_lead', { p_lead_id: l.id })
       if (error) console.error('reactivate_lead failed', error)
     }
+    // Then ask what's next for the client, so their file and a new deal (if
+    // any) get set up right here instead of in three other places.
+    const lead = leads?.[0]
+    if (lead) setFollowUp({ leadId: lead.id, name: lead.full_name || 'This client', step: 'active' })
+  }
+
+  /** A private, dated line in the client file's "Personal details" — never
+   *  the Updates board, which the client sees and gets emailed about. */
+  async function logOnClientFile(leadId: string, text: string) {
+    if (DEMO_MODE || !supabase) return
+    const { count } = await supabase.from('lead_personal_notes')
+      .select('id', { count: 'exact', head: true }).eq('lead_id', leadId)
+    const today = new Date()
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    const { error } = await supabase.from('lead_personal_notes')
+      .insert({ lead_id: leadId, text, date_value: dateStr, sort_order: count ?? 0 })
+    if (error) console.error('personal note insert failed', error)
+  }
+
+  const cancelledAddress = data?.transaction.address_line || 'the previous property'
+
+  async function answerNotActive() {
+    if (!followUp) return
+    await logOnClientFile(followUp.leadId, `Contract on ${cancelledAddress} cancelled. Not actively looking right now.`)
+    setFollowUp({ ...followUp, step: 'done', doneText: `Noted on ${followUp.name}'s file that they're not actively looking right now. Their file is still in Active Clients. Nothing was hidden or deleted.` })
+  }
+
+  async function answerStillLooking() {
+    if (!followUp) return
+    await logOnClientFile(followUp.leadId, `Contract on ${cancelledAddress} cancelled. Still active, looking for a new home.`)
+    setFollowUp({ ...followUp, step: 'done', doneText: `${followUp.name}'s file is back to "Active" in Active Clients, ready for when they find the next home.` })
+  }
+
+  async function startNewDeal(values: { address: string; cityStateZip: string; listingUrl: string }) {
+    if (!followUp || startingNew) return
+    if (DEMO_MODE || !supabase) { setFollowUp(null); return }
+    setStartingNew(true)
+    const { data: newId, error } = await supabase.rpc('convert_lead_to_transaction', {
+      p_lead_id: followUp.leadId, p_home_id: null,
+    })
+    if (error || !newId) {
+      setStartingNew(false)
+      alert(error?.message ?? 'Could not start the new transaction.')
+      return
+    }
+    await supabase.from('transactions').update({
+      address_line: values.address,
+      city_state_zip: values.cityStateZip || null,
+      listing_url: values.listingUrl || null,
+    }).eq('id', newId)
+    await logOnClientFile(followUp.leadId, `Contract on ${cancelledAddress} cancelled. Moved on to ${values.address}.`)
+    setStartingNew(false)
+    setFollowUp(null)
+    nav(`/admin/t/${newId}`)
   }
 
   async function reactivateTransaction() {
@@ -622,6 +684,20 @@ export default function AdminTransaction() {
           )}
         </div>
       </div>
+      {followUp && (
+        <div className="admin" style={{ paddingTop: 0, paddingBottom: 0 }}>
+          <CancelFollowUp
+            followUp={followUp}
+            busy={startingNew}
+            onNotActive={answerNotActive}
+            onActive={() => setFollowUp({ ...followUp, step: 'newProperty' })}
+            onStillLooking={answerStillLooking}
+            onNewProperty={() => setFollowUp({ ...followUp, step: 'address' })}
+            onStartNew={startNewDeal}
+            onClose={() => setFollowUp(null)}
+          />
+        </div>
+      )}
       <Dashboard
         data={data}
         editable
@@ -640,6 +716,99 @@ export default function AdminTransaction() {
         {...handlers}
       />
     </>
+  )
+}
+
+interface FollowUp {
+  leadId: string
+  name: string
+  step: 'active' | 'newProperty' | 'address' | 'done'
+  doneText?: string
+}
+
+/**
+ * Asked right after a deal is cancelled: is the client still active, and
+ * have they started on a new property? Each answer updates their client
+ * file; "new property" also starts the new transaction from their file.
+ */
+function CancelFollowUp({ followUp, busy, onNotActive, onActive, onStillLooking, onNewProperty, onStartNew, onClose }: {
+  followUp: FollowUp
+  busy: boolean
+  onNotActive: () => void
+  onActive: () => void
+  onStillLooking: () => void
+  onNewProperty: () => void
+  onStartNew: (v: { address: string; cityStateZip: string; listingUrl: string }) => void
+  onClose: () => void
+}) {
+  const [address, setAddress] = useState('')
+  const [cityStateZip, setCityStateZip] = useState('')
+  const [listingUrl, setListingUrl] = useState('')
+  const q = { fontSize: 19, fontWeight: 700, textTransform: 'none' as const, letterSpacing: 'normal', color: 'var(--ink)', margin: '0 0 6px' }
+  const row = { display: 'flex', flexWrap: 'wrap' as const, gap: 9, marginTop: 14 }
+
+  return (
+    <div className="card setcard" style={{ borderColor: 'var(--gold-soft)', background: 'rgba(201,164,76,0.06)' }}>
+      {followUp.step === 'active' && (
+        <>
+          <h2 style={q}>Is {followUp.name} still an active client?</h2>
+          <p className="sethelp">This updates their client file to match.</p>
+          <div style={row}>
+            <button className="btn primary" onClick={onActive}>Yes, still active</button>
+            <button className="btn" onClick={onNotActive}>No, not right now</button>
+          </div>
+        </>
+      )}
+      {followUp.step === 'newProperty' && (
+        <>
+          <h2 style={q}>Have they started on a new property?</h2>
+          <div style={row}>
+            <button className="btn primary" onClick={onNewProperty}>Yes, a new property</button>
+            <button className="btn" onClick={onStillLooking}>Not yet, still looking</button>
+          </div>
+        </>
+      )}
+      {followUp.step === 'address' && (
+        <form onSubmit={(e) => {
+          e.preventDefault()
+          if (address.trim()) onStartNew({ address: address.trim(), cityStateZip: cityStateZip.trim(), listingUrl: listingUrl.trim() })
+        }}>
+          <h2 style={q}>What's the new property?</h2>
+          <p className="sethelp">
+            This starts a new transaction from {followUp.name}'s client file. Their
+            agent, name, phone and email carry over, and this cancelled deal stays in their Deal history.
+          </p>
+          <div className="field">
+            <label>Street address</label>
+            <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St" autoFocus />
+          </div>
+          <div className="field">
+            <label>City, state, zip</label>
+            <input value={cityStateZip} onChange={(e) => setCityStateZip(e.target.value)} placeholder="Orlando, FL 32801" />
+          </div>
+          <div className="field">
+            <label>Listing link (optional)</label>
+            <input value={listingUrl} onChange={(e) => setListingUrl(e.target.value)} placeholder="https://…" />
+          </div>
+          <div style={row}>
+            <button className="btn primary" type="submit" disabled={busy || !address.trim()}>
+              {busy ? 'Starting…' : 'Start new transaction'}
+            </button>
+            <button className="btn" type="button" onClick={onClose}>Skip for now</button>
+          </div>
+        </form>
+      )}
+      {followUp.step === 'done' && (
+        <>
+          <h2 style={q}>Client file updated</h2>
+          <p className="sethelp">{followUp.doneText}</p>
+          <div style={row}>
+            <Link className="btn primary" to={`/admin/leads/${followUp.leadId}`}>Open their client file</Link>
+            <button className="btn" onClick={onClose}>Done</button>
+          </div>
+        </>
+      )}
+    </div>
   )
 }
 

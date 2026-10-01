@@ -182,6 +182,15 @@ client file pointing at the deal, so "Convert to transaction" works for their
 next deal (the old one stays in Deal history). **Not `archived_at`** —
 `get_shared_transaction` refuses archived deals, so her own editing page
 couldn't open one again.
+Right after cancelling, if a client file pointed at the deal, a card on the
+same page asks "Is <client> still an active client?" then "Have they started
+on a new property?" (`CancelFollowUp` in `AdminTransaction.tsx`). "New
+property" takes an address and runs `convert_lead_to_transaction` from their
+file, then opens the new deal. Every answer leaves a dated line in the file's
+**Personal details** (`lead_personal_notes`), never the Updates board
+(`lead_notes`), because that board is client-visible and emails the client on
+every insert. "Not active" does not archive the file: archiving hides it with
+no way back in the app and turns off their client link.
 
 ## Agent Recruiting (recruiting/training/mentorship)
 
