@@ -91,6 +91,11 @@ hid all of them. Migration 078 reinstalls 023's policy. Lesson: deleting a
 off; and check her real database (SQL Editor, impersonating with
 `request.jwt.claims` + `set local role authenticated`) before trusting that a
 migration file reflects what's live.
+Settings › Team now warns before removing an entry that someone signs in
+with, that "sees every transaction", or that is assigned to deals, and tags
+entries linked to a sign-in "Signs in" so she keeps the right duplicate.
+Never put `begin … rollback` in the same SQL Editor paste as a fix: the
+editor runs the paste as one batch, so the rollback undid 078 the first time.
 
 **Do not remove RLS policies.** Every table is locked to the user's team. Turning
 that off means her whole business is readable by anyone with the app's public key.
