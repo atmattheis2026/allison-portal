@@ -381,6 +381,11 @@ run, the page falls back to 081's shared `starred` column.
 A **Color key** sits under the search row (`.clientkey`, a `<details>`): open
 on a computer, one tap-to-open line on a phone. It uses the real dot, chip
 and star styles, so keep it in step if a color changes.
+Buyer broker agreement is color coded on each card (first thing on line 2, so
+a phone never cuts it off): green "Broker agmt ✓", amber "Broker agmt ends
+<date>" within 30 days of `buyer_broker_expires`, red-orange "No broker agmt"
+or "Broker agmt expired". Not shown for loan-only or under-contract clients.
+The follow-up date chips were taken out of the key (Allison: cluttered).
 
 ## Agent Recruiting (recruiting/training/mentorship)
 

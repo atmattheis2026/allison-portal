@@ -444,6 +444,15 @@ export default function AdminLeads() {
     const band = leadTimeframeBand(r)
     const due = isDue(r)
     const notes = latestNotes[r.id] ?? []
+    // Buyer broker agreement, color coded: green signed, amber ending within
+    // 30 days, red-orange missing or expired. First on the line so a phone
+    // never cuts it off.
+    const broker = !r.wants_buying || underContract ? null
+      : !r.buyer_broker_signed ? { tone: 'no', text: 'No broker agmt' }
+      : r.buyer_broker_expires && parseDate(r.buyer_broker_expires) < today ? { tone: 'no', text: 'Broker agmt expired' }
+      : r.buyer_broker_expires && parseDate(r.buyer_broker_expires).getTime() - today.getTime() <= 30 * 86400000
+        ? { tone: 'soon', text: `Broker agmt ends ${parseDate(r.buyer_broker_expires).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` }
+      : { tone: 'ok', text: 'Broker agmt ✓' }
     return (
       <div className={`clientcard${due ? ' due' : ''}${isMine(r) ? ' starred' : ''}${dropAt?.id === r.id ? (dropAt.after ? ' dropafter' : ' dropbefore') : ''}`} key={r.id}
            draggable={hasStages && (!underContract || hasOrder)}
@@ -484,10 +493,10 @@ export default function AdminLeads() {
                   ★ {stars[r.id].map((st) => initials(st.profile_id === me.id ? me.name : st.author_name)).join(', ')}{' · '}
                 </span>
               )}
+          {broker && <><span className={`brokertag ${broker.tone}`}>{broker.text}</span>{' · '}</>}
           {[agentName(r.realtor_member_id) ?? 'No agent',
             r.wants_buying && r.wants_loan ? 'Buyer + loan' : r.wants_loan ? 'Loan' : 'Buyer',
             r.wants_loan && r.loan_status ? r.loan_status : null,
-            r.wants_buying && !underContract ? (r.buyer_broker_signed ? 'Broker agmt ✓' : 'No broker agmt') : null,
           ].filter(Boolean).join(' · ')}
         </div>
 
@@ -616,6 +625,11 @@ export default function AdminLeads() {
               <span><span className="starbtn on keystar">★</span>Your favorite</span>
               <span><span className="starbtn others keystar">★</span>Teammate's (initials show whose)</span>
               <span><span className="keyswatch" style={{ background: UNDER_CONTRACT_COLOR }} />Under contract</span>
+              <span>Broker agmt:
+                <span className="brokertag ok">signed</span>·
+                <span className="brokertag soon">ends within 30 days</span>·
+                <span className="brokertag no">missing or expired</span>
+              </span>
             </div>
           </details>
           {dueCount > 0 && (
