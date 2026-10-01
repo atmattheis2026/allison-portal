@@ -624,7 +624,6 @@ export default function AdminLeads() {
               ))}
               <span><span className="starbtn on keystar">★</span>Your favorite</span>
               <span><span className="starbtn others keystar">★</span>Teammate's (initials show whose)</span>
-              <span><span className="keyswatch" style={{ background: UNDER_CONTRACT_COLOR }} />Under contract</span>
               <span>BBA:
                 <span className="brokertag ok">signed</span>·
                 <span className="brokertag soon">ends within 30 days</span>·
