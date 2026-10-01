@@ -96,6 +96,11 @@ with, that "sees every transaction", or that is assigned to deals, and tags
 entries linked to a sign-in "Signs in" so she keeps the right duplicate.
 Never put `begin … rollback` in the same SQL Editor paste as a fix: the
 editor runs the paste as one batch, so the rollback undid 078 the first time.
+Agent/lender pickers (deal + client file) list the people tagged for the job
+first, then "Others on your team" (everyone else), so the right person can
+always be picked even if their tags are wrong. **Broker associate counts as
+an agent and mortgage broker as a lender** (Allison, 2026-10-01); picking
+someone sets the deal's realtor/lender title to match their tag.
 
 **Do not remove RLS policies.** Every table is locked to the user's team. Turning
 that off means her whole business is readable by anyone with the app's public key.

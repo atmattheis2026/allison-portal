@@ -735,7 +735,13 @@ function TeamCards({
   const realtorLabel = realtorTitle === 'broker_associate' ? 'Broker Associate' : 'Realtor'
   const lenderLabel = lenderTitle === 'mortgage_broker' ? 'Mortgage Broker' : 'Loan Officer'
   const hasLender = Boolean(lender?.name)
-  const agents = pickerList(roster, realtorMemberId, (m) => m.roles.includes('realtor'))
+  // Everyone else on the team, for when the right person isn't tagged for
+  // the job (2026-10-01: Ryan's tagged entry was deleted as a "duplicate",
+  // and the copy left wasn't tagged Agent, so he couldn't be re-picked).
+  const others = (picked: TeamMember[]) => pickerList(roster, null, () => true)
+    .filter((m) => !picked.some((p) => p.id === m.id
+      || (p.full_name || '').trim().toLowerCase() === (m.full_name || '').trim().toLowerCase()))
+  const agents = pickerList(roster, realtorMemberId, (m) => m.roles.includes('realtor') || m.roles.includes('broker_associate'))
   const loanPeople = pickerList(roster, lenderMemberId, (m) =>
     m.roles.includes('loan_officer') || m.roles.includes('mortgage_broker'))
   if (hideRealtor && !hasLender && !editable) return null
@@ -764,12 +770,24 @@ function TeamCards({
               className="name"
               style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', padding: 0 }}
               value={realtorMemberId ?? ''}
-              onChange={(e) => onChangeRealtor?.(e.target.value || null)}
+              onChange={(e) => {
+                const id = e.target.value || null
+                onChangeRealtor?.(id)
+                // The title follows the person: a broker associate shows as one.
+                const r = roster?.find((m) => m.id === id)?.roles ?? []
+                if (r.includes('broker_associate') && !r.includes('realtor')) onPatch?.({ realtor_title: 'broker_associate' })
+                else if (r.includes('realtor') && !r.includes('broker_associate')) onPatch?.({ realtor_title: 'realtor' })
+              }}
             >
               <option value="">Choose a realtor…</option>
               {agents.map((m) => (
                 <option key={m.id} value={m.id}>{m.full_name || 'Unnamed'}</option>
               ))}
+              {others(agents).length > 0 && (
+                <optgroup label="Others on your team">
+                  {others(agents).map((m) => <option key={m.id} value={m.id}>{m.full_name || 'Unnamed'}</option>)}
+                </optgroup>
+              )}
             </select>
             {realtor?.license_number && <div className="lic">{realtor.license_number}</div>}
             {!agents.length && (
@@ -815,12 +833,23 @@ function TeamCards({
               className="name"
               style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', padding: 0 }}
               value={lenderMemberId ?? ''}
-              onChange={(e) => { if (e.target.value) onPickLender?.(e.target.value) }}
+              onChange={(e) => {
+                if (!e.target.value) return
+                onPickLender?.(e.target.value)
+                const r = roster?.find((m) => m.id === e.target.value)?.roles ?? []
+                if (r.includes('mortgage_broker') && !r.includes('loan_officer')) onPatch?.({ lender_title: 'mortgage_broker' })
+                else if (r.includes('loan_officer') && !r.includes('mortgage_broker')) onPatch?.({ lender_title: 'loan_officer' })
+              }}
             >
               <option value="">Choose from your team…</option>
               {loanPeople.map((m) => (
                 <option key={m.id} value={m.id}>{m.full_name || 'Unnamed'}</option>
               ))}
+              {others(loanPeople).length > 0 && (
+                <optgroup label="Others on your team">
+                  {others(loanPeople).map((m) => <option key={m.id} value={m.id}>{m.full_name || 'Unnamed'}</option>)}
+                </optgroup>
+              )}
             </select>
             {lender.license && <div className="lic">{lender.license}</div>}
             {lender.company && <div className="lic">{lender.company}</div>}
@@ -1668,7 +1697,7 @@ function DeskTeamCard({ summary, children }: { summary: string; children: ReactN
           {!open && <div className="dteamsum">{summary}</div>}
         </div>
         <button type="button" className="btn" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-          {open ? 'Done' : 'Change'}
+          {open ? 'Done' : 'Change agent / lender'}
         </button>
       </div>
       {open && <div style={{ marginTop: 12 }}>{children}</div>}
