@@ -514,3 +514,8 @@ input.inlineEdit.statusNote { font-size: 14.5px; color: var(--ink-dim); max-widt
 .ddetails { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .desk .ddetails .sec > .sechdr { padding: 14px 18px; }
 .desk .disclaimers { margin-top: 24px; }
+
+.dteamhdr { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.desk .dteam .dteamhdr .cardtitle { margin-bottom: 2px; }
+.dteamsum { font-size: 14.5px; color: var(--ink-dim); }
+.dteamhdr .btn { flex: none; font-size: 14px; padding: 4px 12px; min-height: 0; }

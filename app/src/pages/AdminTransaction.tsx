@@ -909,12 +909,31 @@ function AssignedTo({ roster, assignedIds, onToggle, compact }: {
   /** Desk layout: just the chips, inside the "On this deal" card. */
   compact?: boolean
 }) {
+  // Rarely changed, so on the stacked layout it's one line until she clicks
+  // Change (the desk layout folds the whole "On this deal" card instead).
+  const [open, setOpen] = useState(false)
   if (roster.length === 0) return null
+  if (!compact && !open) {
+    const names = roster.filter((m) => assignedIds.has(m.id) || m.sees_all_transactions)
+      .map((m) => m.full_name || 'Unnamed')
+    return (
+      <div className="card setcard" style={{ marginBottom: 16, display: 'flex', alignItems: 'center',
+                                             justifyContent: 'space-between', gap: 12, padding: '12px 18px' }}>
+        <span style={{ fontSize: 15.5, color: 'var(--ink-dim)', minWidth: 0 }}>
+          <strong>Assigned to:</strong> {names.length ? names.join(', ') : 'no one yet'}
+        </span>
+        <button type="button" className="btn" style={{ flex: 'none' }} onClick={() => setOpen(true)}>Change</button>
+      </div>
+    )
+  }
   return (
     <div className={compact ? undefined : 'card setcard'} style={compact ? { marginTop: 14 } : { marginBottom: 16 }}>
       {compact
         ? <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink-dim)', marginBottom: 8 }}>Who can see this deal</div>
-        : <h2>Assigned to</h2>}
+        : <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <h2>Assigned to</h2>
+            <button type="button" className="btn" onClick={() => setOpen(false)}>Done</button>
+          </div>}
       <p className="sethelp" style={{ marginBottom: 12, ...(compact ? { display: 'none' } : {}) }}>
         Only people checked here (or anyone marked "sees every transaction" in
         Settings › Team) will see this deal.

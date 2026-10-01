@@ -1621,8 +1621,9 @@ function DeskLayout({
         )}
         <div className="dside">
           {sides.length > 0 && <UpdatesTabs sides={sides} notes={notes} onAdd={h.onAddNote} />}
-          <div className="card dteam">
-            <h3 className="cardtitle">On this deal</h3>
+          <DeskTeamCard
+            summary={[!isLoanOnly && `Agent: ${realtor?.full_name || 'not chosen'}`,
+                      `Lender: ${lenderName || 'not chosen'}`].filter(Boolean).join(' · ')}>
             <TeamCards realtor={realtor} lender={tx.lender} roster={roster}
                        realtorMemberId={tx.realtor_member_id} lenderMemberId={tx.lender_member_id}
                        hideRealtor={isLoanOnly}
@@ -1631,7 +1632,7 @@ function DeskLayout({
                        onChangeRealtor={h.onChangeRealtor}
                        onPickLender={h.onPickLender} />
             {deskSide}
-          </div>
+          </DeskTeamCard>
         </div>
       </div>
 
@@ -1651,6 +1652,26 @@ function DeskLayout({
       </div>
 
       <Disclaimers brands={brands} />
+    </div>
+  )
+}
+
+/** Agent, lender and who can see the deal: set once, rarely changed, so it
+ *  stays folded to one line until she clicks Change (Allison, 2026-10-01). */
+function DeskTeamCard({ summary, children }: { summary: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="card dteam">
+      <div className="dteamhdr">
+        <div style={{ minWidth: 0 }}>
+          <h3 className="cardtitle">On this deal</h3>
+          {!open && <div className="dteamsum">{summary}</div>}
+        </div>
+        <button type="button" className="btn" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+          {open ? 'Done' : 'Change'}
+        </button>
+      </div>
+      {open && <div style={{ marginTop: 12 }}>{children}</div>}
     </div>
   )
 }
