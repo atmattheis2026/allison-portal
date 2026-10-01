@@ -189,3 +189,39 @@
 .rolochip > span { color: var(--ink-dim); padding-right: 6px; }
 .rolodel { width: 20px; height: 20px; border-radius: 50%; font-size: 11px; color: var(--ink-faint); display: grid; place-items: center; }
 .rolodel:hover { color: var(--danger); background: var(--panel); }
+
+/* Clients page: three columns (AdminLeads). Stacked on a phone. */
+.clientboard { display: grid; gap: 16px; padding: 0 24px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 1000px) { .clientboard { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.clientcol { background: var(--panel-2); border: 1px solid var(--line-soft); border-top: 4px solid var(--gold-soft);
+             border-radius: var(--r-lg); padding: 12px 12px 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.clientcol.nurture { border-top-color: #7FA48A; }
+.clientcolhdr { margin: 0; font-size: 18px; font-weight: 700; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.clientcount { font-size: 13.5px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; color: var(--ink-dim); }
+.clientcolhelp { margin: -4px 0 2px; font-size: 14px; color: var(--ink-faint); }
+.clientcard { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-md); padding: 11px 13px;
+              display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.clientcard.due { border-color: #E2B866; box-shadow: inset 4px 0 0 #E2B866; }
+.clienttop { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.clientdot { flex: none; width: 12px; height: 12px; border-radius: 50%; }
+.clientname { flex: 1; min-width: 0; font-family: var(--serif); font-size: 21px; line-height: 1.15; color: var(--ink);
+              text-decoration: none; overflow: hidden; text-overflow: ellipsis; }
+.clientname:hover { color: var(--gold-bright); }
+.clientstage { flex: none; width: auto; font-size: 13.5px; padding: 3px 6px; border-radius: 999px; }
+.clientmeta { font-size: 14px; color: var(--ink-dim); line-height: 1.45; }
+.clientcomm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14.5px; font-weight: 700; color: var(--ok); }
+.clientfollow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.clientfollow input[type=date] { width: auto; font-size: 13.5px; padding: 3px 6px; }
+.followlabel { font-size: 13px; font-weight: 700; color: var(--ink-faint); }
+.followlabel.due { color: #8A5A12; }
+.followwhat { flex: 1 1 140px; min-width: 0; font-size: 14px; padding: 4px 8px; }
+.clientnotes { display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: inherit;
+               border-top: 1px solid var(--line-soft); padding-top: 7px; }
+.clientnote { font-size: 14.5px; line-height: 1.4; color: var(--ink); display: -webkit-box; -webkit-line-clamp: 3;
+              -webkit-box-orient: vertical; overflow: hidden; white-space: pre-line; }
+.clientnotewhen { display: block; font-size: 12.5px; font-weight: 700; color: var(--ink-faint); }
+.clientacts { display: flex; gap: 14px; }
+.linkbtn { font-size: 13.5px; color: var(--ink-faint); padding: 0; }
+.linkbtn:hover { color: var(--gold-bright); text-decoration: underline; }
+.linkbtn.danger:hover { color: var(--danger); }
+.clientinactive { display: grid; gap: 10px; margin-top: 10px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }

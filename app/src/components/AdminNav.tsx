@@ -49,7 +49,7 @@ export default function AdminNav({ current }: {
   const items: { key: typeof current; label: string; to: string }[] = [
     ...(canSeeHomePage ? [{ key: 'resources' as const, label: 'Resource Library', to: '/admin/resources' }] : []),
     { key: 'transactions', label: 'Transactions', to: '/admin' },
-    { key: 'leads', label: 'Active Clients', to: '/admin/leads' },
+    { key: 'leads', label: 'Clients', to: '/admin/leads' },
     { key: 'closed', label: 'Closed', to: '/admin/closed' },
     ...(canSeeRolodex ? [{ key: 'rolodex' as const, label: 'Rolodex', to: '/admin/rolodex' }] : []),
     { key: 'network', label: 'Agent Recruiting', to: '/admin/network' },
@@ -142,7 +142,7 @@ function useSideFileLists(enabled: boolean): FileLists | null {
           .eq('team_id', team).is('archived_at', null).order('created_at', { ascending: false }),
         supabase!.from('leads')
           .select('id, full_name, full_name_2, lead_status, phone')
-          .eq('team_id', team).is('archived_at', null).neq('lead_status', 'closed').order('full_name'),
+          .eq('team_id', team).is('archived_at', null).not('lead_status', 'in', '(closed,inactive)').order('full_name'),
         supabase!.from('resource_folders').select('id, name, category, parent_folder_id')
           .eq('team_id', team).order('name'),
         supabase!.from('resources').select('id, title, file_name, file_url, url, folder_id')

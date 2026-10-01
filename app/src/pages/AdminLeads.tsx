@@ -15,6 +15,17 @@ const BAND_SORT_RANK: Record<TimeframeBand, number> = { orange: 0, yellow: 1, gr
 // accent — under contract is a different kind of status, not an urgency level.
 const UNDER_CONTRACT_COLOR = '#3b82f6'
 
+// The Clients page's three columns (Allison, 2026-10-01). Under contract is
+// automatic (a deal exists); Upcoming and Nurture she sets per client.
+// Inactive sits below the board, folded away.
+const COLUMNS = [
+  { key: 'under_contract', label: 'Under contract', help: 'Has an open deal. Moves here on its own.' },
+  { key: 'active', label: 'Upcoming', help: 'Actively looking, buying soon.' },
+  { key: 'nurture', label: 'Nurture', help: '6+ months out. Keep in touch with follow-ups.' },
+] as const
+function columnFor(r: Lead): string { return r.lead_status === 'under_contract' ? 'under_contract' : r.lead_status }
+function parseDate(d: string) { const [y, m, day] = d.split('-').map(Number); return new Date(y, m - 1, day) }
+
 type SortMode = 'recent' | 'name' | 'broker_signed' | 'broker_expires' | 'color' | 'comms'
 
 interface Comm { at: string; text: string; kind: 'referral' | 'showing' | 'offer'; id: string }
@@ -38,7 +49,9 @@ export default function AdminLeads() {
   const [referrals, setReferrals] = useState<ReferralRow[]>([])
   const [showings, setShowings] = useState<ShowingRow[]>([])
   const [offers, setOffers] = useState<OfferRow[]>([])
-  const [latestNotes, setLatestNotes] = useState<Record<string, LatestNote>>({})
+  const [latestNotes, setLatestNotes] = useState<Record<string, LatestNote[]>>({})
+  const [showInactive, setShowInactive] = useState(false)
+  const [stageError, setStageError] = useState<string | null>(null)
   const [resolvingId, setResolvingId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
@@ -90,9 +103,10 @@ export default function AdminLeads() {
           .select('lead_id, author_name, body, created_at')
           .in('lead_id', leadIds)
           .order('created_at', { ascending: false })
-        const latest: Record<string, LatestNote> = {}
+        const latest: Record<string, LatestNote[]> = {}
         for (const n of (noteData as LatestNote[]) ?? []) {
-          if (!latest[n.lead_id]) latest[n.lead_id] = n
+          const list = (latest[n.lead_id] ??= [])
+          if (list.length < 2) list.push(n)
         }
         setLatestNotes(latest)
       }
@@ -225,6 +239,114 @@ export default function AdminLeads() {
 
   if (!rows || !sortedRows) return <div className="centered"><div className="spinner" /></div>
 
+  // 079 adds next_followup; without it, stages other than the automatic
+  // ones can't save, so the controls hide and the page says what to run.
+  const hasStages = rows.length === 0 || 'next_followup' in rows[0]
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const isDue = (r: Lead) => Boolean(r.next_followup) && parseDate(r.next_followup!) <= today
+  const dueCount = rows.filter((r) => r.lead_status !== 'inactive' && isDue(r)).length
+  const inactiveRows = sortedRows.filter((r) => r.lead_status === 'inactive')
+  // Follow-ups that are due first, then the soonest scheduled, then the rest.
+  const byFollowup = (a: Lead, b: Lead) => {
+    const fa = a.next_followup ?? '9999', fb = b.next_followup ?? '9999'
+    return fa.localeCompare(fb)
+  }
+
+  async function patchRow(id: string, values: Partial<Lead>) {
+    setStageError(null)
+    setRows((cur) => cur?.map((r) => (r.id === id ? { ...r, ...values } : r)) ?? cur)
+    if (DEMO_MODE || !supabase) return
+    const { error } = await supabase.from('leads').update(values).eq('id', id)
+    if (error) setStageError(error.message)
+  }
+
+  function renderCard(r: Lead) {
+    const underContract = r.lead_status === 'under_contract'
+    const band = leadTimeframeBand(r)
+    const due = isDue(r)
+    const notes = latestNotes[r.id] ?? []
+    return (
+      <div className={`clientcard${due ? ' due' : ''}`} key={r.id}>
+        <div className="clienttop">
+          {!underContract && band && (
+            <span title={TIMEFRAME_BAND_LABEL[band]} className="clientdot" style={{ background: TIMEFRAME_BAND_COLOR[band] }} />
+          )}
+          <Link to={`/admin/leads/${r.id}`} className="clientname">
+            {r.full_name || 'Unnamed client'}{r.full_name_2 ? ` & ${r.full_name_2}` : ''}
+          </Link>
+          {!underContract && hasStages && (
+            <select className="clientstage" value={r.lead_status} aria-label="Move to"
+                    onChange={(e) => patchRow(r.id, { lead_status: e.target.value as Lead['lead_status'] })}>
+              <option value="active">Upcoming</option>
+              <option value="nurture">Nurture</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          )}
+        </div>
+        <div className="clientmeta">
+          {[agentName(r.realtor_member_id) ?? 'No agent',
+            r.wants_buying && r.wants_loan ? 'Buyer + loan' : r.wants_loan ? 'Loan' : 'Buyer',
+            r.wants_loan && r.loan_status ? r.loan_status : null].filter(Boolean).join(' · ')}
+          {r.wants_buying && !underContract && (
+            <div>{r.buyer_broker_signed
+              ? `Buyer broker signed ${r.buyer_broker_signed_date ? daysAgo(r.buyer_broker_signed_date) : ''}`
+                + (r.buyer_broker_expires ? ` · expires ${new Date(r.buyer_broker_expires + 'T00:00:00').toLocaleDateString()}` : '')
+              : 'Buyer broker not signed'}</div>
+          )}
+        </div>
+
+        {comms[r.id] && (
+          <div className="clientcomm">
+            <span>{comms[r.id].text} · {commWhen(comms[r.id].at)}</span>
+            <button type="button" className="linkbtn" disabled={resolvingId === comms[r.id].id}
+                    onClick={() => resolveComm(comms[r.id])}>
+              {resolvingId === comms[r.id].id ? 'Marking…' : 'Mark handled'}
+            </button>
+          </div>
+        )}
+
+        {hasStages && (
+          <div className="clientfollow">
+            <span className={`followlabel${due ? ' due' : ''}`}>
+              {due ? (parseDate(r.next_followup!) < today ? 'Overdue' : 'Due today') : 'Follow up'}
+            </span>
+            <input type="date" value={r.next_followup ?? ''} aria-label="Follow-up date"
+                   onChange={(e) => patchRow(r.id, { next_followup: e.target.value || null })} />
+            <input className="followwhat" defaultValue={r.followup_note ?? ''} key={`fn-${r.id}-${r.followup_note ?? ''}`}
+                   placeholder="What for? (just for you)"
+                   onBlur={(e) => { if ((e.target.value || null) !== (r.followup_note ?? null)) patchRow(r.id, { followup_note: e.target.value || null }) }}
+                   onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }} />
+            {r.next_followup && (
+              <button type="button" className="linkbtn" title="Clear the follow-up"
+                      onClick={() => patchRow(r.id, { next_followup: null, followup_note: null })}>Done</button>
+            )}
+          </div>
+        )}
+
+        {notes.length > 0 && (
+          <Link to={`/admin/leads/${r.id}`} className="clientnotes">
+            {notes.map((n, i) => (
+              <span key={i} className="clientnote">
+                <span className="clientnotewhen">{commWhen(n.created_at)}{n.author_name ? ` · ${n.author_name}` : ''}</span>
+                {n.body}
+              </span>
+            ))}
+          </Link>
+        )}
+
+        <div className="clientacts">
+          <button type="button" className="linkbtn" onClick={() => copyLink(r.share_token)}>
+            {copied === r.share_token ? 'Copied' : 'Copy client link'}
+          </button>
+          {isDatabaseManager && (
+            <button type="button" className="linkbtn danger" onClick={() => deleteLead(r)}
+                    title="Permanently delete this file">Delete</button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="admin">
       {DEMO_MODE && (
@@ -234,7 +356,7 @@ export default function AdminLeads() {
       )}
 
       <header className="adminbar">
-        <span className="wordmark" style={{ fontSize: 17.5 }}>Active Clients</span>
+        <span className="wordmark" style={{ fontSize: 17.5 }}>Clients</span>
         <nav className="adminnav">
           <button className="btn primary" onClick={() => setCreating(true)}>
             New client
@@ -253,8 +375,8 @@ export default function AdminLeads() {
 
       {rows.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 24px 12px' }}>
-          <label className="muted" style={{ fontSize: 15.5 }}>Sort by</label>
-          <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
+          <label className="muted" style={{ fontSize: 15.5, whiteSpace: 'nowrap' }}>Sort by</label>
+          <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)} style={{ width: 'auto', maxWidth: '100%' }}>
             <option value="recent">Recently added</option>
             <option value="name">Name (A–Z)</option>
             <option value="broker_signed">Buyer broker signed date (oldest first)</option>
@@ -269,108 +391,56 @@ export default function AdminLeads() {
         <div className="centered">
           <div style={{ maxWidth: 360 }}>
             <p className="muted" style={{ lineHeight: 1.7 }}>
-              No active buyers yet. Add one and you'll get a link you can text
+              No clients yet. Add one and you'll get a link you can text
               straight to them — appointments, homes you're showing, and their
               must-haves, all in one place.
             </p>
           </div>
         </div>
       ) : (
-        <div className="txlist">
-          {sortedRows.map((r) => {
-            const band = leadTimeframeBand(r)
-            const underContract = r.lead_status === 'under_contract'
-            const borderColor = underContract ? UNDER_CONTRACT_COLOR : band ? TIMEFRAME_BAND_COLOR[band] : undefined
-            return (
-              <div className="txcard" key={r.id}
-                   style={borderColor ? { borderLeft: `5px solid ${borderColor}` } : undefined}>
-                <Link to={`/admin/leads/${r.id}`} className="txmain" style={{ flex: '0 1 340px', minWidth: 220 }}>
-                  {underContract ? (
-                    <span
-                      title="Under contract"
-                      style={{
-                        flex: 'none', width: 18, height: 18, borderRadius: '50%',
-                        background: UNDER_CONTRACT_COLOR,
-                        boxShadow: `0 0 0 3px ${UNDER_CONTRACT_COLOR}33`,
-                      }}
-                    />
-                  ) : band && (
-                    <span
-                      title={TIMEFRAME_BAND_LABEL[band]}
-                      style={{
-                        flex: 'none', width: 18, height: 18, borderRadius: '50%',
-                        background: TIMEFRAME_BAND_COLOR[band],
-                        boxShadow: `0 0 0 3px ${TIMEFRAME_BAND_COLOR[band]}33`,
-                      }}
-                    />
-                  )}
-                  <div className="txinfo">
-                    <div className="txaddr">{r.full_name || 'Unnamed buyer'}</div>
-                    <div className="txcity">{agentName(r.realtor_member_id) ?? 'No agent assigned'}</div>
-                    <div className="txmeta">
-                      {underContract ? (
-                        <span className="tag" style={{ borderColor: UNDER_CONTRACT_COLOR, color: UNDER_CONTRACT_COLOR, fontWeight: 700 }}>
-                          UNDER CONTRACT
-                        </span>
-                      ) : (
-                        <span className="tag">
-                          {r.wants_buying && r.wants_loan ? 'Buyer + Loan' : r.wants_loan ? 'Loan client' : 'Buyer'}
-                        </span>
-                      )}
-                      {r.wants_buying && (
-                        r.buyer_broker_signed
-                          ? <span className="muted">
-                              Buyer broker signed
-                              {r.buyer_broker_signed_date && ` ${daysAgo(r.buyer_broker_signed_date)}`}
-                              {r.buyer_broker_expires && ` — expires ${new Date(r.buyer_broker_expires + 'T00:00:00').toLocaleDateString()}`}
-                            </span>
-                          : <span className="muted">Buyer broker not signed</span>
-                      )}
-                      {r.wants_loan && r.loan_status && (
-                        <span className="muted">{r.loan_status}</span>
-                      )}
-                    </div>
-                  </div>
-                </Link>
-                {comms[r.id] && (
-                  <div className="txcomm">
-                    <div className="txcommtext">{comms[r.id].text}</div>
-                    <div className="txcommfoot">
-                      <span className="txcommwhen">{commWhen(comms[r.id].at)}</span>
-                      <button
-                        type="button" className="btn" style={{ flex: 'none' }}
-                        disabled={resolvingId === comms[r.id].id}
-                        onClick={() => resolveComm(comms[r.id])}
-                      >
-                        {resolvingId === comms[r.id].id ? 'Marking…' : 'Mark handled'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                <div style={{ display: 'flex', gap: 14, marginLeft: 'auto', flex: 'none' }}>
-                  <button className="btn" onClick={() => copyLink(r.share_token)}>
-                    {copied === r.share_token ? 'Copied' : 'Copy client link'}
-                  </button>
-                  {isDatabaseManager && (
-                    <button className="btn" style={{ color: 'var(--danger, #cc3311)' }}
-                            onClick={() => deleteLead(r)} title="Permanently delete this file">
-                      Delete
-                    </button>
-                  )}
-                </div>
-                {latestNotes[r.id] && (
-                  <Link to={`/admin/leads/${r.id}`} className="txlastnote">
-                    <span className="txlastnotelabel">
-                      Last update · {commWhen(latestNotes[r.id].created_at)}
-                      {latestNotes[r.id].author_name && ` · ${latestNotes[r.id].author_name}`}
-                    </span>
-                    <span className="txlastnotebody">{latestNotes[r.id].body}</span>
-                  </Link>
-                )}
-              </div>
-            )
-          })}
-        </div>
+        <>
+          {!hasStages && (
+            <p className="sethelp" style={{ margin: '0 24px 14px', color: 'var(--danger)', fontWeight: 600, overflowWrap: 'anywhere' }}>
+              One database step turns on Nurture and follow-up dates: in Supabase's SQL Editor, run
+              supabase/migrations/079_client_stages_and_followups.sql, then reload this page.
+            </p>
+          )}
+          {stageError && (
+            <p className="sethelp" style={{ margin: '0 24px 14px', color: 'var(--danger)', fontWeight: 600 }}>
+              That change didn't save: {stageError}
+            </p>
+          )}
+          {dueCount > 0 && (
+            <p style={{ margin: '0 24px 12px', fontWeight: 700, color: '#8A5A12' }}>
+              {dueCount} follow-up{dueCount === 1 ? '' : 's'} due today or overdue
+            </p>
+          )}
+          <div className="clientboard">
+            {COLUMNS.map((col) => {
+              const list = sortedRows.filter((r) => columnFor(r) === col.key)
+              const ordered = col.key === 'under_contract' ? list : [...list].sort(byFollowup)
+              return (
+                <section key={col.key} className={`clientcol ${col.key}`}
+                         style={col.key === 'under_contract' ? { borderTopColor: UNDER_CONTRACT_COLOR } : undefined}>
+                  <h2 className="clientcolhdr">
+                    {col.label} <span className="clientcount">{list.length}</span>
+                  </h2>
+                  <p className="clientcolhelp">{col.help}</p>
+                  {ordered.length === 0 && <p className="muted" style={{ fontSize: 14.5, margin: '6px 2px' }}>No one here right now.</p>}
+                  {ordered.map(renderCard)}
+                </section>
+              )
+            })}
+          </div>
+          {inactiveRows.length > 0 && (
+            <div style={{ padding: '18px 24px 0' }}>
+              <button type="button" className="btn" onClick={() => setShowInactive((v) => !v)}>
+                {showInactive ? 'Hide inactive' : `Inactive (${inactiveRows.length})`}
+              </button>
+              {showInactive && <div className="clientinactive">{inactiveRows.map(renderCard)}</div>}
+            </div>
+          )}
+        </>
       )}
     </div>
   )

@@ -647,13 +647,22 @@ export default function AdminTransaction() {
   async function answerNotActive() {
     if (!followUp) return
     await logOnClientFile(followUp.leadId, `Contract on ${cancelledAddress} cancelled. Not actively looking right now.`)
-    setFollowUp({ ...followUp, step: 'done', doneText: `Noted on ${followUp.name}'s file that they're not actively looking right now. Their file is still in Active Clients. Nothing was hidden or deleted.` })
+    // Moves them to the Nurture column (needs migration 079; without it the
+    // update is refused and they simply stay in Upcoming).
+    let nurtured = false
+    if (!DEMO_MODE && supabase) {
+      const { error } = await supabase.from('leads').update({ lead_status: 'nurture' }).eq('id', followUp.leadId)
+      nurtured = !error
+    }
+    setFollowUp({ ...followUp, step: 'done', doneText: nurtured
+      ? `${followUp.name} moved to Nurture on the Clients page, with a note on their file. Set a follow-up date there so they don't slip through.`
+      : `Noted on ${followUp.name}'s file that they're not actively looking right now. Their file is still on the Clients page. Nothing was hidden or deleted.` })
   }
 
   async function answerStillLooking() {
     if (!followUp) return
     await logOnClientFile(followUp.leadId, `Contract on ${cancelledAddress} cancelled. Still active, looking for a new home.`)
-    setFollowUp({ ...followUp, step: 'done', doneText: `${followUp.name}'s file is back to "Active" in Active Clients, ready for when they find the next home.` })
+    setFollowUp({ ...followUp, step: 'done', doneText: `${followUp.name} is back in Upcoming on the Clients page, ready for when they find the next home.` })
   }
 
   async function startNewDeal(values: { address: string; cityStateZip: string; listingUrl: string }) {

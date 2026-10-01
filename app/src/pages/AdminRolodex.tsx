@@ -144,8 +144,8 @@ export default function AdminRolodex() {
       name: l.full_name,
       phone: l.phone,
       email: l.email,
-      roleLabel: 'Active client',
-      context: 'Active Clients',
+      roleLabel: 'Client',
+      context: 'Clients',
       href: `/admin/leads/${l.id}`,
       isClient: true,
     }))
