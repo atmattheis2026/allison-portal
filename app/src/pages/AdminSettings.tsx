@@ -483,8 +483,29 @@ function Team() {
   const update = (id: string, patch: Partial<TeamMember>) =>
     setMembers(members.map((m) => (m.id === id ? { ...m, ...patch } : m)))
 
-  const remove = (id: string) => {
-    setMembers(members.filter((m) => m.id !== id))
+  // Removing a team entry also removes every deal it's assigned to and, if
+  // someone signs in with it, what that person can see. On 2026-10-01
+  // deleting a duplicate "Allison Mattheis" hid every deal from her, so this
+  // spells that out before it happens.
+  const remove = async (id: string) => {
+    const m = members.find((x) => x.id === id)
+    if (m && !id.startsWith('new-')) {
+      let assigned = 0
+      if (supabase && !DEMO_MODE) {
+        const { count } = await supabase.from('transaction_assignees')
+          .select('team_member_id', { count: 'exact', head: true }).eq('team_member_id', id)
+        assigned = count ?? 0
+      }
+      const warnings = [
+        m.profile_id && '• Someone signs in with this entry. They will lose access to deals and clients that come through it.',
+        m.sees_all_transactions && '• This entry "sees every transaction".',
+        assigned > 0 && `• It is assigned to ${assigned} deal${assigned === 1 ? '' : 's'}; those assignments will be removed.`,
+      ].filter(Boolean)
+      if (warnings.length && !confirm(
+        `Remove "${m.full_name || 'this person'}"?\n\n${warnings.join('\n')}\n\n` +
+        `If this is a duplicate, remove the copy that does NOT have these. Nothing is deleted until you press Save.`)) return
+    }
+    setMembers(members.filter((x) => x.id !== id))
     if (!id.startsWith('new-')) setRemovedIds([...removedIds, id])
   }
 
@@ -618,6 +639,13 @@ function Team() {
               style={{ minWidth: 160, flex: 1 }}
               onChange={(e) => update(m.id, { full_name: e.target.value })}
             />
+            {m.profile_id && (
+              <span title="Someone signs in with this entry. Keep this one if it's a duplicate."
+                    style={{ flex: 'none', fontSize: 13, fontWeight: 700, color: 'var(--ok)',
+                             border: '1px solid var(--ok)', borderRadius: 999, padding: '2px 8px' }}>
+                Signs in
+              </span>
+            )}
             <input
               type="text" value={m.license_number ?? ''} placeholder="License / NMLS #"
               style={{ minWidth: 130, maxWidth: 150, flex: 'none' }}

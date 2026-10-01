@@ -710,7 +710,10 @@ export default function AdminLead() {
 
   // Agent and lender dropdowns: only people tagged for that job (plus whoever
   // is already chosen), each name once even if they're on the roster twice.
-  const agentChoices = choicesFor(roster, lead.realtor_member_id, (m) => m.roles.includes('realtor'))
+  const agentChoices = choicesFor(roster, lead.realtor_member_id, (m) => m.roles.includes('realtor') || m.roles.includes('broker_associate'))
+  const otherChoices = (picked: TeamMember[]) => choicesFor(roster, null, () => true)
+    .filter((m) => !picked.some((p) => p.id === m.id
+      || (p.full_name || '').trim().toLowerCase() === (m.full_name || '').trim().toLowerCase()))
   const lenderChoices = choicesFor(roster, lead.lender_member_id,
     (m) => m.roles.includes('loan_officer') || m.roles.includes('mortgage_broker'))
 
@@ -925,6 +928,11 @@ export default function AdminLead() {
                   {agentChoices.map((m) => (
                     <option key={m.id} value={m.id}>{m.full_name}</option>
                   ))}
+                  {otherChoices(agentChoices).length > 0 && (
+                    <optgroup label="Others on your team">
+                      {otherChoices(agentChoices).map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
+                    </optgroup>
+                  )}
                 </select>
               </div>
               <div className="field">
@@ -935,6 +943,11 @@ export default function AdminLead() {
                   {lenderChoices.map((m) => (
                     <option key={m.id} value={m.id}>{m.full_name}</option>
                   ))}
+                  {otherChoices(lenderChoices).length > 0 && (
+                    <optgroup label="Others on your team">
+                      {otherChoices(lenderChoices).map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
+                    </optgroup>
+                  )}
                 </select>
               </div>
               <button type="button" className="btn" style={{ alignSelf: 'end' }} onClick={() => setAssignOpen(false)}>Done</button>

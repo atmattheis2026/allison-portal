@@ -82,6 +82,26 @@ link) with the lead's own updates and referral form underneath. A client
 under contract keeps their /l/ link (leads aren't archived on conversion since
 055), and before 074 that link showed none of the deal's progress.
 
+**Her live database didn't match the migrations for deal visibility (found
+2026-10-01).** It still had 019's `transactions.team_select` with no
+`is_platform_admin()` bypass (023 was partly pasted, see 043), so Allison's
+deals depended on a Settings › Team entry; deleting a duplicate roster entry
+hid all of them. Migration 078 reinstalls 023's policy. Lesson: deleting a
+`team_members` row cascades its `transaction_assignees` and can cut someone
+off; and check her real database (SQL Editor, impersonating with
+`request.jwt.claims` + `set local role authenticated`) before trusting that a
+migration file reflects what's live.
+Settings › Team now warns before removing an entry that someone signs in
+with, that "sees every transaction", or that is assigned to deals, and tags
+entries linked to a sign-in "Signs in" so she keeps the right duplicate.
+Never put `begin … rollback` in the same SQL Editor paste as a fix: the
+editor runs the paste as one batch, so the rollback undid 078 the first time.
+Agent/lender pickers (deal + client file) list the people tagged for the job
+first, then "Others on your team" (everyone else), so the right person can
+always be picked even if their tags are wrong. **Broker associate counts as
+an agent and mortgage broker as a lender** (Allison, 2026-10-01); picking
+someone sets the deal's realtor/lender title to match their tag.
+
 **Do not remove RLS policies.** Every table is locked to the user's team. Turning
 that off means her whole business is readable by anyone with the app's public key.
 
