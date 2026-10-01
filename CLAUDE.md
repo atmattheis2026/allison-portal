@@ -350,9 +350,21 @@ draggable — it follows the deal). The follow-up is one small button per card
 is `position: fixed` from the button's spot because the columns scroll on a
 computer and would cut it off. Search (name, phone, email, follow-up note,
 latest update), agent / buyer-loan / "Follow-ups due" filters, and Sort by
-(default: next follow-up). No hand-ordering within a column — with hundreds of
-clients, search/filter/sort was the better answer. Latest-update loading is in
-batches of 100 ids (one long URL fails).
+(default: "My order"). Latest-update loading is in batches of 100 ids (one
+long URL fails).
+**Compact cards + her own order (2026-10-01, migration 080).** Cards are two
+lines: name (wraps to 2 lines max) + calendar-and-date follow-up button + "⋯"
+menu (`CardMenu`: Move to Upcoming/Nurture/Inactive, which is also how phones
+move cards since drag doesn't work on touch; Copy client link; Delete), then
+agent · buyer/loan · broker agreement. The latest update is one line. Dropping
+a card on another card places it above/below (`placeCard`), saved in
+`leads.board_position` (smaller = higher; null = not placed, shown on top, which
+is where new clients and moved-in cards land). It works while filtered: the
+order is computed on the whole column as sorted, hidden clients included. If
+another sort is showing, or neighbors have no position, the whole column is
+renumbered in the on-screen order and the sort switches to "My order";
+otherwise only the moved card changes (midpoint). Without 080 the page says
+which file to run.
 
 ## Agent Recruiting (recruiting/training/mentorship)
 

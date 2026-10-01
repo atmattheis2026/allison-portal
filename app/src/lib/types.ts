@@ -322,6 +322,7 @@ export interface Lead {
    *  entirely on a database without 079. Private, never on the client page. */
   next_followup?: string | null
   followup_note?: string | null
+  board_position?: number | null
   closed_date: string | null
   created_at: string
   archived_at: string | null

@@ -26,7 +26,7 @@ const COLUMNS = [
 function columnFor(r: Lead): string { return r.lead_status === 'under_contract' ? 'under_contract' : r.lead_status }
 function parseDate(d: string) { const [y, m, day] = d.split('-').map(Number); return new Date(y, m - 1, day) }
 
-type SortMode = 'followup' | 'updated' | 'recent' | 'name' | 'broker_signed' | 'broker_expires' | 'color' | 'comms'
+type SortMode = 'mine' | 'followup' | 'updated' | 'recent' | 'name' | 'broker_signed' | 'broker_expires' | 'color' | 'comms'
 
 interface Comm { at: string; text: string; kind: 'referral' | 'showing' | 'offer'; id: string }
 
@@ -55,13 +55,14 @@ export default function AdminLeads() {
   const [resolvingId, setResolvingId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
-  const [sortMode, setSortMode] = useState<SortMode>('followup')
+  const [sortMode, setSortMode] = useState<SortMode>('mine')
   // Search + filters, for a book of hundreds of clients.
   const [q, setQ] = useState('')
   const [agentFilter, setAgentFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState<'' | 'buy' | 'loan'>('')
   const [dueOnly, setDueOnly] = useState(false)
   const [dragOver, setDragOver] = useState<string | null>(null)
+  const [dropAt, setDropAt] = useState<{ id: string; after: boolean } | null>(null)
   const nav = useNavigate()
 
   useEffect(() => {
@@ -202,6 +203,18 @@ export default function AdminLeads() {
     if (!rows) return null
     const list = [...rows]
     switch (sortMode) {
+      case 'mine':
+        // Her own drag-and-drop order. Not-yet-placed clients (new ones) on
+        // top, by follow-up date, so nothing new gets buried.
+        list.sort((a, b) => {
+          const pa = a.board_position ?? null, pb = b.board_position ?? null
+          if (pa === null && pb === null) return (a.next_followup ?? '9999').localeCompare(b.next_followup ?? '9999')
+            || b.created_at.localeCompare(a.created_at)
+          if (pa === null) return -1
+          if (pb === null) return 1
+          return pa - pb
+        })
+        break
       case 'followup':
         // Soonest follow-up first (overdue on top); no follow-up last, newest first among those.
         list.sort((a, b) => (a.next_followup ?? '9999').localeCompare(b.next_followup ?? '9999')
@@ -292,7 +305,10 @@ export default function AdminLeads() {
         e.preventDefault(); setDragOver(null)
         const id = e.dataTransfer.getData('text/client-id')
         const r = rows?.find((x) => x.id === id)
-        if (r && r.lead_status !== target && r.lead_status !== 'under_contract') patchRow(id, { lead_status: target })
+        if (r && r.lead_status !== target && r.lead_status !== 'under_contract') {
+          // Lands at the top of its new column; she can drag it lower from there.
+          patchRow(id, hasOrder ? { lead_status: target, board_position: null } : { lead_status: target })
+        }
       },
     }
   }
@@ -305,15 +321,85 @@ export default function AdminLeads() {
     if (error) setStageError(error.message)
   }
 
+  // 080 adds board_position, which saves her hand-arranged order.
+  const hasOrder = rows.length === 0 || 'board_position' in rows[0]
+
+  // Drop a card onto another card: it goes just above/below that one (and
+  // into that column, if it came from another). The order is worked out on
+  // the whole column as currently sorted, filtered-out clients included, so
+  // a filter never scrambles anyone it's hiding.
+  async function placeCard(id: string, targetId: string, after: boolean) {
+    const moving = rows!.find((x) => x.id === id)
+    const target = rows!.find((x) => x.id === targetId)
+    if (!moving || !target || id === targetId) return
+    const fromCol = columnFor(moving), toCol = columnFor(target)
+    if (fromCol !== toCol && (fromCol === 'under_contract' || toCol === 'under_contract')) return
+    if (!hasOrder) {
+      if (fromCol !== toCol) patchRow(id, { lead_status: target.lead_status })
+      setStageError('To save your own order, run supabase/migrations/080_client_board_order.sql in Supabase\'s SQL Editor, then reload.')
+      return
+    }
+    const col = sortedRows!.filter((x) => columnFor(x) === toCol && x.id !== id)
+    const i = col.findIndex((x) => x.id === targetId) + (after ? 1 : 0)
+    const prev = col[i - 1]?.board_position ?? null, next = col[i]?.board_position ?? null
+    const stage = fromCol !== toCol ? { lead_status: target.lead_status } : {}
+    const usable = sortMode === 'mine' && (i === 0 || prev !== null) && (i === col.length || next !== null)
+    if (usable) {
+      const pos = prev === null ? (next ?? 0) - 1000 : next === null ? prev + 1000 : (prev + next) / 2
+      patchRow(id, { ...stage, board_position: pos })
+    } else {
+      // First arrangement (or a different sort was showing): number the
+      // whole column in the order on screen, with the card dropped in.
+      const order = [...col.slice(0, i), moving, ...col.slice(i)]
+      const changes = order.map((x, n) => ({ x, pos: (n + 1) * 1000 }))
+        .filter(({ x, pos }) => x.board_position !== pos || x.id === id)
+      setRows((cur) => cur?.map((r) => {
+        const c = changes.find((ch) => ch.x.id === r.id)
+        return c ? { ...r, board_position: c.pos, ...(r.id === id ? stage : {}) } : r
+      }) ?? cur)
+      setSortMode('mine')
+      if (DEMO_MODE || !supabase) return
+      setStageError(null)
+      for (let k = 0; k < changes.length; k += 25) {
+        const results = await Promise.all(changes.slice(k, k + 25).map(({ x, pos }) =>
+          supabase!.from('leads').update({ board_position: pos, ...(x.id === id ? stage : {}) }).eq('id', x.id)))
+        const bad = results.find((res) => res.error)
+        if (bad?.error) { setStageError(bad.error.message); return }
+      }
+    }
+  }
+
+  function cardDropHandlers(r: Lead) {
+    return {
+      onDragOver: (e: React.DragEvent) => {
+        if (!e.dataTransfer.types.includes('text/client-id')) return
+        e.preventDefault(); e.stopPropagation()
+        const box = e.currentTarget.getBoundingClientRect()
+        const after = e.clientY > box.top + box.height / 2
+        setDragOver(null)
+        setDropAt((cur) => (cur?.id === r.id && cur.after === after ? cur : { id: r.id, after }))
+      },
+      onDragLeave: () => setDropAt((cur) => (cur?.id === r.id ? null : cur)),
+      onDrop: (e: React.DragEvent) => {
+        e.preventDefault(); e.stopPropagation()
+        const after = dropAt?.id === r.id ? dropAt.after : false
+        setDropAt(null)
+        placeCard(e.dataTransfer.getData('text/client-id'), r.id, after)
+      },
+    }
+  }
+
   function renderCard(r: Lead) {
     const underContract = r.lead_status === 'under_contract'
     const band = leadTimeframeBand(r)
     const due = isDue(r)
     const notes = latestNotes[r.id] ?? []
     return (
-      <div className={`clientcard${due ? ' due' : ''}`} key={r.id}
-           draggable={hasStages && !underContract}
-           onDragStart={(e) => { e.dataTransfer.setData('text/client-id', r.id); e.dataTransfer.effectAllowed = 'move' }}>
+      <div className={`clientcard${due ? ' due' : ''}${dropAt?.id === r.id ? (dropAt.after ? ' dropafter' : ' dropbefore') : ''}`} key={r.id}
+           draggable={hasStages && (!underContract || hasOrder)}
+           onDragStart={(e) => { e.dataTransfer.setData('text/client-id', r.id); e.dataTransfer.effectAllowed = 'move' }}
+           onDragEnd={() => { setDropAt(null); setDragOver(null) }}
+           {...(hasStages ? cardDropHandlers(r) : {})}>
         <div className="clienttop">
           {!underContract && band && (
             <span title={TIMEFRAME_BAND_LABEL[band]} className="clientdot" style={{ background: TIMEFRAME_BAND_COLOR[band] }} />
@@ -321,25 +407,27 @@ export default function AdminLeads() {
           <Link to={`/admin/leads/${r.id}`} className="clientname">
             {r.full_name || 'Unnamed client'}{r.full_name_2 ? ` & ${r.full_name_2}` : ''}
           </Link>
-          {!underContract && hasStages && (
-            <select className="clientstage" value={r.lead_status} aria-label="Move to"
-                    onChange={(e) => patchRow(r.id, { lead_status: e.target.value as Lead['lead_status'] })}>
-              <option value="active">Upcoming</option>
-              <option value="nurture">Nurture</option>
-              <option value="inactive">Inactive</option>
-            </select>
+          {hasStages && (
+            <FollowUpButton date={r.next_followup ?? null} note={r.followup_note ?? null} due={due}
+                            overdue={due && parseDate(r.next_followup!) < today}
+                            onSave={(date, note) => patchRow(r.id, { next_followup: date, followup_note: note })} />
           )}
+          <CardMenu
+            stage={!underContract && hasStages ? r.lead_status : null}
+            onMove={(st) => patchRow(r.id, hasOrder ? { lead_status: st as Lead['lead_status'], board_position: null } : { lead_status: st as Lead['lead_status'] })}
+            copied={copied === r.share_token}
+            onCopy={() => copyLink(r.share_token)}
+            onDelete={isDatabaseManager ? () => deleteLead(r) : null} />
         </div>
-        <div className="clientmeta">
+        <div className="clientmeta" title={r.wants_buying && r.buyer_broker_signed
+          ? `Buyer broker signed ${r.buyer_broker_signed_date ? daysAgo(r.buyer_broker_signed_date) : ''}`
+            + (r.buyer_broker_expires ? ` · expires ${parseDate(r.buyer_broker_expires).toLocaleDateString()}` : '')
+          : undefined}>
           {[agentName(r.realtor_member_id) ?? 'No agent',
             r.wants_buying && r.wants_loan ? 'Buyer + loan' : r.wants_loan ? 'Loan' : 'Buyer',
-            r.wants_loan && r.loan_status ? r.loan_status : null].filter(Boolean).join(' · ')}
-          {r.wants_buying && !underContract && (
-            <div>{r.buyer_broker_signed
-              ? `Buyer broker signed ${r.buyer_broker_signed_date ? daysAgo(r.buyer_broker_signed_date) : ''}`
-                + (r.buyer_broker_expires ? ` · expires ${new Date(r.buyer_broker_expires + 'T00:00:00').toLocaleDateString()}` : '')
-              : 'Buyer broker not signed'}</div>
-          )}
+            r.wants_loan && r.loan_status ? r.loan_status : null,
+            r.wants_buying && !underContract ? (r.buyer_broker_signed ? 'Broker agmt ✓' : 'No broker agmt') : null,
+          ].filter(Boolean).join(' · ')}
         </div>
 
         {comms[r.id] && (
@@ -352,32 +440,11 @@ export default function AdminLeads() {
           </div>
         )}
 
-        {hasStages && (
-          <FollowUpButton date={r.next_followup ?? null} note={r.followup_note ?? null} due={due}
-                          overdue={due && parseDate(r.next_followup!) < today}
-                          onSave={(date, note) => patchRow(r.id, { next_followup: date, followup_note: note })} />
-        )}
-
         {notes.length > 0 && (
-          <Link to={`/admin/leads/${r.id}`} className="clientnotes">
-            {notes.map((n, i) => (
-              <span key={i} className="clientnote">
-                <span className="clientnotewhen">{commWhen(n.created_at)}{n.author_name ? ` · ${n.author_name}` : ''}</span>
-                {n.body}
-              </span>
-            ))}
+          <Link to={`/admin/leads/${r.id}`} className="clientnote" title={notes[0].body}>
+            <span className="clientnotewhen">{commWhen(notes[0].created_at)}:</span> {notes[0].body}
           </Link>
         )}
-
-        <div className="clientacts">
-          <button type="button" className="linkbtn" onClick={() => copyLink(r.share_token)}>
-            {copied === r.share_token ? 'Copied' : 'Copy client link'}
-          </button>
-          {isDatabaseManager && (
-            <button type="button" className="linkbtn danger" onClick={() => deleteLead(r)}
-                    title="Permanently delete this file">Delete</button>
-          )}
-        </div>
       </div>
     )
   }
@@ -429,6 +496,7 @@ export default function AdminLeads() {
           </label>
           <label className="clientsort">Sort by
           <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
+            <option value="mine">My order (drag to arrange)</option>
             <option value="followup">Next follow-up</option>
             <option value="updated">Most recent update</option>
             <option value="recent">Recently added</option>
@@ -655,6 +723,68 @@ function NewLead({ roster, onCancel, onCreated }: {
  * "+ Follow up" or "Follow up · Oct 8"; clicking opens the date and note to
  * schedule, change, or mark done. Private to her team.
  */
+// "⋯" on each card: move to a stage (phones can't drag), copy link, delete.
+// Kept off the card itself so 600 clients fit on screen.
+function CardMenu({ stage, onMove, copied, onCopy, onDelete }: {
+  stage: string | null; onMove: (stage: string) => void
+  copied: boolean; onCopy: () => void; onDelete: (() => void) | null
+}) {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  useEffect(() => {
+    if (!pos) return
+    const close = (e: Event) => {
+      if (e.target instanceof Node && document.querySelector('.cardmenu')?.contains(e.target)) return
+      setPos(null)
+    }
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    window.addEventListener('mousedown', close)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+      window.removeEventListener('mousedown', close)
+    }
+  }, [pos])
+  function toggle(btn: HTMLElement) {
+    if (pos) { setPos(null); return }
+    const r = btn.getBoundingClientRect()
+    const top = r.bottom + 4 + 220 > window.innerHeight ? Math.max(8, r.top - 224) : r.bottom + 4
+    setPos({ top, left: Math.max(8, Math.min(r.right - 200, window.innerWidth - 208)) })
+  }
+  const stages: [string, string][] = [['active', 'Upcoming'], ['nurture', 'Nurture'], ['inactive', 'Inactive']]
+  return (
+    <>
+      <button type="button" className="cardmenubtn" aria-label="More" title="Move, copy link, delete"
+              onMouseDown={(e) => e.stopPropagation()} onClick={(e) => toggle(e.currentTarget)}>⋯</button>
+      {pos && (
+        <div className="cardmenu" style={pos} onKeyDown={(e) => { if (e.key === 'Escape') setPos(null) }}>
+          {stage && <>
+            <div className="cardmenuhdr">Move to</div>
+            {stages.map(([v, label]) => (
+              <button key={v} type="button" disabled={v === stage}
+                      onClick={() => { onMove(v); setPos(null) }}>{v === stage ? `✓ ${label}` : label}</button>
+            ))}
+            <hr />
+          </>}
+          <button type="button" onClick={() => { onCopy(); setTimeout(() => setPos(null), 900) }}>
+            {copied ? 'Copied ✓' : 'Copy client link'}
+          </button>
+          {onDelete && <button type="button" className="danger" onClick={() => { setPos(null); onDelete() }}>Delete file</button>}
+        </div>
+      )}
+    </>
+  )
+}
+
+function CalendarIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" style={{ flex: 'none' }}>
+      <rect x="1.5" y="2.5" width="13" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M1.5 6.5h13M5 1v3M11 1v3" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  )
+}
+
 function FollowUpButton({ date, note, due, overdue, onSave }: {
   date: string | null; note: string | null; due: boolean; overdue: boolean
   onSave: (date: string | null, note: string | null) => void
@@ -678,15 +808,17 @@ function FollowUpButton({ date, note, due, overdue, onSave }: {
     window.addEventListener('resize', close)
     return () => { window.removeEventListener('scroll', close, true); window.removeEventListener('resize', close) }
   }, [open])
-  const label = date
-    ? `${overdue ? 'Overdue' : due ? 'Due today' : 'Follow up'} · ${parseDate(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-    : '+ Follow up'
+  // Kept short so the client's name has room: a calendar and the date.
+  const label = date ? (due && !overdue ? 'Today' : parseDate(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) : '+'
+  const hint = date
+    ? `${overdue ? 'Overdue follow-up' : due ? 'Follow-up due today' : 'Next follow-up'}${note ? `: ${note}` : ''}`
+    : 'Schedule a follow-up'
   return (
     <div className="followwrap">
-      <button type="button" className={`followbtn${due ? ' due' : ''}${date ? ' set' : ''}`}
+      <button type="button" className={`followbtn${due ? ' due' : ''}${overdue ? ' overdue' : ''}${date ? ' set' : ''}`}
               onClick={(e) => (open ? setOpen(false) : start(e.currentTarget))} aria-expanded={open}
-              title={note ?? undefined}>
-        {label}
+              title={hint} aria-label={hint}>
+        <CalendarIcon />{label}
       </button>
       {open && (
         <div className="followpop" style={pos ?? undefined} onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false) }}>
