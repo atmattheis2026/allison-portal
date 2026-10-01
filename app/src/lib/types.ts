@@ -572,7 +572,31 @@ export interface ResourceFolder {
   id: string
   category: ResourceCategory
   parent_folder_id: string | null
+  /** Set on a personal "My files" folder (migration 086): only this person
+   *  sees it. Null on shared folders. Missing on a database without 086. */
+  owner_profile_id?: string | null
   name: string
+  sort_order: number
+  created_at: string
+}
+
+/** One item on a person's own to-do list on My Home (migration 086). Private. */
+export interface MyTask {
+  id: string
+  profile_id: string
+  body: string
+  due_date: string | null
+  done: boolean
+  done_at: string | null
+  created_at: string
+}
+
+/** One of a person's own quick links on My Home (migration 086). Private. */
+export interface MyLink {
+  id: string
+  profile_id: string
+  title: string
+  url: string
   sort_order: number
   created_at: string
 }

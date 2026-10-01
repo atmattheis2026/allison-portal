@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { NetworkAgentStatus, TeamMember } from '../lib/types'
 import { NETWORK_AGENT_STATUS_LABEL } from '../lib/types'
-import { useCanSeeHomePage } from '../lib/useCanSeeHomePage'
 import { useIsDatabaseManager } from '../lib/useIsDatabaseManager'
 import { useDeskLayout } from '../lib/useDeskLayout'
 import mattheisLogo from '../assets/loan-sheet/mattheis-team.png'
@@ -21,10 +20,9 @@ import surekLogo from '../assets/loan-sheet/surek-group.png'
  * also where a Database Manager lands when they sign in, see AdminList.tsx.
  */
 export default function AdminNav({ current }: {
-  current: 'transactions' | 'leads' | 'loans' | 'closed' | 'rolodex' | 'network' | 'resources' | 'settings'
+  current: 'home' | 'transactions' | 'leads' | 'loans' | 'closed' | 'rolodex' | 'network' | 'resources' | 'settings'
 }) {
   const [seesAllTransactions, setSeesAllTransactions] = useState(DEMO_MODE)
-  const canSeeHomePage = useCanSeeHomePage()
   const isDatabaseManager = useIsDatabaseManager()
   const canSeeRolodex = seesAllTransactions || isDatabaseManager
   const nav = useNavigate()
@@ -51,7 +49,12 @@ export default function AdminNav({ current }: {
   }, [])
 
   const items: { key: typeof current; label: string; to: string }[] = [
-    ...(canSeeHomePage ? [{ key: 'resources' as const, label: 'Resource Library', to: '/admin/resources' }] : []),
+    // My Home first: everyone's own landing page (2026-10-01). The Resource
+    // Library shows for everyone now too, since each person has private
+    // "My files" there (086); shared folders inside it are still decided by
+    // RLS, not by this menu.
+    { key: 'home', label: 'My Home', to: '/admin/home' },
+    { key: 'resources', label: 'Resource Library', to: '/admin/resources' },
     { key: 'transactions', label: 'Transactions', to: '/admin' },
     { key: 'leads', label: 'Clients', to: '/admin/leads' },
     { key: 'loans', label: 'Loan Clients', to: '/admin/loans' },
