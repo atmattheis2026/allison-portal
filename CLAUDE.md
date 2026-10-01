@@ -220,6 +220,15 @@ from `saved_contacts` plus every named contact on the team's deals, both
 filtered to the deal's `team_id` (platform-admin reads every team), one entry
 per name+phone.
 
+**Loan referral box (2026-10-01, migration 076).** A client file with
+`wants_loan` has a "Loan referral" card under Loan Info: source
+(`LOAN_REFERRAL_SOURCES`), referred by, their contact info, notes. Separate
+from the real estate `referral_source` in "Agent transaction info" (EPIC/eXp
+fields); don't merge them. Internal only (`get_shared_lead` lists its keys
+explicitly). If 076 isn't run on her database the columns are missing from
+`select('*')`, and the card shows how to run it instead of fields that would
+silently fail to save.
+
 ## Agent Recruiting (recruiting/training/mentorship)
 
 Labeled "Agent Network" until 2026-08-13 — every user-visible label now says

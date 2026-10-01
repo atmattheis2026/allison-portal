@@ -224,6 +224,12 @@ export type ReferralSource =
 export const REFERRAL_SOURCES: ReferralSource[] =
   ['EPIC provided', 'Personal Referral', 'Agent Referral', 'Lead IO', 'Realtor.com']
 
+export type LoanReferralSource =
+  | 'Realtor' | 'Past Client' | 'Friend / Family' | 'Builder' | 'CPA / Financial Advisor'
+  | 'Online' | 'Other'
+export const LOAN_REFERRAL_SOURCES: LoanReferralSource[] =
+  ['Realtor', 'Past Client', 'Friend / Family', 'Builder', 'CPA / Financial Advisor', 'Online', 'Other']
+
 export type LoanType = 'Conventional' | 'FHA' | 'VA' | 'USDA' | 'Jumbo' | 'Other'
 export const LOAN_TYPES: LoanType[] = ['Conventional', 'FHA', 'VA', 'USDA', 'Jumbo', 'Other']
 
@@ -287,6 +293,12 @@ export interface Lead {
   referral_transaction_fee: boolean
   referral_transaction_fee_amount: number | null
   referral_notes: string | null
+  /** Loan-side referral, separate from the real estate referral_source above
+   *  (migration 076). Missing entirely on a database without 076. */
+  loan_referral_source?: LoanReferralSource | null
+  loan_referral_name?: string | null
+  loan_referral_contact?: string | null
+  loan_referral_notes?: string | null
   preapproval_on_file: boolean
   budget: BudgetRange | null
   communities: string | null

@@ -4,7 +4,7 @@ import { DEMO_MODE, supabase } from '../lib/supabase'
 import type { Lead, LeadAppointment, LeadHome, LeadMaybeHome, LeadPriority, LeadPersonalNote, LeadReferral, LeadDocument, LeadNote, TeamMember, TxStatus } from '../lib/types'
 import {
   leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL, REFERRAL_SOURCES, BUDGET_RANGES,
-  parseAddressFromListingUrl, LOAN_TYPES, LOAN_STATUSES, STATUS_LABEL,
+  parseAddressFromListingUrl, LOAN_TYPES, LOAN_STATUSES, STATUS_LABEL, LOAN_REFERRAL_SOURCES,
 } from '../lib/types'
 import AdminNav from '../components/AdminNav'
 import './Admin.css'
@@ -1049,6 +1049,49 @@ export default function AdminLead() {
             <p className="sethelp" style={{ margin: '6px 0 0' }}>
               Loan type and status show on the client's page — the estimated amount stays just for you.
             </p>
+          </div>
+        )}
+
+        {lead.wants_loan && (
+          <div className="card setcard">
+            <h2>Loan referral</h2>
+            <p className="sethelp">Who sent you this loan. Just for you — this never shows to the client.</p>
+            {!('loan_referral_source' in lead) ? (
+              <p className="sethelp" style={{ color: 'var(--danger, #cc3311)', fontWeight: 600 }}>
+                One database step first: in Supabase, open the SQL Editor, paste in
+                supabase/migrations/076_loan_referral.sql, and press Run. Then reload this page.
+              </p>
+            ) : (
+              <>
+                <div className="field2">
+                  <div className="field">
+                    <label>Referral source</label>
+                    <select value={lead.loan_referral_source ?? ''}
+                            onChange={(e) => patchLead({ loan_referral_source: (e.target.value || null) as Lead['loan_referral_source'] })}>
+                      <option value="">Not set</option>
+                      {LOAN_REFERRAL_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Referred by</label>
+                    <input value={lead.loan_referral_name ?? ''} placeholder="Name or company"
+                           onChange={(e) => patchLead({ loan_referral_name: e.target.value || null })} />
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Their contact info</label>
+                  <input value={lead.loan_referral_contact ?? ''} placeholder="Phone or email"
+                         onChange={(e) => patchLead({ loan_referral_contact: e.target.value || null })} />
+                </div>
+                <div className="field">
+                  <label>Notes</label>
+                  <textarea rows={2} style={{ width: '100%' }}
+                            placeholder="e.g. thank-you sent, referral fee, anything worth remembering"
+                            value={lead.loan_referral_notes ?? ''}
+                            onChange={(e) => patchLead({ loan_referral_notes: e.target.value || null })} />
+                </div>
+              </>
+            )}
           </div>
         )}
 
