@@ -176,6 +176,17 @@ The "On this deal" card (realtor/LO pickers + who-can-see chips) is folded to
 one summary line with a **Change** button (`DeskTeamCard`); on the stacked
 layout the "Assigned to" card does the same. Allison: set once, rarely changed.
 
+**Client file on a computer (2026-10-01).** `AdminLead.tsx` at 1200px+
+(`useDeskLayout`): full width (`.leaddesk`), and `.leadgrid` gets a third
+column holding Updates plus the just-for-you cards (Personal details,
+Referrals, Documents, General notes), which otherwise sit above/below the
+grid (`updatesCard` / `tailCards` variables). Card titles there are readable
+headings, not Settings-style gold caps. The duplicate "tap a name to assign"
+chip card was removed: agent/lender are assigned only by the dropdowns in
+"What do they need?", folded to one line with **Change**, filtered to people
+tagged for the job and one entry per name (`choicesFor`). Her roster really
+does contain duplicate names (same person invited twice), so keep that dedupe.
+
 **Editing is inline, not a separate form.** The admin view is the same Dashboard
 component with `editable`, so the thing she changes is the thing her client sees.
 Inputs are styled invisible until focused (`.inlineEdit`). Don't build a separate
