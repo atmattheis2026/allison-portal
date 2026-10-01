@@ -613,8 +613,6 @@ export default function AdminLeads() {
               {(['green', 'yellow', 'orange'] as TimeframeBand[]).map((b) => (
                 <span key={b}><span className="clientdot" style={{ background: TIMEFRAME_BAND_COLOR[b] }} />{TIMEFRAME_BAND_LABEL[b]}</span>
               ))}
-              <span><span className="followbtn set due overdue keychip"><CalendarIcon />Sep 20</span>Follow-up due or overdue</span>
-              <span><span className="followbtn set keychip"><CalendarIcon />Oct 9</span>Next follow-up</span>
               <span><span className="starbtn on keystar">★</span>Your favorite</span>
               <span><span className="starbtn others keystar">★</span>Teammate's (initials show whose)</span>
               <span><span className="keyswatch" style={{ background: UNDER_CONTRACT_COLOR }} />Under contract</span>

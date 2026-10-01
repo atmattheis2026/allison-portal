@@ -287,6 +287,5 @@
   .clientkey[open] .clientkeyitems { margin-top: 0; }
 }
 .clientkey .clientdot { width: 10px; height: 10px; }
-.keychip { font-size: 12px; padding: 1px 7px; cursor: default; }
 .keystar { font-size: 16px; padding: 0; cursor: default; }
 .keyswatch { width: 14px; height: 4px; border-radius: 2px; }
