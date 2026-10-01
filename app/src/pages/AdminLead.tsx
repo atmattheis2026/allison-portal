@@ -7,6 +7,7 @@ import {
   parseAddressFromListingUrl, LOAN_TYPES, LOAN_STATUSES, STATUS_LABEL, LOAN_REFERRAL_SOURCES, LEAD_STATUS_LABEL,
 } from '../lib/types'
 import AdminNav from '../components/AdminNav'
+import LoanClosedDialog from '../components/LoanClosedDialog'
 import { useDeskLayout } from '../lib/useDeskLayout'
 import './Admin.css'
 
@@ -237,6 +238,9 @@ export default function AdminLead() {
   const [showConvertPicker, setShowConvertPicker] = useState(false)
   const [showLinkPicker, setShowLinkPicker] = useState(false)
   const [reactivating, setReactivating] = useState(false)
+  // "Closed" picked by hand (a past client, or a loan with no deal here):
+  // for a loan client, the lender / rate / notes pop-up.
+  const [closingLoan, setClosingLoan] = useState<{ markFileClosed: boolean } | null>(null)
   const [noteDraft, setNoteDraft] = useState('')
   const [saveFlash, setSaveFlash] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -264,9 +268,19 @@ export default function AdminLead() {
       .then(({ data, error }) => {
         if (error) { setLoadError(error.message); return }
         setLead(data as Lead)
-        // Only this client's own team — see the same fix in AdminTransaction.
-        supabase!.from('team_members').select('*').eq('team_id', (data as Lead).team_id).order('sort_order')
-          .then(({ data: rows }) => setRoster((rows as TeamMember[]) ?? []))
+        // This client's own team (see the same fix in AdminTransaction), plus
+        // the signed-in person's team when the file sits on another one (a
+        // file started on Ryan's team, say). Without that the agent and loan
+        // officer lists came up empty and nobody could be picked.
+        ;(async () => {
+          const { data: auth } = await supabase!.auth.getUser()
+          const { data: me } = await supabase!.from('profiles').select('team_id').eq('id', auth.user?.id ?? '').maybeSingle()
+          const teams = [...new Set([(data as Lead).team_id, (me as { team_id?: string } | null)?.team_id].filter(Boolean))] as string[]
+          const { data: rows } = await supabase!.from('team_members').select('*').in('team_id', teams).order('sort_order')
+          const list = (rows as TeamMember[]) ?? []
+          // The file's own team first.
+          setRoster([...list.filter((m) => m.team_id === (data as Lead).team_id), ...list.filter((m) => m.team_id !== (data as Lead).team_id)])
+        })()
       })
     supabase.from('lead_appointments').select('*').eq('lead_id', id).order('sort_order')
       .then(({ data }) => setAppointments((data as LeadAppointment[]) ?? []))
@@ -490,6 +504,19 @@ export default function AdminLead() {
     setConverting(false)
     setShowConvertPicker(false)
     nav(`/admin/t/${txId}`)
+  }
+
+  /** Marks the file Closed by hand. Loan clients get the loan details pop-up
+   *  (which also sets Closed); everyone else just the closing date. */
+  async function closeFile() {
+    if (!lead) return
+    if (lead.wants_loan) { setClosingLoan({ markFileClosed: true }); return }
+    const t = new Date()
+    const today = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
+    const input = prompt('What date did they close? (YYYY-MM-DD)', today)
+    if (!input) return
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.trim())) { alert('Please enter a date as YYYY-MM-DD.'); return }
+    await patchLead({ lead_status: 'closed', closed_date: input.trim() })
   }
 
   // Reopens a closed client's same file for a new deal — their past
@@ -895,6 +922,19 @@ export default function AdminLead() {
         />
       )}
 
+      {closingLoan && (
+        <LoanClosedDialog leadId={lead.id} name={lead.full_name || 'This client'} markFileClosed={closingLoan.markFileClosed}
+          initial={{
+            loan_closed_date: lead.loan_closed_date ?? lead.closed_date ?? null,
+            loan_closed_lender: lead.loan_closed_lender ?? null,
+            loan_closed_rate: lead.loan_closed_rate ?? null,
+            loan_closed_notes: lead.loan_closed_notes ?? null,
+          }}
+          onClose={(saved) => {
+            setClosingLoan(null)
+            if (saved) setLead((cur) => (cur ? { ...cur, ...saved } : cur))
+          }} />
+      )}
       {(lead.lead_status === 'under_contract' || lead.lead_status === 'closed') && (
         <div style={{
           maxWidth: desk ? 1680 : 1040, margin: '0 auto 18px', padding: '12px 18px',
@@ -911,6 +951,18 @@ export default function AdminLead() {
               ? 'Under contract'
               : `Closed${lead.closed_date ? ` — ${new Date(lead.closed_date + 'T00:00:00').toLocaleDateString()}` : ''}`}
           </span>
+          {lead.lead_status === 'closed' && lead.wants_loan && 'loan_closed_rate' in lead && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              {(lead.loan_closed_rate != null || lead.loan_closed_lender) && (
+                <span style={{ fontWeight: 700, color: 'var(--ink)' }}>
+                  {[lead.loan_closed_rate != null ? `${lead.loan_closed_rate}%` : null, lead.loan_closed_lender].filter(Boolean).join(' · ')}
+                </span>
+              )}
+              <button type="button" className="btn" onClick={() => setClosingLoan({ markFileClosed: false })}>
+                {lead.loan_closed_rate != null || lead.loan_closed_lender ? 'Edit loan details' : '+ Lender, rate & notes'}
+              </button>
+            </span>
+          )}
           {lead.lead_status === 'closed' && (
             <button type="button" className="btn" onClick={reactivateLead} disabled={reactivating}>
               {reactivating ? 'Reactivating…' : 'Reactivate for a new deal →'}
@@ -947,10 +999,15 @@ export default function AdminLead() {
                   <div style={{ fontWeight: 700, paddingTop: 6 }}>{LEAD_STATUS_LABEL[lead.lead_status]}</div>
                 ) : (
                   <select value={lead.lead_status}
-                          onChange={(e) => patchLead({ lead_status: e.target.value as Lead['lead_status'] })}>
+                          onChange={(e) => {
+                            const v = e.target.value as Lead['lead_status']
+                            if (v === 'closed') { closeFile(); return }
+                            patchLead({ lead_status: v })
+                          }}>
                     <option value="active">Upcoming: actively looking</option>
                     <option value="nurture">Nurture: 6+ months out</option>
                     <option value="inactive">Inactive</option>
+                    <option value="closed">Closed (past client)</option>
                   </select>
                 )}
               </div>

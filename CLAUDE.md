@@ -411,6 +411,18 @@ Internal only; `get_shared_lead` lists its keys explicitly.
 Rate and loan type show as small tags right beside the name (`.loantag`; the
 rate tag opens the edit pop-up). Sort adds rate lowest first (no rate last)
 and loan type; a loan type filter sits beside the loan officer filter.
+**Closing by hand + past clients (2026-10-01).** The client file's "Where
+they are" dropdown has "Closed (past client)" (`closeFile` in `AdminLead.tsx`):
+a loan client gets `LoanClosedDialog` with markFileClosed, anyone else a
+closing-date prompt. A closed loan file's banner shows rate · lender and
+"Edit loan details". Loan Clients has **+ Add past client**
+(`components/PastClientForm.tsx`): name, phone, email, loan type, rate,
+lender, closing date, loan officer, notes; creates a 'closed', `wants_loan`
+file with `loan_closed_*` so it lands in Refi plan (and on the Closed page,
+not Clients). Same duplicate check as New client.
+The client file's agent/lender lists load the file's team **plus** the
+signed-in person's team: Toni Greenwald's file couldn't get an agent or loan
+officer picked (Allison, 2026-10-01), most likely a file on another team.
 
 ## Agent Recruiting (recruiting/training/mentorship)
 
