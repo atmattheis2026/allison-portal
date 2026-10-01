@@ -386,6 +386,8 @@ a phone never cuts it off): green "Broker agmt ✓", amber "Broker agmt ends
 <date>" within 30 days of `buyer_broker_expires`, red-orange "No broker agmt"
 or "Broker agmt expired". Not shown for loan-only or under-contract clients.
 The follow-up date chips were taken out of the key (Allison: cluttered).
+Labels use her abbreviation BBA (buyer broker agreement): "BBA ✓", "BBA ends
+<date>", "No BBA", "BBA expired".
 
 ## Agent Recruiting (recruiting/training/mentorship)
 

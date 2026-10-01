@@ -1283,10 +1283,10 @@ export default function AdminLead() {
               : days <= 180 ? '#2ecc40'
               : 'var(--ink-faint)'
             const text = days < 0
-              ? `Buyer broker expired ${Math.abs(days)}d ago`
+              ? `BBA expired ${Math.abs(days)}d ago`
               : days === 0
-              ? 'Buyer broker expires today'
-              : `Buyer broker expires in ${days}d`
+              ? 'BBA expires today'
+              : `BBA expires in ${days}d`
             return (
               <p className="sethelp" style={{ margin: '0 0 12px', color, fontWeight: urgent ? 700 : 600 }}>
                 {text}

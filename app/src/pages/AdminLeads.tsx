@@ -448,11 +448,11 @@ export default function AdminLeads() {
     // 30 days, red-orange missing or expired. First on the line so a phone
     // never cuts it off.
     const broker = !r.wants_buying || underContract ? null
-      : !r.buyer_broker_signed ? { tone: 'no', text: 'No broker agmt' }
-      : r.buyer_broker_expires && parseDate(r.buyer_broker_expires) < today ? { tone: 'no', text: 'Broker agmt expired' }
+      : !r.buyer_broker_signed ? { tone: 'no', text: 'No BBA' }
+      : r.buyer_broker_expires && parseDate(r.buyer_broker_expires) < today ? { tone: 'no', text: 'BBA expired' }
       : r.buyer_broker_expires && parseDate(r.buyer_broker_expires).getTime() - today.getTime() <= 30 * 86400000
-        ? { tone: 'soon', text: `Broker agmt ends ${parseDate(r.buyer_broker_expires).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` }
-      : { tone: 'ok', text: 'Broker agmt ✓' }
+        ? { tone: 'soon', text: `BBA ends ${parseDate(r.buyer_broker_expires).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` }
+      : { tone: 'ok', text: 'BBA ✓' }
     return (
       <div className={`clientcard${due ? ' due' : ''}${isMine(r) ? ' starred' : ''}${dropAt?.id === r.id ? (dropAt.after ? ' dropafter' : ' dropbefore') : ''}`} key={r.id}
            draggable={hasStages && (!underContract || hasOrder)}
@@ -625,7 +625,7 @@ export default function AdminLeads() {
               <span><span className="starbtn on keystar">★</span>Your favorite</span>
               <span><span className="starbtn others keystar">★</span>Teammate's (initials show whose)</span>
               <span><span className="keyswatch" style={{ background: UNDER_CONTRACT_COLOR }} />Under contract</span>
-              <span>Broker agmt:
+              <span>BBA:
                 <span className="brokertag ok">signed</span>·
                 <span className="brokertag soon">ends within 30 days</span>·
                 <span className="brokertag no">missing or expired</span>
