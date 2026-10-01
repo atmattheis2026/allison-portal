@@ -210,6 +210,16 @@ always includes the person already chosen (even if untagged) and shows each
 name once. Other pages (`AdminList`, `AdminLeads`, `AdminClosed`, ...) still
 load unfiltered rosters for their chips.
 
+**Contact names suggest as you type (2026-10-01).** On her editing view, a
+contact's name box (client-visible and Agent Only contacts) lists matching
+people as she types: `NameWithSuggestions` in `Dashboard.tsx`, matching the
+start of the first or last name, same contact type first. Picking one fills
+name, phone, email, photo, and the address/note if it has one. The list is
+built in `AdminTransaction.tsx` (`loadContactBook` → `buildSuggestions`)
+from `saved_contacts` plus every named contact on the team's deals, both
+filtered to the deal's `team_id` (platform-admin reads every team), one entry
+per name+phone.
+
 ## Agent Recruiting (recruiting/training/mentorship)
 
 Labeled "Agent Network" until 2026-08-13 — every user-visible label now says

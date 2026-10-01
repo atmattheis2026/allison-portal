@@ -375,3 +375,17 @@ input.inlineEdit.statusNote { font-size: 14.5px; color: var(--ink-dim); max-widt
   .countdown .num { font-size: 64px; margin-bottom: 6px; }
   .countdown .unit { font-size: 26px; }
 }
+
+/* Contact name suggestions while typing (admin only). */
+.suggestWrap { position: relative; display: inline-block; min-width: 0; }
+.suggestList {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 30;
+  list-style: none; margin: 0; padding: 4px 0;
+  width: max-content; min-width: 220px; max-width: min(320px, 80vw);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(28, 35, 44, .14); text-align: left;
+}
+.suggestList li { display: flex; flex-direction: column; gap: 1px; padding: 9px 14px; cursor: pointer; }
+.suggestList li.on, .suggestList li:hover { background: var(--panel-2); }
+.suggestName { font-size: 16px; color: var(--ink); }
+.suggestMeta { font-size: 13.5px; color: var(--ink-faint); }
