@@ -277,7 +277,14 @@ export default function AdminLead() {
           const { data: me } = await supabase!.from('profiles').select('team_id').eq('id', auth.user?.id ?? '').maybeSingle()
           const teams = [...new Set([(data as Lead).team_id, (me as { team_id?: string } | null)?.team_id].filter(Boolean))] as string[]
           const { data: rows } = await supabase!.from('team_members').select('*').in('team_id', teams).order('sort_order')
-          const list = (rows as TeamMember[]) ?? []
+          let list = (rows as TeamMember[]) ?? []
+          // Last resort: the file has no team (or one with nobody on it) and
+          // the signed-in profile has none either. Everyone this person may
+          // see, so the dropdowns are never empty; names show once each.
+          if (list.length === 0) {
+            const { data: all } = await supabase!.from('team_members').select('*').order('sort_order')
+            list = (all as TeamMember[]) ?? []
+          }
           // The file's own team first.
           setRoster([...list.filter((m) => m.team_id === (data as Lead).team_id), ...list.filter((m) => m.team_id !== (data as Lead).team_id)])
         })()
