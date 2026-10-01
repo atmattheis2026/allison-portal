@@ -288,7 +288,6 @@
 }
 .clientkey .clientdot { width: 10px; height: 10px; }
 .keystar { font-size: 16px; padding: 0; cursor: default; }
-.keyswatch { width: 14px; height: 4px; border-radius: 2px; }
 /* Buyer broker agreement status on a client card. */
 .brokertag { font-weight: 700; }
 .brokertag.ok { color: #1E7A34; }
