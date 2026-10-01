@@ -170,3 +170,28 @@ input:focus, select, textarea:focus { outline: none; border-color: var(--gold-so
   flex-wrap: wrap;
 }
 .updatebar .btn { flex: none; padding: 3px 10px; font-size: 14px; }
+
+/* ---------------- side menu (computer) ----------------
+   AdminNav is a row of buttons on a phone; on a computer it becomes a fixed
+   dark menu down the left, like a desktop app, and every admin page shifts
+   right to make room. */
+.sidebrand { display: none; }
+@media (min-width: 1200px) {
+  body:has(.sidenav) { padding-left: 232px; }
+  .sidenav {
+    position: fixed; left: 0; top: 0; bottom: 0; width: 232px; z-index: 40;
+    flex-direction: column; align-items: stretch !important; flex-wrap: nowrap !important;
+    gap: 4px !important; padding: 22px 14px !important; margin: 0 !important;
+    background: #18222E; border: none !important; overflow-y: auto;
+  }
+  .sidebrand { display: block; font-family: var(--serif); font-size: 18px; font-weight: 700;
+               letter-spacing: .05em; color: #D8B964; padding: 0 12px 20px; text-transform: uppercase; }
+  .sidenav .btn {
+    border: none; border-radius: var(--r-md); background: none; color: #C9D2DC;
+    font-size: 16px; font-weight: 600; padding: 10px 12px; min-height: 0; text-decoration: none;
+  }
+  .sidenav .btn:hover { background: #22303F; color: #fff; }
+  .sidenav .btn.current { opacity: 1 !important; background: #22303F; color: #fff;
+                          box-shadow: inset 3px 0 0 #C9A44C; }
+  .sidenav .sidesignout { margin: auto 0 0 !important; color: #8E9BA9; font-weight: 500; }
+}

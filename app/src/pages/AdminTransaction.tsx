@@ -5,6 +5,7 @@ import { DEMO_MODE, supabase } from '../lib/supabase'
 import { DEMO_BY_TOKEN, DEMO_PAYLOAD, SAVED_CONTACTS, TEAM_MEMBERS, TRANSACTION_ASSIGNEES } from '../lib/demoData'
 import { ROLE_LABEL, type Contact, type Milestone, type SavedContact, type SharedPayload, type Side, type TeamMember, type Transaction, type TxStatus } from '../lib/types'
 import AdminNav from '../components/AdminNav'
+import { useDeskLayout } from '../lib/useDeskLayout'
 import './Admin.css'
 
 /**
@@ -42,6 +43,9 @@ export default function AdminTransaction() {
   const [followUp, setFollowUp] = useState<FollowUp | null>(null)
   const [startingNew, setStartingNew] = useState(false)
   const nav = useNavigate()
+  // On a computer the deal page uses the desk layout: the assigned-to chips
+  // and the close/cancel buttons move into the deal's own summary strip.
+  const desk = useDeskLayout()
   // Every write on this page goes through write()/toggleAssignee()/
   // ensureAssignee() — this timestamp lets the realtime listener tell "I just
   // saved this myself" apart from "someone else changed it," so it doesn't
@@ -712,7 +716,8 @@ export default function AdminTransaction() {
       )}
       <div className="admin" style={{ paddingTop: 16, paddingBottom: 0 }}>
         <AdminNav current="transactions" />
-        <AssignedTo roster={roster} assignedIds={assignedIds} onToggle={toggleAssignee} />
+        {!desk && <AssignedTo roster={roster} assignedIds={assignedIds} onToggle={toggleAssignee} />}
+        {(!desk || data.transaction.status === 'fell_through') && (
         <div className="card setcard" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           flexWrap: 'wrap', gap: 10,
@@ -744,6 +749,7 @@ export default function AdminTransaction() {
             </>
           )}
         </div>
+        )}
       </div>
       {followUp && (
         <div className="admin" style={{ paddingTop: 0, paddingBottom: 0 }}>
@@ -767,6 +773,25 @@ export default function AdminTransaction() {
         contactSuggestions={contactSuggestions}
         internalContacts={internalContacts}
         hiddenMilestones={hiddenMilestones}
+        deskActions={
+          <>
+            <button className="btn" onClick={copyLink}>{copied ? 'Copied' : 'Copy client link'}</button>
+            {data.transaction.status === 'fell_through' ? (
+              <button className="btn" onClick={() => reactivateTransaction()}>Make active again</button>
+            ) : data.transaction.closed_and_funded ? (
+              <button className="btn" onClick={markClosed} title="Change the closed & funded date">
+                ✓ Closed {data.transaction.closed_and_funded_date &&
+                  new Date(data.transaction.closed_and_funded_date + 'T00:00:00').toLocaleDateString()}
+              </button>
+            ) : (
+              <>
+                <button className="btn primary" onClick={markClosed}>Closed &amp; Funded</button>
+                <button className="btn" onClick={() => cancelTransaction()}>Cancel transaction</button>
+              </>
+            )}
+          </>
+        }
+        deskSide={<AssignedTo compact roster={roster} assignedIds={assignedIds} onToggle={toggleAssignee} />}
         headerExtra={
           <span style={{ display: 'flex', gap: 9, alignItems: 'center' }}>
             <Link className="btn" to="/admin">All transactions</Link>
@@ -879,14 +904,18 @@ function CancelFollowUp({ followUp, busy, onNotActive, onActive, onStillLooking,
  * (Settings › Team) — this is what limits their view to just their own deals
  * once they're the ones logged in.
  */
-function AssignedTo({ roster, assignedIds, onToggle }: {
+function AssignedTo({ roster, assignedIds, onToggle, compact }: {
   roster: TeamMember[]; assignedIds: Set<string>; onToggle: (id: string) => void
+  /** Desk layout: just the chips, inside the "On this deal" card. */
+  compact?: boolean
 }) {
   if (roster.length === 0) return null
   return (
-    <div className="card setcard" style={{ marginBottom: 16 }}>
-      <h2>Assigned to</h2>
-      <p className="sethelp" style={{ marginBottom: 12 }}>
+    <div className={compact ? undefined : 'card setcard'} style={compact ? { marginTop: 14 } : { marginBottom: 16 }}>
+      {compact
+        ? <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink-dim)', marginBottom: 8 }}>Who can see this deal</div>
+        : <h2>Assigned to</h2>}
+      <p className="sethelp" style={{ marginBottom: 12, ...(compact ? { display: 'none' } : {}) }}>
         Only people checked here (or anyone marked "sees every transaction" in
         Settings › Team) will see this deal.
       </p>
@@ -902,7 +931,7 @@ function AssignedTo({ roster, assignedIds, onToggle }: {
                 : undefined}
               onClick={() => onToggle(m.id)}
               style={{
-                fontSize: 14.5, letterSpacing: '.02em',
+                fontSize: compact ? 13.5 : 14.5, letterSpacing: '.02em',
                 border: `1px solid ${on ? 'var(--gold-soft)' : 'var(--line)'}`,
                 borderRadius: 999, padding: '6px 12px',
                 color: on ? 'var(--gold-bright)' : 'var(--ink-faint)',
@@ -911,7 +940,7 @@ function AssignedTo({ roster, assignedIds, onToggle }: {
               }}
             >
               {m.full_name || 'Unnamed'}
-              {m.roles.length > 0 && ` · ${m.roles.map((r) => ROLE_LABEL[r]).join(', ')}`}
+              {!compact && m.roles.length > 0 && ` · ${m.roles.map((r) => ROLE_LABEL[r]).join(', ')}`}
             </button>
           )
         })}

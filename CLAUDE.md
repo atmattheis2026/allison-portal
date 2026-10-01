@@ -139,6 +139,7 @@ the Loan section is absent. That is data-driven, not a special case in code —
 adding loan steps to the seller template would bring it back.
 
 **Page layout (since 2026-09-24):** modeled on a title-company portal she liked.
+(Client view and phones; her editing view on a computer uses the desk layout below.)
 Desktop is two columns — every detail card (checklists, offer, home info,
 updates, contacts) stacked in one wide left column, and the Status Tracker
 (vertical, "Step X of N complete") plus the closing countdown pinned on the
@@ -153,6 +154,24 @@ which is now a plain 17px bold dark heading (not tiny spaced caps). Body text is
 17px, grey text colors (`--ink-dim`, `--ink-faint`) were darkened, and nothing in
 the app should go below ~13px or use letter-spacing wider than ~.08em. Text in
 gold should use `--gold-bright` (the darker gold), not `--gold`.
+
+**Desk layout for her editing view (2026-10-01).** At 1200px and up, the
+editing view (`editable`) renders `DeskLayout` in `Dashboard.tsx` instead of
+the stacked page: a summary strip (photo, address, client/agent/lender, status,
+Closing / Next due / Overdue chips, `deskActions` buttons), the tracker as one
+line (`HRail`), Real Estate | Loan | Updates-tabs + "On this deal" in three
+columns, then `ContactsTable` (client, utility and agent-only contacts in one
+table) beside Offer + Home Info. Built for a transaction coordinator at a
+desk; Allison approved it from a mockup. It reuses the same sections and
+handlers, so it can't drift from the client view. The client page and every
+phone keep the old layout. `useDeskLayout()` (`lib/useDeskLayout.ts`) is a
+`useSyncExternalStore` on matchMedia, so it can't go stale like the old
+read-once hook. **Tab order is part of the design:** checklist = checkbox →
+date → next step; contacts = name → phone → email → address → next row. The
+✕/⋯ buttons and the always-open section headers are `tabIndex={-1}` so they
+don't interrupt that. `AdminNav` turns into a fixed dark side menu at 1200px+
+(`.sidenav` in `theme.css`, `body:has(.sidenav)` shifts the page), on every
+admin page.
 
 **Editing is inline, not a separate form.** The admin view is the same Dashboard
 component with `editable`, so the thing she changes is the thing her client sees.

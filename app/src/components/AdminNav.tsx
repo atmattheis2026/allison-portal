@@ -51,15 +51,19 @@ export default function AdminNav({ current }: {
     { key: 'settings', label: 'Settings', to: '/admin/settings' },
   ]
 
+  // One menu, two looks: a row of buttons on a phone or small window, and a
+  // fixed menu down the left side on a computer (the .sidenav rules in
+  // theme.css). Every admin page gets the side menu the same way.
   return (
-    <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--line-soft)', marginBottom: 18 }}>
+    <nav className="sidenav" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--line-soft)', marginBottom: 18 }}>
+      <span className="sidebrand">Mattheis &amp; Co.</span>
       {items.map((it) => (
         it.key === current
-          ? <span key={it.key} className="btn" style={{ opacity: .5, pointerEvents: 'none' }}>{it.label}</span>
+          ? <span key={it.key} className="btn current" aria-current="page" style={{ opacity: .5, pointerEvents: 'none' }}>{it.label}</span>
           : <Link key={it.key} className="btn" to={it.to}>{it.label}</Link>
       ))}
       {!DEMO_MODE && (
-        <button type="button" className="btn" style={{ marginLeft: 'auto' }} onClick={signOut}>
+        <button type="button" className="btn sidesignout" style={{ marginLeft: 'auto' }} onClick={signOut}>
           Sign out
         </button>
       )}
