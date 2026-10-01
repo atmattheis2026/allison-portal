@@ -1,7 +1,8 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { DEMO_MODE, supabase } from '../lib/supabase'
-import type { TeamMember } from '../lib/types'
+import type { NetworkAgentStatus, TeamMember } from '../lib/types'
+import { NETWORK_AGENT_STATUS_LABEL } from '../lib/types'
 import { useCanSeeHomePage } from '../lib/useCanSeeHomePage'
 import { useIsDatabaseManager } from '../lib/useIsDatabaseManager'
 import { useDeskLayout } from '../lib/useDeskLayout'
@@ -46,7 +47,7 @@ export default function AdminNav({ current }: {
   }, [])
 
   const items: { key: typeof current; label: string; to: string }[] = [
-    ...(canSeeHomePage ? [{ key: 'resources' as const, label: 'Home Page', to: '/admin/resources' }] : []),
+    ...(canSeeHomePage ? [{ key: 'resources' as const, label: 'Resource Library', to: '/admin/resources' }] : []),
     { key: 'transactions', label: 'Transactions', to: '/admin' },
     { key: 'leads', label: 'Active Clients', to: '/admin/leads' },
     { key: 'closed', label: 'Closed', to: '/admin/closed' },
@@ -81,19 +82,35 @@ export default function AdminNav({ current }: {
 
 /* ------------------------------------------------------- side menu lists */
 
-type FileListKey = 'transactions' | 'leads' | 'closed'
-interface SideFile { id: string; label: string; to: string }
-type FileLists = Record<FileListKey, SideFile[]>
+type FileListKey = 'resources' | 'transactions' | 'leads' | 'closed' | 'rolodex' | 'network' | 'settings'
+interface SideFile {
+  id: string; label: string
+  /** In-app page to open… */
+  to?: string
+  /** …or a file/link to open in a new tab (Resource Library documents). */
+  href?: string
+  /** Second line of small text: a contact's role, a document's folder. */
+  sub?: string
+}
+type FileLists = Partial<Record<FileListKey, SideFile[]>>
+
+const SETTINGS_ITEMS: SideFile[] = [
+  { id: 'branding', label: 'Branding', to: '/admin/settings?tab=branding' },
+  { id: 'checklists', label: 'Checklists', to: '/admin/settings?tab=checklists' },
+  { id: 'team', label: 'Team', to: '/admin/settings?tab=team' },
+  { id: 'network', label: 'Agent Recruiting', to: '/admin/settings?tab=network' },
+]
 
 // Kept between pages so the menu doesn't empty and refill on every click.
 let cachedLists: FileLists | null = null
 
 /**
- * The files under Transactions, Active Clients and Closed in the side menu.
+ * What folds open under each title in the side menu (computer only).
  * Who sees what is decided by the database, not here: a transaction
- * coordinator (or anyone marked "sees every transaction") gets every file,
- * everyone else only the ones they're assigned to (RLS, migrations 023/077).
- * Filtered to her own team because a platform admin can read every team.
+ * coordinator (or anyone marked "sees every transaction") gets every deal
+ * and client, everyone else only what they're assigned to (RLS, migrations
+ * 023/077); Resource Library files follow folder access. Everything is
+ * filtered to her own team because a platform admin can read every team.
  */
 function useSideFileLists(enabled: boolean): FileLists | null {
   const [lists, setLists] = useState<FileLists | null>(cachedLists)
@@ -104,7 +121,10 @@ function useSideFileLists(enabled: boolean): FileLists | null {
         const deals = [d.DEMO_PAYLOAD, d.DEMO_SELLER].map((p) => ({
           id: p.transaction.id, label: p.transaction.address_line, to: `/admin/t/${p.transaction.id}`,
         }))
-        cachedLists = { transactions: deals, leads: [], closed: [] }
+        const people = [d.DEMO_PAYLOAD, d.DEMO_SELLER].flatMap((p) => p.contacts)
+          .filter((c) => c.name?.trim())
+          .map((c) => ({ id: c.id, label: c.name!, sub: c.role_label, to: `/admin/rolodex?q=${encodeURIComponent(c.name!)}` }))
+        cachedLists = { transactions: deals, leads: [], closed: [], rolodex: dedupePeople(people), settings: SETTINGS_ITEMS }
         setLists(cachedLists)
       })
       return
@@ -115,18 +135,32 @@ function useSideFileLists(enabled: boolean): FileLists | null {
       if (!auth.user) return
       const { data: me } = await supabase!.from('profiles').select('team_id').eq('id', auth.user.id).maybeSingle()
       if (!me?.team_id) return
-      const [{ data: txs }, { data: leads }] = await Promise.all([
+      const team = me.team_id as string
+      const [txs, leads, folders, docs, people, saved, agents] = await Promise.all([
         supabase!.from('transactions')
           .select('id, address_line, status, closed_and_funded, closed_and_funded_date, created_at')
-          .eq('team_id', me.team_id).is('archived_at', null)
-          .order('created_at', { ascending: false }),
+          .eq('team_id', team).is('archived_at', null).order('created_at', { ascending: false }),
         supabase!.from('leads')
-          .select('id, full_name, full_name_2, lead_status')
-          .eq('team_id', me.team_id).is('archived_at', null).neq('lead_status', 'closed')
-          .order('full_name'),
+          .select('id, full_name, full_name_2, lead_status, phone')
+          .eq('team_id', team).is('archived_at', null).neq('lead_status', 'closed').order('full_name'),
+        supabase!.from('resource_folders').select('id, name, category, parent_folder_id')
+          .eq('team_id', team).order('name'),
+        supabase!.from('resources').select('id, title, file_name, file_url, url, folder_id')
+          .eq('team_id', team).order('title'),
+        supabase!.from('contacts').select('id, name, role_label, phone, transactions!inner(team_id)')
+          .eq('transactions.team_id', team).not('name', 'is', null).limit(5000),
+        supabase!.from('saved_contacts').select('id, name, role_label, phone').eq('team_id', team),
+        supabase!.from('network_agents').select('id, full_name, status')
+          .eq('team_id', team).is('archived_at', null).order('full_name'),
       ])
       if (cancelled) return
-      const tx = (txs ?? []) as { id: string; address_line: string; status: string; closed_and_funded: boolean; closed_and_funded_date: string | null }[]
+
+      const tx = (txs.data ?? []) as { id: string; address_line: string; status: string; closed_and_funded: boolean; closed_and_funded_date: string | null }[]
+      const leadRows = (leads.data ?? []) as { id: string; full_name: string | null; full_name_2: string | null; phone: string | null }[]
+      const folderRows = (folders.data ?? []) as { id: string; name: string; parent_folder_id: string | null }[]
+      const folderName = new Map(folderRows.map((f) => [f.id, f.name]))
+      const docRows = (docs.data ?? []) as { id: string; title: string | null; file_name: string | null; file_url: string | null; url: string | null; folder_id: string | null }[]
+
       const next: FileLists = {
         transactions: tx.filter((t) => !t.closed_and_funded && t.status !== 'fell_through')
           .map((t) => ({ id: t.id, label: t.address_line || 'Untitled property', to: `/admin/t/${t.id}` })),
@@ -134,12 +168,35 @@ function useSideFileLists(enabled: boolean): FileLists | null {
           .sort((a, b) => (b.closed_and_funded_date ?? '').localeCompare(a.closed_and_funded_date ?? ''))
           .slice(0, 25)
           .map((t) => ({ id: t.id, label: t.address_line || 'Untitled property', to: `/admin/t/${t.id}` })),
-        leads: ((leads ?? []) as { id: string; full_name: string | null; full_name_2: string | null }[])
-          .map((l) => ({
-            id: l.id,
-            label: (l.full_name || 'Unnamed client') + (l.full_name_2 ? ` & ${l.full_name_2}` : ''),
-            to: `/admin/leads/${l.id}`,
+        leads: leadRows.map((l) => ({
+          id: l.id,
+          label: (l.full_name || 'Unnamed client') + (l.full_name_2 ? ` & ${l.full_name_2}` : ''),
+          to: `/admin/leads/${l.id}`,
+        })),
+        // Folders first (open in the library), then every document and link
+        // (opens the file itself in a new tab), with its folder underneath.
+        resources: [
+          ...folderRows.map((f) => ({
+            id: `f-${f.id}`, label: `📁 ${f.name}`, to: `/admin/resources?folder=${f.id}`,
+            sub: f.parent_folder_id ? `in ${folderName.get(f.parent_folder_id) ?? 'a folder'}` : undefined,
           })),
+          ...docRows.map((r) => ({
+            id: `r-${r.id}`, label: r.title || r.file_name || 'Untitled',
+            ...(r.file_url || r.url ? { href: (r.file_url || r.url)! } : { to: '/admin/resources' }),
+            sub: r.folder_id ? folderName.get(r.folder_id) : undefined,
+          })),
+        ],
+        rolodex: dedupePeople([
+          ...leadRows.filter((l) => l.full_name?.trim()).map((l) => ({ id: `l-${l.id}`, label: l.full_name!, sub: 'Client', phone: l.phone })),
+          ...((people.data ?? []) as { id: string; name: string; role_label: string; phone: string | null }[])
+            .map((c) => ({ id: `c-${c.id}`, label: c.name, sub: c.role_label, phone: c.phone })),
+          ...((saved.data ?? []) as { id: string; name: string; role_label: string; phone: string | null }[])
+            .map((c) => ({ id: `s-${c.id}`, label: c.name, sub: c.role_label, phone: c.phone })),
+        ].map((p) => ({ ...p, to: `/admin/rolodex?q=${encodeURIComponent(p.label)}` }))),
+        network: ((agents.data ?? []) as { id: string; full_name: string; status: NetworkAgentStatus }[])
+          .map((a) => ({ id: a.id, label: a.full_name || 'Unnamed', sub: NETWORK_AGENT_STATUS_LABEL[a.status] ?? a.status,
+                         to: `/admin/network/${a.id}` })),
+        settings: SETTINGS_ITEMS,
       }
       cachedLists = next
       setLists(next)
@@ -149,8 +206,21 @@ function useSideFileLists(enabled: boolean): FileLists | null {
   return lists
 }
 
-/** One menu title with its files folded underneath. Open/closed is
- *  remembered per title in this browser. */
+/** One entry per person (same name and phone), A–Z. */
+function dedupePeople<T extends SideFile & { phone?: string | null }>(rows: T[]): SideFile[] {
+  const seen = new Map<string, SideFile>()
+  for (const r of rows) {
+    const name = r.label.trim()
+    if (!name) continue
+    const key = `${name.toLowerCase()}|${(r.phone ?? '').replace(/\D/g, '')}`
+    if (!seen.has(key)) seen.set(key, { id: r.id, label: name, sub: r.sub, to: r.to })
+  }
+  return [...seen.values()].sort((a, b) => a.label.localeCompare(b.label))
+}
+
+/** One menu title with its items folded underneath, plus a search box once
+ *  the list is long (always for the Rolodex). Open/closed is remembered per
+ *  title in this browser. */
 function SideGroup({ groupKey, link, files, defaultOpen, activePath }: {
   groupKey: string; link: React.ReactNode; files: SideFile[]; defaultOpen: boolean; activePath: string
 }) {
@@ -159,12 +229,19 @@ function SideGroup({ groupKey, link, files, defaultOpen, activePath }: {
     try { const v = localStorage.getItem(storeKey); if (v !== null) return v === '1' } catch { /* private mode */ }
     return defaultOpen
   })
+  const [q, setQ] = useState('')
   function toggle() {
     setOpen((o) => {
       try { localStorage.setItem(storeKey, o ? '0' : '1') } catch { /* ignore */ }
       return !o
     })
   }
+  const searchable = groupKey === 'rolodex' || files.length > 6
+  const needle = q.trim().toLowerCase()
+  const shown = needle
+    ? files.filter((f) => f.label.toLowerCase().includes(needle) || (f.sub ?? '').toLowerCase().includes(needle))
+    : files
+  const current = activePath + (typeof window !== 'undefined' ? window.location.search : '')
   return (
     <div className="sidegroup">
       <div className="siderow">
@@ -176,11 +253,20 @@ function SideGroup({ groupKey, link, files, defaultOpen, activePath }: {
       </div>
       {open && (
         <div className="sidefiles">
-          {files.length === 0 && <span className="sidefile empty">None right now</span>}
-          {files.map((f) => (
-            <Link key={f.id} to={f.to} title={f.label}
-                  className={`sidefile${activePath === f.to ? ' on' : ''}`}>{f.label}</Link>
-          ))}
+          {searchable && (
+            <input className="sidesearch" value={q} onChange={(e) => setQ(e.target.value)}
+                   placeholder={groupKey === 'rolodex' ? 'Search names…' : 'Search…'} />
+          )}
+          {shown.length === 0 && <span className="sidefile empty">{needle ? 'No match' : 'None right now'}</span>}
+          {shown.map((f) => {
+            const body = <>{f.label}{f.sub && <span className="sidesub">{f.sub}</span>}</>
+            return f.href ? (
+              <a key={f.id} href={f.href} target="_blank" rel="noreferrer" title={f.label} className="sidefile">{body}</a>
+            ) : (
+              <Link key={f.id} to={f.to ?? '/admin'} title={f.label}
+                    className={`sidefile${current === f.to || activePath === f.to ? ' on' : ''}`}>{body}</Link>
+            )
+          })}
         </div>
       )}
     </div>

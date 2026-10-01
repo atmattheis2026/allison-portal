@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import { TEAM_MEMBERS, MENTORS, NETWORK_CHECKLIST_TEMPLATE } from '../lib/demoData'
 import { ROLE_LABEL, type BrandKind, type DealType, type Side, type TeamMember, type TeamRole, type Mentor, type NetworkChecklistTemplate } from '../lib/types'
@@ -16,7 +17,10 @@ import './Admin.css'
  * has to send someone.
  */
 export default function AdminSettings() {
-  const [tab, setTab] = useState<'branding' | 'checklists' | 'team' | 'network'>('branding')
+  // ?tab= comes from the side menu's Settings list.
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState<SettingsTab>(asTab(params.get('tab')))
+  useEffect(() => { const v = params.get('tab'); if (v) setTab(asTab(v)) }, [params])
 
   return (
     <div className="admin">
@@ -957,4 +961,9 @@ function AgentNetwork() {
       </div>
     </div>
   )
+}
+
+type SettingsTab = 'branding' | 'checklists' | 'team' | 'network'
+function asTab(v: string | null): SettingsTab {
+  return v === 'checklists' || v === 'team' || v === 'network' ? v : 'branding'
 }

@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import AdminNav from '../components/AdminNav'
@@ -50,7 +51,10 @@ interface Row {
 export default function AdminRolodex() {
   const [rows, setRows] = useState<Row[] | null>(null)
   const [teamId, setTeamId] = useState<string | null>(null)
-  const [q, setQ] = useState('')
+  // ?q= comes from a name picked in the side menu's Rolodex list.
+  const [params] = useSearchParams()
+  const [q, setQ] = useState(params.get('q') ?? '')
+  useEffect(() => { const v = params.get('q'); if (v !== null) setQ(v) }, [params])
   const [dupesOnly, setDupesOnly] = useState(false)
   const [reactivatingId, setReactivatingId] = useState<string | null>(null)
   const [deletingKey, setDeletingKey] = useState<string | null>(null)
@@ -176,7 +180,7 @@ export default function AdminRolodex() {
       phone: c.phone,
       email: c.email,
       roleLabel: c.role_label || 'Contact',
-      context: c.resource_folders ? `Home Page — ${c.resource_folders.name}` : 'Home Page',
+      context: c.resource_folders ? `Resource Library — ${c.resource_folders.name}` : 'Resource Library',
       href: '/admin/resources',
       isClient: false,
     }))
@@ -233,72 +237,85 @@ export default function AdminRolodex() {
     setAddingContact(false)
   }
 
+  // One entry per person. The same client is a separate row on every deal
+  // they've been on (plus their saved contact, etc.), which listed Heather
+  // Smith twice. Rows with the same name and a matching phone or email (or
+  // no phone/email at all) are one person; their deals are listed together.
+  const people = useMemo(() => groupPeople(rows ?? []), [rows])
+
   const dupeKeys = useMemo(() => {
-    if (!rows) return new Set<string>()
+    // After grouping, "possible duplicate" means two different entries that
+    // still share a phone or email (e.g. a name typed two different ways).
     const seen = new Map<string, number>()
-    for (const r of rows) {
-      for (const k of [normPhone(r.phone), normEmail(r.email)]) {
-        if (!k) continue
-        seen.set(k, (seen.get(k) ?? 0) + 1)
+    for (const p of people) {
+      for (const k of new Set([normPhone(p.phone), normEmail(p.email)])) {
+        if (k) seen.set(k, (seen.get(k) ?? 0) + 1)
       }
     }
     const dupes = new Set<string>()
-    for (const r of rows) {
-      for (const k of [normPhone(r.phone), normEmail(r.email)]) {
-        if (k && (seen.get(k) ?? 0) > 1) dupes.add(r.key)
+    for (const p of people) {
+      for (const k of [normPhone(p.phone), normEmail(p.email)]) {
+        if (k && (seen.get(k) ?? 0) > 1) dupes.add(p.key)
       }
     }
     return dupes
-  }, [rows])
+  }, [people])
 
   if (!rows) return <div className="centered"><div className="spinner" /></div>
 
-  function matches(r: Row) {
-    if (dupesOnly && !dupeKeys.has(r.key)) return false
+  function matches(p: Person) {
+    if (dupesOnly && !dupeKeys.has(p.key)) return false
     if (!q.trim()) return true
     const needle = q.trim().toLowerCase()
-    return [r.name, r.email, r.phone, r.roleLabel, r.context, r.address, r.businessName]
-      .some((field) => field?.toLowerCase().includes(needle))
+    return p.entries.some((r) => [r.name, r.email, r.phone, r.roleLabel, r.context, r.address, r.businessName]
+      .some((field) => field?.toLowerCase().includes(needle)))
   }
 
-  const clientRows = rows.filter((r) => r.isClient).filter(matches).sort((a, b) => a.name.localeCompare(b.name))
-  const professionalRows = rows.filter((r) => !r.isClient).filter(matches).sort((a, b) => a.name.localeCompare(b.name))
+  const clientRows = people.filter((p) => p.isClient).filter(matches)
+  const professionalRows = people.filter((p) => !p.isClient).filter(matches)
 
-  function renderRow(r: Row) {
+  function renderRow(p: Person) {
+    const clientLink = p.entries.find((r) => r.kind === 'lead')?.href ?? p.entries.find((r) => r.href)?.href
+    const closed = p.entries.find((r) => r.closedLeadId)
     return (
-      <div className="note" key={r.key}>
+      <div className="note" key={p.key}>
         <div className="notemeta">
           <span className="noteauthor">
-            {r.isClient && r.href ? <Link to={r.href}>{r.name}</Link> : r.name}
+            {p.isClient && clientLink ? <Link to={clientLink}>{p.name}</Link> : p.name}
           </span>
-          {r.businessName && <span className="notewhen">{r.businessName}</span>}
-          <span className="notewhen">{r.roleLabel}</span>
-          {dupeKeys.has(r.key) && (
-            <span className="notewhen" style={{ color: 'var(--danger)' }}>Possible duplicate</span>
+          {p.businessName && <span className="notewhen">{p.businessName}</span>}
+          <span className="notewhen">{p.roles.join(', ')}</span>
+          {dupeKeys.has(p.key) && (
+            <span className="notewhen" style={{ color: 'var(--danger)' }}
+                  title="Another entry has the same phone or email">Possible duplicate</span>
           )}
         </div>
         <p className="notebody" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span>
-            {[r.phone, r.email, r.address].filter(Boolean).join(' · ') || <span className="muted">No contact info</span>}
-            {r.href && <>{' — '}<Link to={r.href}>{r.context}</Link></>}
+            {[p.phone, p.email, p.address].filter(Boolean).join(' · ') || <span className="muted">No contact info</span>}
           </span>
-          {r.closedLeadId && (
+          {closed && (
             <button type="button" className="btn" style={{ flex: 'none' }}
-                    disabled={reactivatingId === r.key}
-                    onClick={() => reactivate(r)}>
-              {reactivatingId === r.key ? 'Reactivating…' : 'Reactivate for a new deal →'}
-            </button>
-          )}
-          {isDatabaseManager && (
-            <button type="button" className="btn"
-                    style={{ flex: 'none', marginLeft: 'auto', color: 'var(--danger, #cc3311)' }}
-                    disabled={deletingKey === r.key}
-                    onClick={() => deleteRow(r)}
-                    title={r.kind === 'lead' ? 'Permanently delete this file' : 'Remove this contact'}>
-              {deletingKey === r.key ? 'Deleting…' : 'Delete'}
+                    disabled={reactivatingId === closed.key}
+                    onClick={() => reactivate(closed)}>
+              {reactivatingId === closed.key ? 'Reactivating…' : 'Reactivate for a new deal →'}
             </button>
           )}
         </p>
+        {/* Where this person shows up: each deal / client file / saved entry.
+            Delete removes just that one entry, not the person everywhere. */}
+        <div className="rolowhere">
+          {p.entries.map((r) => (
+            <span key={r.key} className="rolochip">
+              {r.href ? <Link to={r.href}>{r.context}</Link> : <span>{r.context}</span>}
+              {isDatabaseManager && (
+                <button type="button" className="rolodel" disabled={deletingKey === r.key}
+                        onClick={() => deleteRow(r)}
+                        title={r.kind === 'lead' ? 'Permanently delete this client file' : `Remove from ${r.context}`}>✕</button>
+              )}
+            </span>
+          ))}
+        </div>
       </div>
     )
   }
@@ -434,6 +451,44 @@ function AddContactForm({ onCancel, onSave }: {
       </div>
     </form>
   )
+}
+
+interface Person {
+  key: string
+  name: string
+  isClient: boolean
+  roles: string[]
+  phone: string | null
+  email: string | null
+  address: string | null
+  businessName: string | null
+  entries: Row[]
+}
+
+/** Same name + (same phone, same email, or no phone/email on one side) =
+ *  one person. Clients and professionals are grouped separately. */
+function groupPeople(rows: Row[]): Person[] {
+  const groups: Person[] = []
+  for (const r of [...rows].sort((a, b) => a.name.localeCompare(b.name))) {
+    const name = r.name.trim().toLowerCase()
+    const ph = normPhone(r.phone); const em = normEmail(r.email)
+    const match = groups.find((g) => g.isClient === r.isClient && g.name.trim().toLowerCase() === name && (
+      (!ph && !em) || (!g.phone && !g.email)
+      || (ph && normPhone(g.phone) === ph) || (em && normEmail(g.email) === em)))
+    if (match) {
+      match.entries.push(r)
+      if (!match.roles.includes(r.roleLabel)) match.roles.push(r.roleLabel)
+      match.phone ||= r.phone; match.email ||= r.email
+      match.address ||= r.address ?? null; match.businessName ||= r.businessName ?? null
+    } else {
+      groups.push({
+        key: `p-${r.key}`, name: r.name.trim(), isClient: r.isClient, roles: [r.roleLabel],
+        phone: r.phone, email: r.email, address: r.address ?? null, businessName: r.businessName ?? null,
+        entries: [r],
+      })
+    }
+  }
+  return groups
 }
 
 function normPhone(p: string | null): string | null {

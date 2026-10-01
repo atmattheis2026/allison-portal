@@ -75,7 +75,7 @@ export default function MentorHome() {
           My agents{mentorName ? ` — ${mentorName}` : ''}
         </span>
         <nav className="adminnav">
-          {canSeeHomePage && <Link className="btn" to="/admin/resources">Home Page</Link>}
+          {canSeeHomePage && <Link className="btn" to="/admin/resources">Resource Library</Link>}
           <button className="btn" onClick={signOut}>Sign out</button>
         </nav>
       </header>

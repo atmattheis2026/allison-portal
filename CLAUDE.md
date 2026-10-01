@@ -183,6 +183,25 @@ everyone else only what they're assigned to. Migration 077 brought client
 files (`leads` select + `lead_visible()`) in line with deals: it adds the TC
 role and the assigned lender (`lender_member_id`) to who can see a file.
 If 077 isn't run, the menu still works with the old, narrower lead rule.
+Every title folds open now (2026-10-01): Resource Library (folders, opening
+via `/admin/resources?folder=<id>`, then every document/link, opening the file
+itself), Rolodex (everyone, one entry per name+phone, each linking to
+`/admin/rolodex?q=<name>`), Agent Recruiting (agents), Settings (its four
+tabs via `?tab=`). A search box shows once a list passes 6 items, and always
+for the Rolodex.
+
+**"Home Page" is now labeled "Resource Library" (2026-10-01, Allison's
+request).** Only the visible labels changed; the route, table and file names
+(`/admin/resources`, `resources`, `AdminResources.tsx`, `useCanSeeHomePage`)
+did not. Older notes below that say "Home Page" mean this page.
+
+**Duplicates (2026-10-01).** The Rolodex groups rows into one entry per
+person (`groupPeople` in `AdminRolodex.tsx`: same name and a matching phone
+or email, or no phone/email on one side), with each deal/file/saved entry as
+a chip underneath; ✕ on a chip removes only that entry. "Possible duplicate"
+now means two *different* entries sharing a phone or email. New Active Client
+(`NewLead` in `AdminLeads.tsx`) checks the team's files for the same name,
+phone or email first and lists them, with "Create anyway".
 The "On this deal" card (realtor/LO pickers + who-can-see chips) is folded to
 one summary line with a **Change** button (`DeskTeamCard`); on the stacked
 layout the "Assigned to" card does the same. Allison: set once, rarely changed.

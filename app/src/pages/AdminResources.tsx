@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
 import {
   RESOURCES, RESOURCE_FOLDERS, RESOURCE_FOLDER_ACCESS, RESOURCE_FOLDER_NOTES, RESOURCE_FOLDER_CONTACTS,
@@ -60,6 +60,21 @@ export default function AdminResources() {
   // Which folder is "open" in each category — a file-browser-style path, not
   // an accordion. Empty array = looking at the category's own folder list.
   const [pathByCategory, setPathByCategory] = useState<Record<string, string[]>>({})
+  // ?folder= comes from the side menu's Home Page list: open that folder
+  // (its whole parent chain) once the folders have loaded.
+  const [params] = useSearchParams()
+  const folderParam = params.get('folder')
+  useEffect(() => {
+    if (!folderParam || folders.length === 0) return
+    const byId = new Map(folders.map((f) => [f.id, f]))
+    const target = byId.get(folderParam)
+    if (!target) return
+    const chain: string[] = []
+    for (let f: ResourceFolder | undefined = target; f; f = f.parent_folder_id ? byId.get(f.parent_folder_id) : undefined) {
+      chain.unshift(f.id)
+    }
+    setPathByCategory((cur) => ({ ...cur, [target.category]: chain }))
+  }, [folderParam, folders])
   const nav = useNavigate()
   const isDatabaseManager = useIsDatabaseManager()
 
@@ -176,7 +191,7 @@ export default function AdminResources() {
         <header className="adminbar">
           <span className="wordmark" style={{ fontSize: 17.5 }}>
             <Link to="/mentor" className="muted" style={{ textDecoration: 'none' }}>My agents</Link>
-            {' / '}Home Page
+            {' / '}Resource Library
           </span>
           <nav className="adminnav">
             <Link className="btn" to="/mentor">← My agents</Link>
@@ -185,7 +200,7 @@ export default function AdminResources() {
       ) : (
         <>
           <header className="adminbar">
-            <span className="wordmark" style={{ fontSize: 17.5 }}>Home Page</span>
+            <span className="wordmark" style={{ fontSize: 17.5 }}>Resource Library</span>
           </header>
           <AdminNav current="resources" />
         </>
