@@ -378,6 +378,9 @@ the card's second line ("★ AM, RG"). The Favorites filter offers My / each
 person's / Anyone's. Visibility rides on `leads` RLS; you can only add or
 remove your own star. 082 copies 081's shared stars to Allison. If 082 isn't
 run, the page falls back to 081's shared `starred` column.
+A **Color key** sits under the search row (`.clientkey`, a `<details>`): open
+on a computer, one tap-to-open line on a phone. It uses the real dot, chip
+and star styles, so keep it in step if a color changes.
 
 ## Agent Recruiting (recruiting/training/mentorship)
 
