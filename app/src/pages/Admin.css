@@ -277,3 +277,16 @@
 .clientcard.starred { background: #FFFCF3; }
 .starbtn.others:not(.on) { color: var(--ink-dim); opacity: .8; }
 .starwho { font-weight: 700; color: #8A6512; }
+/* Color key on the Clients page: one small line under the search row. */
+.clientkey { padding: 0 24px 12px; font-size: 13px; color: var(--ink-dim); }
+.clientkeyitems { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 4px; }
+.clientkeyitems > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.clientkeyhdr { font-weight: 700; color: var(--ink-faint); cursor: pointer; width: fit-content; white-space: nowrap; flex: none; }
+@media (min-width: 1000px) {
+  .clientkey[open] { display: flex; align-items: baseline; gap: 10px; }
+  .clientkey[open] .clientkeyitems { margin-top: 0; }
+}
+.clientkey .clientdot { width: 10px; height: 10px; }
+.keychip { font-size: 12px; padding: 1px 7px; cursor: default; }
+.keystar { font-size: 16px; padding: 0; cursor: default; }
+.keyswatch { width: 14px; height: 4px; border-radius: 2px; }

@@ -605,6 +605,21 @@ export default function AdminLeads() {
               That change didn't save: {stageError}
             </p>
           )}
+          {/* What the colors mean, kept to one small line. */}
+          {/* Open on a computer; on a phone it's one tap-to-open line. */}
+          <details className="clientkey" open={typeof window !== 'undefined' && window.innerWidth >= 1000}>
+            <summary className="clientkeyhdr">Color key</summary>
+            <div className="clientkeyitems">
+              {(['green', 'yellow', 'orange'] as TimeframeBand[]).map((b) => (
+                <span key={b}><span className="clientdot" style={{ background: TIMEFRAME_BAND_COLOR[b] }} />{TIMEFRAME_BAND_LABEL[b]}</span>
+              ))}
+              <span><span className="followbtn set due overdue keychip"><CalendarIcon />Sep 20</span>Follow-up due or overdue</span>
+              <span><span className="followbtn set keychip"><CalendarIcon />Oct 9</span>Next follow-up</span>
+              <span><span className="starbtn on keystar">★</span>Your favorite</span>
+              <span><span className="starbtn others keystar">★</span>Teammate's (initials show whose)</span>
+              <span><span className="keyswatch" style={{ background: UNDER_CONTRACT_COLOR }} />Under contract</span>
+            </div>
+          </details>
           {dueCount > 0 && (
             <p style={{ margin: '0 24px 12px', fontWeight: 700, color: '#8A5A12' }}>
               {dueCount} follow-up{dueCount === 1 ? '' : 's'} due today or overdue
