@@ -311,3 +311,10 @@
 .loantag { flex: none; font-size: 13px; font-weight: 700; line-height: 1.3; padding: 1px 7px; border-radius: 6px;
            background: var(--panel-2); border: 1px solid var(--line); color: var(--ink-dim); }
 .loantag.rate { background: #E8F1F6; border-color: #B9D2E0; color: #1F4E66; cursor: pointer; }
+/* Loan Clients: Closed / Active / Shopping label beside the name. */
+.stagetag { flex: none; width: auto; font-size: 13px; font-weight: 700; line-height: 1.3; padding: 1px 6px;
+            border-radius: 999px; border: 1px solid; min-height: 0; }
+select.stagetag { padding-right: 4px; cursor: pointer; field-sizing: content; max-width: 120px; }
+.stagetag.closed { background: #E7F4EA; border-color: #A9D3B3; color: #1E6B33; }
+.stagetag.active { background: #E8EEFB; border-color: #AFC3EE; color: #23489A; }
+.stagetag.shopping { background: #FBF1DE; border-color: #E5C98E; color: #835B12; }
