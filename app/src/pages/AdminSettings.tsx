@@ -523,6 +523,19 @@ function Team() {
     update(id, { headshot_url: data.publicUrl })
   }
 
+  // Their logo for the top left of the side menu (085). Only offered when
+  // the column exists, so a save never fails on a database without it.
+  const hasLogoCol = members.some((m) => 'brand_logo_url' in m)
+  async function uploadLogo(id: string, file: File) {
+    update(id, { brand_logo_url: URL.createObjectURL(file) })
+    if (DEMO_MODE || !supabase) return
+    const path = `team/logo-${id}-${Date.now()}-${file.name}`
+    const { error } = await supabase.storage.from('media').upload(path, file, { upsert: true })
+    if (error) { console.error('logo upload failed', error); return }
+    const { data } = supabase.storage.from('media').getPublicUrl(path)
+    update(id, { brand_logo_url: data.publicUrl })
+  }
+
   async function save() {
     if (DEMO_MODE || !supabase) return
     setBusy(true)
@@ -551,6 +564,7 @@ function Team() {
       const row = {
         team_id: teamId, full_name: m.full_name, roles: m.roles,
         license_number: m.license_number, headshot_url: m.headshot_url,
+        ...(hasLogoCol ? { brand_logo_url: m.brand_logo_url ?? null } : {}),
         phone: m.phone, email: m.email,
         realtor_website_1: m.realtor_website_1, realtor_website_2: m.realtor_website_2,
         realtor_website_3: m.realtor_website_3,
@@ -685,6 +699,23 @@ function Team() {
                 style={{ minWidth: 150, maxWidth: 180, flex: 'none' }}
                 onChange={(e) => update(m.id, { phone: e.target.value || null })}
               />
+              {hasLogoCol && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
+                  {m.brand_logo_url && (
+                    <img src={m.brand_logo_url} alt="" style={{ height: 34, maxWidth: 110, objectFit: 'contain',
+                      background: '#fff', border: '1px solid var(--line)', borderRadius: 6, padding: 2 }} />
+                  )}
+                  <label className="btn" style={{ cursor: 'pointer' }}
+                         title="Shows at the top left of the menu when this person signs in">
+                    <input type="file" accept="image/*" style={{ display: 'none' }}
+                           onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadLogo(m.id, f) }} />
+                    {m.brand_logo_url ? 'Change menu logo' : '+ Menu logo'}
+                  </label>
+                  {m.brand_logo_url && (
+                    <button type="button" className="linkbtn" onClick={() => update(m.id, { brand_logo_url: null })}>Remove</button>
+                  )}
+                </span>
+              )}
             </div>
             <div style={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4, marginLeft: 42 }}>
               <input
