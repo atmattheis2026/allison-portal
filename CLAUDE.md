@@ -186,6 +186,10 @@ chip card was removed: agent/lender are assigned only by the dropdowns in
 "What do they need?", folded to one line with **Change**, filtered to people
 tagged for the job and one entry per name (`choicesFor`). Her roster really
 does contain duplicate names (same person invited twice), so keep that dedupe.
+`patchLead` checks the update's error and shows "Last change didn't save"
+in the header (it used to fail silently). The "Other" loan type box checks
+`'loan_type_other' in lead` (migration 059) and shows the one-line SQL to run
+when the column is missing, same idea as the Loan referral card.
 
 **Editing is inline, not a separate form.** The admin view is the same Dashboard
 component with `editable`, so the thing she changes is the thing her client sees.
