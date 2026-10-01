@@ -336,7 +336,7 @@ Clients" is now labeled "Clients" (route and file names unchanged). On
 `/admin/leads` (`AdminLeads.tsx`): **Under contract** (automatic, lead_status
 'under_contract') | **Upcoming** ('active') | **Nurture** ('nurture', 6+ months
 out), stacked on a phone; **Inactive** ('inactive') folds below. Each card
-shows the client's last two Updates under their name, a stage dropdown, and a
+shows the client's most recent Update under their name (just one, Allison: keeps it clean), a stage dropdown, and a
 scheduled follow-up (`next_followup` date + `followup_note`, private); due or
 overdue follow-ups are highlighted and counted at the top, and Upcoming/Nurture
 sort by follow-up date. The client file has the same stage + follow-up fields
