@@ -387,6 +387,13 @@ function NewLead({ roster, onCancel, onCreated }: {
   const [wantsLoan, setWantsLoan] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  // Files that look like the same person (same name, phone or email). Shown
+  // before creating, so she opens the existing file instead of making a
+  // second one; "Create anyway" skips the check.
+  const [possibleDupes, setPossibleDupes] = useState<{ id: string; full_name: string; lead_status: string }[] | null>(null)
+
+  // Typing a different name/phone/email means the warning no longer applies.
+  useEffect(() => { setPossibleDupes(null) }, [fullName, phone, email])
 
   async function create(e: React.FormEvent) {
     e.preventDefault()
@@ -400,6 +407,20 @@ function NewLead({ roster, onCancel, onCreated }: {
     const { data: me } = await supabase.from('profiles')
       .select('team_id').eq('id', (await supabase.auth.getUser()).data.user?.id).single()
     if (!me?.team_id) { setErr('Couldn’t work out which team you’re on.'); setBusy(false); return }
+
+    if (!possibleDupes) {
+      const { data: existing } = await supabase.from('leads')
+        .select('id, full_name, phone, email, lead_status').eq('team_id', me.team_id)
+      const name = fullName.trim().toLowerCase()
+      const ph = phone.replace(/\D/g, '')
+      const em = email.trim().toLowerCase()
+      const hits = ((existing ?? []) as { id: string; full_name: string | null; phone: string | null; email: string | null; lead_status: string }[])
+        .filter((l) => (name && (l.full_name ?? '').trim().toLowerCase() === name)
+          || (ph.length >= 7 && (l.phone ?? '').replace(/\D/g, '') === ph)
+          || (em && (l.email ?? '').trim().toLowerCase() === em))
+        .map((l) => ({ id: l.id, full_name: l.full_name || 'Unnamed client', lead_status: l.lead_status }))
+      if (hits.length) { setPossibleDupes(hits); setBusy(false); return }
+    }
 
     const { data: lead, error } = await supabase.from('leads')
       .insert({
@@ -420,6 +441,23 @@ function NewLead({ roster, onCancel, onCreated }: {
   return (
     <form className="card setcard newtx" onSubmit={create}>
       <h2>New active client</h2>
+      {possibleDupes && (
+        <div style={{ border: '1px solid var(--danger)', background: '#FBEDEA', borderRadius: 'var(--r-md)',
+                      padding: '12px 14px', margin: '8px 0 14px' }}>
+          <strong style={{ color: 'var(--danger)' }}>This client may already have a file:</strong>
+          <ul style={{ margin: '8px 0', paddingLeft: 20 }}>
+            {possibleDupes.map((d) => (
+              <li key={d.id}>
+                <Link to={`/admin/leads/${d.id}`}>{d.full_name}</Link>
+                <span className="muted"> · {d.lead_status === 'closed' ? 'Closed' : d.lead_status === 'under_contract' ? 'Under contract' : 'Active'}</span>
+              </li>
+            ))}
+          </ul>
+          <span className="muted" style={{ fontSize: 15 }}>
+            Open their file above, or press <strong>Create anyway</strong> if this is a different person.
+          </span>
+        </div>
+      )}
       <p className="sethelp">
         Just their name to start — everything else you fill in on their page.
       </p>
@@ -475,7 +513,7 @@ function NewLead({ roster, onCancel, onCreated }: {
 
       <div className="savebar">
         <button className="btn primary" disabled={busy}>
-          {busy ? 'Creating…' : 'Create it'}
+          {busy ? 'Creating…' : possibleDupes ? 'Create anyway' : 'Create it'}
         </button>
         <button type="button" className="btn" onClick={onCancel}>Cancel</button>
       </div>

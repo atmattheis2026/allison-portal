@@ -211,4 +211,8 @@ input:focus, select, textarea:focus { outline: none; border-color: var(--gold-so
   .sidefile:hover { color: #fff; background: #22303F; }
   .sidefile.on { color: #fff; background: #22303F; box-shadow: inset 2px 0 0 #C9A44C; }
   .sidefile.empty { color: #6E7C8A; font-style: italic; }
+  .sidesub { display: block; font-size: 12.5px; color: #7F8C9A; overflow: hidden; text-overflow: ellipsis; }
+  .sidesearch { margin: 4px 6px 6px 8px; padding: 5px 9px; font-size: 14px; border-radius: 7px;
+                background: #22303F; border: 1px solid #2E3D4E; color: #E6EBF0; width: auto; }
+  .sidesearch::placeholder { color: #7F8C9A; }
 }

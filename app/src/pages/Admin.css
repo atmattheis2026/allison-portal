@@ -181,3 +181,11 @@
 .docactions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .docactions .btn { font-size: 14.5px; padding: 6px 12px; min-height: 0; }
 .doccreate { appearance: auto; background: var(--panel); cursor: pointer; width: auto; flex: none; }
+
+/* Rolodex: where one person shows up (each deal, file, saved entry). */
+.rolowhere { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.rolochip { display: inline-flex; align-items: center; gap: 4px; font-size: 14px;
+            background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 999px; padding: 2px 4px 2px 10px; }
+.rolochip > span { color: var(--ink-dim); padding-right: 6px; }
+.rolodel { width: 20px; height: 20px; border-radius: 50%; font-size: 11px; color: var(--ink-faint); display: grid; place-items: center; }
+.rolodel:hover { color: var(--danger); background: var(--panel); }
