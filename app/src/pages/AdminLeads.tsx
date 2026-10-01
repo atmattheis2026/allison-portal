@@ -26,7 +26,7 @@ const COLUMNS = [
 function columnFor(r: Lead): string { return r.lead_status === 'under_contract' ? 'under_contract' : r.lead_status }
 function parseDate(d: string) { const [y, m, day] = d.split('-').map(Number); return new Date(y, m - 1, day) }
 
-type SortMode = 'recent' | 'name' | 'broker_signed' | 'broker_expires' | 'color' | 'comms'
+type SortMode = 'followup' | 'updated' | 'recent' | 'name' | 'broker_signed' | 'broker_expires' | 'color' | 'comms'
 
 interface Comm { at: string; text: string; kind: 'referral' | 'showing' | 'offer'; id: string }
 
@@ -55,7 +55,13 @@ export default function AdminLeads() {
   const [resolvingId, setResolvingId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
-  const [sortMode, setSortMode] = useState<SortMode>('recent')
+  const [sortMode, setSortMode] = useState<SortMode>('followup')
+  // Search + filters, for a book of hundreds of clients.
+  const [q, setQ] = useState('')
+  const [agentFilter, setAgentFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState<'' | 'buy' | 'loan'>('')
+  const [dueOnly, setDueOnly] = useState(false)
+  const [dragOver, setDragOver] = useState<string | null>(null)
   const nav = useNavigate()
 
   useEffect(() => {
@@ -99,12 +105,18 @@ export default function AdminLeads() {
       // seen per client is the latest.
       const leadIds = ((data as Lead[]) ?? []).map((l) => l.id)
       if (leadIds.length) {
-        const { data: noteData } = await supabase!.from('lead_notes')
-          .select('lead_id, author_name, body, created_at')
-          .in('lead_id', leadIds)
-          .order('created_at', { ascending: false })
+        // In batches: one request listing 600 client ids is too long a URL.
+        const noteData: LatestNote[] = []
+        for (let i = 0; i < leadIds.length; i += 100) {
+          const { data: chunk } = await supabase!.from('lead_notes')
+            .select('lead_id, author_name, body, created_at')
+            .in('lead_id', leadIds.slice(i, i + 100))
+            .order('created_at', { ascending: false })
+          noteData.push(...((chunk as LatestNote[]) ?? []))
+        }
+        noteData.sort((a, b) => b.created_at.localeCompare(a.created_at))
         const latest: Record<string, LatestNote[]> = {}
-        for (const n of (noteData as LatestNote[]) ?? []) {
+        for (const n of noteData) {
           const list = (latest[n.lead_id] ??= [])
           if (list.length < 1) list.push(n)
         }
@@ -190,6 +202,14 @@ export default function AdminLeads() {
     if (!rows) return null
     const list = [...rows]
     switch (sortMode) {
+      case 'followup':
+        // Soonest follow-up first (overdue on top); no follow-up last, newest first among those.
+        list.sort((a, b) => (a.next_followup ?? '9999').localeCompare(b.next_followup ?? '9999')
+          || b.created_at.localeCompare(a.created_at))
+        break
+      case 'updated':
+        list.sort((a, b) => (latestNotes[b.id]?.[0]?.created_at ?? '').localeCompare(latestNotes[a.id]?.[0]?.created_at ?? ''))
+        break
       case 'name':
         list.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
         break
@@ -235,7 +255,7 @@ export default function AdminLeads() {
         list.sort((a, b) => b.created_at.localeCompare(a.created_at))
     }
     return list
-  }, [rows, sortMode, comms])
+  }, [rows, sortMode, comms, latestNotes])
 
   if (!rows || !sortedRows) return <div className="centered"><div className="spinner" /></div>
 
@@ -245,11 +265,36 @@ export default function AdminLeads() {
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const isDue = (r: Lead) => Boolean(r.next_followup) && parseDate(r.next_followup!) <= today
   const dueCount = rows.filter((r) => r.lead_status !== 'inactive' && isDue(r)).length
-  const inactiveRows = sortedRows.filter((r) => r.lead_status === 'inactive')
-  // Follow-ups that are due first, then the soonest scheduled, then the rest.
-  const byFollowup = (a: Lead, b: Lead) => {
-    const fa = a.next_followup ?? '9999', fb = b.next_followup ?? '9999'
-    return fa.localeCompare(fb)
+  const needle = q.trim().toLowerCase()
+  const digits = needle.replace(/\D/g, '')
+  const shownRows = sortedRows.filter((r) => {
+    if (agentFilter === 'none' ? r.realtor_member_id : agentFilter && r.realtor_member_id !== agentFilter) return false
+    if (typeFilter === 'buy' && !r.wants_buying) return false
+    if (typeFilter === 'loan' && !r.wants_loan) return false
+    if (dueOnly && !isDue(r)) return false
+    if (!needle) return true
+    return [r.full_name, r.full_name_2, r.email, r.followup_note, latestNotes[r.id]?.[0]?.body]
+      .some((f) => f?.toLowerCase().includes(needle))
+      || (digits.length >= 3 && (r.phone ?? '').replace(/\D/g, '').includes(digits))
+  })
+  const inactiveRows = shownRows.filter((r) => r.lead_status === 'inactive')
+
+  // Drag a card onto Upcoming, Nurture or the Inactive button. Under contract
+  // is set by the deal itself, so it's neither a source nor a target.
+  function dropHandlers(target: 'active' | 'nurture' | 'inactive') {
+    return {
+      onDragOver: (e: React.DragEvent) => {
+        if (!hasStages || !e.dataTransfer.types.includes('text/client-id')) return
+        e.preventDefault(); setDragOver(target)
+      },
+      onDragLeave: () => setDragOver((cur) => (cur === target ? null : cur)),
+      onDrop: (e: React.DragEvent) => {
+        e.preventDefault(); setDragOver(null)
+        const id = e.dataTransfer.getData('text/client-id')
+        const r = rows?.find((x) => x.id === id)
+        if (r && r.lead_status !== target && r.lead_status !== 'under_contract') patchRow(id, { lead_status: target })
+      },
+    }
   }
 
   async function patchRow(id: string, values: Partial<Lead>) {
@@ -266,7 +311,9 @@ export default function AdminLeads() {
     const due = isDue(r)
     const notes = latestNotes[r.id] ?? []
     return (
-      <div className={`clientcard${due ? ' due' : ''}`} key={r.id}>
+      <div className={`clientcard${due ? ' due' : ''}`} key={r.id}
+           draggable={hasStages && !underContract}
+           onDragStart={(e) => { e.dataTransfer.setData('text/client-id', r.id); e.dataTransfer.effectAllowed = 'move' }}>
         <div className="clienttop">
           {!underContract && band && (
             <span title={TIMEFRAME_BAND_LABEL[band]} className="clientdot" style={{ background: TIMEFRAME_BAND_COLOR[band] }} />
@@ -306,21 +353,9 @@ export default function AdminLeads() {
         )}
 
         {hasStages && (
-          <div className="clientfollow">
-            <span className={`followlabel${due ? ' due' : ''}`}>
-              {due ? (parseDate(r.next_followup!) < today ? 'Overdue' : 'Due today') : 'Follow up'}
-            </span>
-            <input type="date" value={r.next_followup ?? ''} aria-label="Follow-up date"
-                   onChange={(e) => patchRow(r.id, { next_followup: e.target.value || null })} />
-            <input className="followwhat" defaultValue={r.followup_note ?? ''} key={`fn-${r.id}-${r.followup_note ?? ''}`}
-                   placeholder="What for? (just for you)"
-                   onBlur={(e) => { if ((e.target.value || null) !== (r.followup_note ?? null)) patchRow(r.id, { followup_note: e.target.value || null }) }}
-                   onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }} />
-            {r.next_followup && (
-              <button type="button" className="linkbtn" title="Clear the follow-up"
-                      onClick={() => patchRow(r.id, { next_followup: null, followup_note: null })}>Done</button>
-            )}
-          </div>
+          <FollowUpButton date={r.next_followup ?? null} note={r.followup_note ?? null} due={due}
+                          overdue={due && parseDate(r.next_followup!) < today}
+                          onSave={(date, note) => patchRow(r.id, { next_followup: date, followup_note: note })} />
         )}
 
         {notes.length > 0 && (
@@ -374,16 +409,35 @@ export default function AdminLeads() {
       )}
 
       {rows.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 24px 12px' }}>
-          <label className="muted" style={{ fontSize: 15.5, whiteSpace: 'nowrap' }}>Sort by</label>
-          <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)} style={{ width: 'auto', maxWidth: '100%' }}>
+        <div className="clienttools">
+          <input className="clientsearch" value={q} onChange={(e) => setQ(e.target.value)}
+                 placeholder={`Search ${rows.length} clients by name, phone, email or note…`} />
+          <select value={agentFilter} onChange={(e) => setAgentFilter(e.target.value)} aria-label="Agent">
+            <option value="">All agents</option>
+            {roster.filter((m) => rows.some((r) => r.realtor_member_id === m.id))
+              .map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
+            <option value="none">No agent yet</option>
+          </select>
+          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)} aria-label="Type">
+            <option value="">Buyers &amp; loans</option>
+            <option value="buy">Buyers</option>
+            <option value="loan">Loans</option>
+          </select>
+          <label className="clientcheck">
+            <input type="checkbox" checked={dueOnly} onChange={(e) => setDueOnly(e.target.checked)} />
+            Follow-ups due
+          </label>
+          <label className="clientsort">Sort by
+          <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
+            <option value="followup">Next follow-up</option>
+            <option value="updated">Most recent update</option>
             <option value="recent">Recently added</option>
             <option value="name">Name (A–Z)</option>
             <option value="broker_signed">Buyer broker signed date (oldest first)</option>
             <option value="broker_expires">Buyer broker expiration</option>
             <option value="color">Timeframe (needs nurturing first)</option>
             <option value="comms">New client communications</option>
-          </select>
+          </select></label>
         </div>
       )}
 
@@ -417,24 +471,29 @@ export default function AdminLeads() {
           )}
           <div className="clientboard">
             {COLUMNS.map((col) => {
-              const list = sortedRows.filter((r) => columnFor(r) === col.key)
-              const ordered = col.key === 'under_contract' ? list : [...list].sort(byFollowup)
+              const ordered = shownRows.filter((r) => columnFor(r) === col.key)
+              const list = ordered
               return (
-                <section key={col.key} className={`clientcol ${col.key}`}
+                <section key={col.key} className={`clientcol ${col.key}${dragOver === col.key ? ' dropping' : ''}`}
+                         {...(col.key !== 'under_contract' ? dropHandlers(col.key) : {})}
                          style={col.key === 'under_contract' ? { borderTopColor: UNDER_CONTRACT_COLOR } : undefined}>
                   <h2 className="clientcolhdr">
                     {col.label} <span className="clientcount">{list.length}</span>
                   </h2>
                   <p className="clientcolhelp">{col.help}</p>
-                  {ordered.length === 0 && <p className="muted" style={{ fontSize: 14.5, margin: '6px 2px' }}>No one here right now.</p>}
-                  {ordered.map(renderCard)}
+                  <div className="clientcolbody">
+                    {ordered.length === 0 && <p className="muted" style={{ fontSize: 14.5, margin: '6px 2px' }}>
+                      {needle || agentFilter || typeFilter || dueOnly ? 'No matches here.' : 'No one here right now.'}</p>}
+                    {ordered.map(renderCard)}
+                  </div>
                 </section>
               )
             })}
           </div>
-          {inactiveRows.length > 0 && (
+          {(inactiveRows.length > 0 || hasStages) && (
             <div style={{ padding: '18px 24px 0' }}>
-              <button type="button" className="btn" onClick={() => setShowInactive((v) => !v)}>
+              <button type="button" className={`btn${dragOver === 'inactive' ? ' dropping' : ''}`} {...dropHandlers('inactive')}
+                      onClick={() => setShowInactive((v) => !v)}>
                 {showInactive ? 'Hide inactive' : `Inactive (${inactiveRows.length})`}
               </button>
               {showInactive && <div className="clientinactive">{inactiveRows.map(renderCard)}</div>}
@@ -588,5 +647,66 @@ function NewLead({ roster, onCancel, onCreated }: {
         <button type="button" className="btn" onClick={onCancel}>Cancel</button>
       </div>
     </form>
+  )
+}
+
+/**
+ * One small button per card (Allison: keeps the Clients page clean). Shows
+ * "+ Follow up" or "Follow up · Oct 8"; clicking opens the date and note to
+ * schedule, change, or mark done. Private to her team.
+ */
+function FollowUpButton({ date, note, due, overdue, onSave }: {
+  date: string | null; note: string | null; due: boolean; overdue: boolean
+  onSave: (date: string | null, note: string | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [d, setD] = useState(date ?? '')
+  const [n, setN] = useState(note ?? '')
+  // Placed on the page itself (not inside the card), so a scrolling column
+  // can't cut the box off. Scrolling closes it rather than leaving it adrift.
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  function start(btn: HTMLElement) {
+    const r = btn.getBoundingClientRect()
+    const top = r.bottom + 6 + 260 > window.innerHeight ? Math.max(8, r.top - 266) : r.bottom + 6
+    setPos({ top, left: Math.max(8, Math.min(r.left, window.innerWidth - 296)) })
+    setD(date ?? ''); setN(note ?? ''); setOpen(true)
+  }
+  useEffect(() => {
+    if (!open) return
+    const close = (e: Event) => { if (!(e.target instanceof Node && document.querySelector('.followpop')?.contains(e.target))) setOpen(false) }
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => { window.removeEventListener('scroll', close, true); window.removeEventListener('resize', close) }
+  }, [open])
+  const label = date
+    ? `${overdue ? 'Overdue' : due ? 'Due today' : 'Follow up'} · ${parseDate(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+    : '+ Follow up'
+  return (
+    <div className="followwrap">
+      <button type="button" className={`followbtn${due ? ' due' : ''}${date ? ' set' : ''}`}
+              onClick={(e) => (open ? setOpen(false) : start(e.currentTarget))} aria-expanded={open}
+              title={note ?? undefined}>
+        {label}
+      </button>
+      {open && (
+        <div className="followpop" style={pos ?? undefined} onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false) }}>
+          <label>When
+            <input type="date" value={d} autoFocus onChange={(e) => setD(e.target.value)} />
+          </label>
+          <label>What for? <span className="muted">(just for you)</span>
+            <textarea rows={2} value={n} onChange={(e) => setN(e.target.value)} placeholder="e.g. check on pre-approval" />
+          </label>
+          <div className="followpopacts">
+            <button type="button" className="btn primary" disabled={!d}
+                    onClick={() => { onSave(d || null, n.trim() || null); setOpen(false) }}>Save</button>
+            {date && (
+              <button type="button" className="btn" title="Followed up. Clear this one."
+                      onClick={() => { onSave(null, null); setOpen(false) }}>Mark done</button>
+            )}
+            <button type="button" className="btn" onClick={() => setOpen(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

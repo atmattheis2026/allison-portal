@@ -225,3 +225,33 @@
 .linkbtn:hover { color: var(--gold-bright); text-decoration: underline; }
 .linkbtn.danger:hover { color: var(--danger); }
 .clientinactive { display: grid; gap: 10px; margin-top: 10px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+
+/* Clients page tools, column scrolling, drag targets, follow-up button. */
+.clienttools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 24px 12px; }
+.clienttools select { width: auto; max-width: 100%; font-size: 15px; padding: 6px 8px; }
+.clientsearch { flex: 1 1 280px; min-width: 0; font-size: 15px; padding: 7px 10px; }
+.clientcheck { display: flex; align-items: center; gap: 6px; font-size: 15px; color: var(--ink-dim); white-space: nowrap; }
+.clientcheck input { width: auto; }
+.clientsort { display: flex; align-items: center; gap: 6px; margin-left: auto; min-width: 0; max-width: 100%; font-size: 15px; color: var(--ink-dim); white-space: nowrap; }
+.clientsort select { min-width: 0; flex: 1 1 auto; max-width: 230px; }
+@media (max-width: 999px) { .clientsort select { max-width: none; } }
+@media (min-width: 1000px) {
+  .clientcolbody { max-height: calc(100vh - 290px); overflow-y: auto; padding-right: 2px; }
+}
+.clientcolbody { display: flex; flex-direction: column; gap: 10px; }
+.clientcol.dropping, .btn.dropping { outline: 3px dashed var(--gold-soft); outline-offset: 2px; background: #FBF5E6; }
+.clientcard[draggable=true] { cursor: grab; }
+.clientcard[draggable=true]:active { cursor: grabbing; }
+.followwrap { position: relative; align-self: flex-start; }
+.followbtn { font-size: 13.5px; font-weight: 600; color: var(--ink-faint); border: 1px dashed var(--line);
+             border-radius: 999px; padding: 3px 11px; }
+.followbtn.set { border-style: solid; color: var(--ink-dim); }
+.followbtn.due { border-color: #E2B866; background: #FBEFD9; color: #7A4F0E; }
+.followbtn:hover { border-color: var(--gold-soft); color: var(--gold-bright); }
+.followpop { position: fixed; z-index: 60; width: 280px; max-width: 80vw;
+             background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-md);
+             box-shadow: 0 10px 28px rgba(28,35,44,.16); padding: 12px; display: grid; gap: 8px; }
+.followpop label { display: grid; gap: 4px; font-size: 13.5px; font-weight: 700; color: var(--ink-dim); }
+.followpop input, .followpop textarea { font-size: 14.5px; font-weight: 500; }
+.followpopacts { display: flex; flex-wrap: wrap; gap: 6px; }
+.followpopacts .btn { font-size: 14px; padding: 5px 11px; min-height: 0; }
