@@ -1139,6 +1139,13 @@ export default function AdminLead() {
                      onChange={(e) => patchLead({ phone: e.target.value })} />
               <input type="email" style={{ marginTop: 8, width: '100%' }} value={lead.email ?? ''} placeholder="Email"
                      onChange={(e) => patchLead({ email: e.target.value })} />
+              {'birthday' in lead && (
+                <label className="cl" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                  Birthday
+                  <input type="date" style={{ width: 'auto' }} value={lead.birthday ?? ''}
+                         onChange={(e) => patchLead({ birthday: e.target.value || null })} />
+                </label>
+              )}
             </div>
             <div className="field" style={{
               background: 'var(--panel-2)', border: '1px solid var(--line)',
@@ -1159,6 +1166,13 @@ export default function AdminLead() {
                      onChange={(e) => patchLead({ phone_2: e.target.value })} />
               <input type="email" style={{ marginTop: 8, width: '100%' }} value={lead.email_2 ?? ''} placeholder="Email"
                      onChange={(e) => patchLead({ email_2: e.target.value })} />
+              {'birthday_2' in lead && (
+                <label className="cl" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                  Birthday
+                  <input type="date" style={{ width: 'auto' }} value={lead.birthday_2 ?? ''}
+                         onChange={(e) => patchLead({ birthday_2: e.target.value || null })} />
+                </label>
+              )}
             </div>
           </div>
           <p className="sethelp" style={{ margin: '8px 0 0' }}>

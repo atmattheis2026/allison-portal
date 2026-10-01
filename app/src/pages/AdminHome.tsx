@@ -16,6 +16,27 @@ import './Admin.css'
 
 interface MarketUpdate { id: string; author_profile_id: string; author_name: string | null; body: string; created_at: string }
 interface DealRow { id: string; address_line: string; closing_date: string | null; status: string; realtor_member_id: string | null; lender_member_id: string | null }
+interface ClosedDeal { id: string; realtor_member_id: string | null; lender_member_id: string | null; final_purchase_price: number | null }
+interface OverdueStep { id: string; label: string; date_value: string; transaction_id: string; address: string; mine: boolean }
+interface Celebration { leadId: string; name: string; kind: 'birthday' | 'anniversary'; date: Date; years?: number; mine: boolean }
+interface ClientActivity { id: string; leadId: string; name: string; text: string; at: string; mine: boolean }
+
+// Cards a person can show or hide with Customize (saved in my_home.hidden_cards).
+const CARDS: { key: string; label: string }[] = [
+  { key: 'goal', label: 'My year (closings goal)' },
+  { key: 'todo', label: 'My to-do list' },
+  { key: 'activity', label: 'New from clients' },
+  { key: 'followups', label: 'Follow-ups' },
+  { key: 'closings', label: 'Closing in the next 30 days' },
+  { key: 'steps', label: 'Overdue checklist steps' },
+  { key: 'celebrate', label: 'Birthdays & closing anniversaries' },
+  { key: 'market', label: 'Market updates' },
+  { key: 'websites', label: 'My websites' },
+  { key: 'links', label: 'Quick links' },
+  { key: 'favorites', label: 'My favorite clients' },
+  { key: 'files', label: 'My files' },
+]
+
 type FollowLead = Pick<Lead, 'id' | 'full_name' | 'full_name_2' | 'next_followup' | 'followup_note' | 'realtor_member_id' | 'lender_member_id' | 'lead_status'>
 
 const MISSING_086 = 'One database step turns this on: in Supabase\'s SQL Editor, run supabase/migrations/086_my_home_and_personal_folders.sql, then reload.'
@@ -60,6 +81,16 @@ export default function AdminHome() {
   const [deals, setDeals] = useState<DealRow[]>([])
   const [assignedDealIds, setAssignedDealIds] = useState<string[]>([])
   const [myFolders, setMyFolders] = useState<ResourceFolder[]>([])
+  const [goal, setGoal] = useState<number | null>(null)
+  const [hasGoalCol, setHasGoalCol] = useState(true)
+  const [closedThisYear, setClosedThisYear] = useState<ClosedDeal[]>([])
+  const [steps, setSteps] = useState<OverdueStep[]>([])
+  const [celebrations, setCelebrations] = useState<Celebration[]>([])
+  const [activity, setActivity] = useState<ClientActivity[]>([])
+  const [hidden, setHidden] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('homeHidden') || '[]') } catch { return [] }
+  })
+  const [customizing, setCustomizing] = useState(false)
   const [scope, setScope] = useState<'mine' | 'all'>(() => {
     try { return localStorage.getItem('homeScope') === 'all' ? 'all' : 'mine' } catch { return 'mine' }
   })
@@ -79,6 +110,12 @@ export default function AdminHome() {
         { id: 't3', profile_id: 'demo-me', body: 'Order sign rider', due_date: null, done: true, done_at: null, created_at: '' },
       ])
       setLinks([{ id: 'l1', profile_id: 'demo-me', title: 'Stellar MLS', url: 'https://www.stellarmls.com', sort_order: 0, created_at: '' }])
+      setGoal(24)
+      setClosedThisYear(Array.from({ length: 9 }, (_, i) => ({ id: `c${i}`, realtor_member_id: null, lender_member_id: null, final_purchase_price: 385000 })))
+      setSteps([{ id: 'm1', label: 'Inspection', date_value: ymd(new Date(today.getTime() - 2 * 86400000)), transaction_id: 'demo', address: '2817 Augusta Dr', mine: true }])
+      setCelebrations([{ leadId: 'x', name: 'Heather Smith', kind: 'birthday', date: new Date(today.getTime() + 2 * 86400000), mine: true },
+                       { leadId: 'y', name: 'Bob & Sue Carter', kind: 'anniversary', years: 3, date: today, mine: true }])
+      setActivity([{ id: 'a1', leadId: 'x', name: 'Heather Smith', text: 'Wants a showing: 14 Lake Dr', at: new Date(Date.now() - 5400000).toISOString(), mine: true }])
       setUpdates([{ id: 'u1', author_profile_id: 'x', author_name: 'Rich Surek', body: 'Rates eased a bit this week. 30-year conventional around the mid 6s. Good week to nudge anyone waiting on the sidelines.', created_at: new Date(Date.now() - 3 * 3600000).toISOString() }])
       setLoaded(true)
       return
@@ -100,7 +137,7 @@ export default function AdminHome() {
       const in30 = new Date(today); in30.setDate(in30.getDate() + 30)
 
       const [homeRes, taskRes, linkRes, updRes, starRes, folderRes, followRes, dealRes, assignRes] = await Promise.all([
-        supabase!.from('my_home').select('motivation').eq('profile_id', uid).maybeSingle(),
+        supabase!.from('my_home').select('*').eq('profile_id', uid).maybeSingle(),
         supabase!.from('my_tasks').select('*').eq('profile_id', uid).order('done').order('due_date', { nullsFirst: false }).order('created_at'),
         supabase!.from('my_links').select('*').eq('profile_id', uid).order('sort_order').order('created_at'),
         teamId
@@ -118,7 +155,11 @@ export default function AdminHome() {
           : Promise.resolve({ data: [], error: null }),
       ])
       setHas086(!taskRes.error)
-      setMotivation((homeRes.data as { motivation?: string | null } | null)?.motivation ?? null)
+      const home = homeRes.data as { motivation?: string | null; closings_goal?: number | null; hidden_cards?: string[] } | null
+      setMotivation(home?.motivation ?? null)
+      setGoal(home?.closings_goal ?? null)
+      if (home?.hidden_cards) setHidden(home.hidden_cards)
+      setHasGoalCol(!home || 'closings_goal' in home)
       setTasks((taskRes.data as MyTask[]) ?? [])
       setLinks((linkRes.data as MyLink[]) ?? [])
       setUpdates((updRes.data as MarketUpdate[]) ?? [])
@@ -135,6 +176,93 @@ export default function AdminHome() {
         setFavorites(((favRows ?? []) as { id: string; full_name: string | null; full_name_2: string | null; lead_status: string }[])
           .map((l) => ({ id: l.id, name: (l.full_name || 'Unnamed client') + (l.full_name_2 ? ` & ${l.full_name_2}` : ''), status: l.lead_status })))
       }
+      const assigned = ((assignRes.data ?? []) as { transaction_id: string }[]).map((a) => a.transaction_id)
+      const mineDeal = (d: { id: string; realtor_member_id: string | null; lender_member_id: string | null }) =>
+        memberIds.includes(d.realtor_member_id ?? '') || memberIds.includes(d.lender_member_id ?? '') || assigned.includes(d.id)
+      const mineLead = (l: { id: string; realtor_member_id: string | null; lender_member_id: string | null }) =>
+        memberIds.includes(l.realtor_member_id ?? '') || memberIds.includes(l.lender_member_id ?? '') || stars.includes(l.id)
+
+      // My year: closed & funded since January 1.
+      const { data: closedRows } = await supabase!.from('transactions')
+        .select('id, realtor_member_id, lender_member_id, final_purchase_price')
+        .eq('closed_and_funded', true).gte('closed_and_funded_date', `${today.getFullYear()}-01-01`)
+      setClosedThisYear(((closedRows ?? []) as ClosedDeal[]).filter(mineDeal))
+
+      // Overdue checklist steps on open deals.
+      const { data: openRows } = await supabase!.from('transactions').select('id, address_line, realtor_member_id, lender_member_id')
+        .is('archived_at', null).not('status', 'in', '(closed,fell_through)')
+      const open = (openRows ?? []) as { id: string; address_line: string; realtor_member_id: string | null; lender_member_id: string | null }[]
+      const overdue: OverdueStep[] = []
+      for (let i = 0; i < open.length; i += 100) {
+        const ids = open.slice(i, i + 100).map((d) => d.id)
+        const { data: ms } = await supabase!.from('milestones').select('id, label, date_value, transaction_id, internal_only')
+          .in('transaction_id', ids).eq('has_date', true).eq('is_complete', false).lt('date_value', todayStr)
+        for (const m of (ms ?? []) as { id: string; label: string; date_value: string; transaction_id: string; internal_only?: boolean }[]) {
+          if (m.internal_only) continue
+          const d = open.find((x) => x.id === m.transaction_id)!
+          overdue.push({ id: m.id, label: m.label, date_value: m.date_value, transaction_id: m.transaction_id, address: d.address_line, mine: mineDeal(d) })
+        }
+      }
+      overdue.sort((a, b) => a.date_value.localeCompare(b.date_value))
+      setSteps(overdue)
+
+      // Birthdays and closing anniversaries in the next 7 days.
+      let people = await supabase!.from('leads')
+        .select('id, full_name, full_name_2, birthday, birthday_2, closed_date, lead_status, realtor_member_id, lender_member_id')
+        .is('archived_at', null)
+      if (people.error) {
+        people = await supabase!.from('leads')
+          .select('id, full_name, full_name_2, closed_date, lead_status, realtor_member_id, lender_member_id')
+          .is('archived_at', null) as typeof people
+      }
+      const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + 7)
+      const nextOccurrence = (ymdStr: string) => {
+        const d = parseDate(ymdStr)
+        let next = new Date(today.getFullYear(), d.getMonth(), d.getDate())
+        if (next < today) next = new Date(today.getFullYear() + 1, d.getMonth(), d.getDate())
+        return { next, year: d.getFullYear() }
+      }
+      const celebs: Celebration[] = []
+      for (const l of (people.data ?? []) as { id: string; full_name: string | null; full_name_2: string | null; birthday?: string | null; birthday_2?: string | null; closed_date: string | null; lead_status: string; realtor_member_id: string | null; lender_member_id: string | null }[]) {
+        const mine = mineLead(l)
+        const add = (ymdStr: string | null | undefined, kind: Celebration['kind'], name: string) => {
+          if (!ymdStr) return
+          const { next, year } = nextOccurrence(ymdStr)
+          if (next > weekEnd) return
+          if (kind === 'anniversary' && next.getFullYear() - year < 1) return
+          celebs.push({ leadId: l.id, name, kind, date: next, years: kind === 'anniversary' ? next.getFullYear() - year : undefined, mine })
+        }
+        add(l.birthday, 'birthday', l.full_name || 'Client')
+        add(l.birthday_2, 'birthday', l.full_name_2 || 'Client')
+        if (l.lead_status === 'closed') add(l.closed_date, 'anniversary', (l.full_name || 'Client') + (l.full_name_2 ? ` & ${l.full_name_2}` : ''))
+      }
+      celebs.sort((a, b) => a.date.getTime() - b.date.getTime())
+      setCelebrations(celebs)
+
+      // New from clients: referrals, showing requests and offer requests not yet handled.
+      const [refs, shows, offers] = await Promise.all([
+        supabase!.from('lead_referrals').select('id, lead_id, name, created_at').eq('submitted_by', 'client').eq('resolved', false),
+        supabase!.from('lead_maybe_homes').select('id, lead_id, address_line, showing_requested_at').eq('showing_requested', true).eq('showing_request_resolved', false),
+        supabase!.from('lead_homes').select('id, lead_id, address_line, offer_requested_at').eq('offer_requested', true).eq('offer_request_resolved', false),
+      ])
+      const acts: Omit<ClientActivity, 'name' | 'mine'>[] = [
+        ...((refs.data ?? []) as { id: string; lead_id: string; name: string; created_at: string }[])
+          .map((r) => ({ id: `r${r.id}`, leadId: r.lead_id, text: `Referred a friend: ${r.name}`, at: r.created_at })),
+        ...((shows.data ?? []) as { id: string; lead_id: string; address_line: string | null; showing_requested_at: string | null }[])
+          .map((r) => ({ id: `s${r.id}`, leadId: r.lead_id, text: `Wants a showing: ${r.address_line || 'a home'}`, at: r.showing_requested_at ?? '' })),
+        ...((offers.data ?? []) as { id: string; lead_id: string; address_line: string | null; offer_requested_at: string | null }[])
+          .map((r) => ({ id: `o${r.id}`, leadId: r.lead_id, text: `Ready to make an offer: ${r.address_line || 'a home'}`, at: r.offer_requested_at ?? '' })),
+      ]
+      if (acts.length) {
+        const leadIds = [...new Set(acts.map((a) => a.leadId))].slice(0, 100)
+        const { data: actLeads } = await supabase!.from('leads').select('id, full_name, full_name_2, realtor_member_id, lender_member_id').in('id', leadIds)
+        const byId = new Map(((actLeads ?? []) as { id: string; full_name: string | null; full_name_2: string | null; realtor_member_id: string | null; lender_member_id: string | null }[]).map((l) => [l.id, l]))
+        setActivity(acts.filter((a) => byId.has(a.leadId)).map((a) => {
+          const l = byId.get(a.leadId)!
+          return { ...a, name: (l.full_name || 'Client') + (l.full_name_2 ? ` & ${l.full_name_2}` : ''), mine: mineLead(l) }
+        }).sort((a, b) => b.at.localeCompare(a.at)))
+      }
+
       setLoaded(true)
     })()
   }, [nav, today, todayStr])
@@ -160,6 +288,18 @@ export default function AdminHome() {
   const firstName = (me.name || '').split(/\s+/)[0]
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  const show = (key: string) => !hidden.includes(key)
+  const shownActivity = activity.filter((a) => scope === 'all' || a.mine)
+  const shownSteps = steps.filter((m) => scope === 'all' || m.mine)
+  const shownCelebrations = celebrations.filter((c) => scope === 'all' || c.mine)
+  async function toggleCard(key: string) {
+    const next = hidden.includes(key) ? hidden.filter((k) => k !== key) : [...hidden, key]
+    setHidden(next)
+    try { localStorage.setItem('homeHidden', JSON.stringify(next)) } catch { /* private window */ }
+    if (DEMO_MODE || !supabase || !has086) return
+    // Saved to their account too, so it follows them to another computer.
+    await supabase.from('my_home').upsert({ profile_id: me.id, motivation, hidden_cards: next, updated_at: new Date().toISOString() })
+  }
 
   return (
     <div className="admin">
@@ -173,19 +313,66 @@ export default function AdminHome() {
         <div className="homehello">
           <h1>{greeting}{firstName ? `, ${firstName}` : ''}</h1>
           <span className="muted">{today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+          <button type="button" className="btn homecustomize" onClick={() => setCustomizing((v) => !v)}>
+            {customizing ? 'Done' : '⚙ Customize'}
+          </button>
         </div>
+        {customizing && (
+          <div className="card setcard homecustom">
+            <strong>Show on my home page</strong>
+            <div className="homecustomgrid">
+              {CARDS.map((c) => (
+                <label key={c.key} className="clientcheck">
+                  <input type="checkbox" checked={!hidden.includes(c.key)} onChange={() => toggleCard(c.key)} />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         <Motivation text={motivation} disabled={!has086} meId={me.id}
                     onSaved={setMotivation} onError={setError} />
         {error && <p className="sethelp" style={{ color: 'var(--danger)', fontWeight: 600, margin: 0 }}>That didn't save: {error}</p>}
 
         <div className="homegrid">
+          {show('goal') && (
+          <section className="card setcard homecard">
+            <h2>My year</h2>
+            <GoalCard count={closedThisYear.length} volume={closedThisYear.reduce((n, d) => n + (d.final_purchase_price ?? 0), 0)}
+                      goal={goal} canSet={has086 && hasGoalCol} meId={me.id} year={today.getFullYear()}
+                      onSaved={setGoal} onError={setError} />
+          </section>
+          )}
+          {show('todo') && (
           <section className="card setcard homecard">
             <h2>My to-do list</h2>
             {has086 ? <TaskList tasks={tasks} setTasks={setTasks} todayStr={todayStr} onError={setError} />
               : <p className="sethelp">{MISSING_086}</p>}
           </section>
 
+          )}
+          {show('activity') && (
+          <section className="card setcard homecard">
+            <div className="homecardhead">
+              <h2>New from clients</h2>
+              <ScopeSwitch scope={scope} onChange={changeScope} />
+            </div>
+            {shownActivity.length === 0 ? (
+              <p className="muted homeempty">No new referrals, showing requests or offer requests.</p>
+            ) : (
+              <div className="homelist">
+                {shownActivity.slice(0, 8).map((a) => (
+                  <Link key={a.id} to={`/admin/leads/${a.leadId}`} className="homerow" title={a.text}>
+                    <span className="homerowmain"><strong>{a.name}</strong> <span className="homenote">· {a.text}</span></span>
+                    {a.at && <span className="muted" style={{ fontSize: 13.5, flex: 'none' }}>{timeAgo(a.at)}</span>}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+          )}
+          {show('followups') && (
           <section className="card setcard homecard">
             <div className="homecardhead">
               <h2>Follow-ups</h2>
@@ -202,6 +389,8 @@ export default function AdminHome() {
             )}
           </section>
 
+          )}
+          {show('closings') && (
           <section className="card setcard homecard">
             <div className="homecardhead">
               <h2>Closing in the next 30 days</h2>
@@ -226,6 +415,55 @@ export default function AdminHome() {
             )}
           </section>
 
+          )}
+          {show('steps') && (
+          <section className="card setcard homecard">
+            <div className="homecardhead">
+              <h2>Overdue checklist steps</h2>
+              <ScopeSwitch scope={scope} onChange={changeScope} />
+            </div>
+            {shownSteps.length === 0 ? (
+              <p className="muted homeempty">Every dated step is on track. ✓</p>
+            ) : (
+              <div className="homelist">
+                {shownSteps.slice(0, 10).map((m) => (
+                  <Link key={m.id} to={`/admin/t/${m.transaction_id}`} className="homerow">
+                    <span className="homerowmain">{m.label} <span className="homenote">· {m.address || 'Untitled property'}</span></span>
+                    <span className="homechip soon">{shortDate(m.date_value)}</span>
+                  </Link>
+                ))}
+                {shownSteps.length > 10 && <span className="muted" style={{ fontSize: 14, padding: '4px 8px' }}>+ {shownSteps.length - 10} more</span>}
+              </div>
+            )}
+          </section>
+          )}
+          {show('celebrate') && (
+          <section className="card setcard homecard">
+            <div className="homecardhead">
+              <h2>Birthdays &amp; anniversaries this week</h2>
+              <ScopeSwitch scope={scope} onChange={changeScope} />
+            </div>
+            {shownCelebrations.length === 0 ? (
+              <p className="muted homeempty">None this week. Add birthdays on a client's file, next to their phone and email.</p>
+            ) : (
+              <div className="homelist">
+                {shownCelebrations.map((c, i) => {
+                  const days = Math.round((c.date.getTime() - today.getTime()) / 86400000)
+                  return (
+                    <Link key={`${c.leadId}-${c.kind}-${i}`} to={`/admin/leads/${c.leadId}`} className="homerow">
+                      <span>{c.kind === 'birthday' ? '🎂' : '🏡'}</span>
+                      <span className="homerowmain">
+                        {c.name} <span className="homenote">· {c.kind === 'birthday' ? 'birthday' : `${c.years} year${c.years === 1 ? '' : 's'} in their home`}</span>
+                      </span>
+                      <span className={`homechip${days === 0 ? ' soon' : ''}`}>{days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : c.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+          )}
+          {show('market') && (
           <section className="card setcard homecard">
             <h2>Market updates</h2>
             {has086 ? (
@@ -234,17 +472,23 @@ export default function AdminHome() {
             ) : <p className="sethelp">{MISSING_086}</p>}
           </section>
 
+          )}
+          {show('websites') && (
           <section className="card setcard homecard">
             <h2>My websites</h2>
             <MyWebsites sites={websites} />
           </section>
 
+          )}
+          {show('links') && (
           <section className="card setcard homecard">
             <h2>Quick links</h2>
             {has086 ? <QuickLinks links={links} setLinks={setLinks} onError={setError} />
               : <p className="sethelp">{MISSING_086}</p>}
           </section>
 
+          )}
+          {show('favorites') && (
           <section className="card setcard homecard">
             <h2>My favorite clients</h2>
             {favorites.length === 0 ? (
@@ -262,6 +506,8 @@ export default function AdminHome() {
             )}
           </section>
 
+          )}
+          {show('files') && (
           <section className="card setcard homecard">
             <div className="homecardhead">
               <h2>My files</h2>
@@ -280,8 +526,48 @@ export default function AdminHome() {
               </div>
             )}
           </section>
+          )}
         </div>
       </div>
+    </div>
+  )
+}
+
+function GoalCard({ count, volume, goal, canSet, meId, year, onSaved, onError }: {
+  count: number; volume: number; goal: number | null; canSet: boolean; meId: string; year: number
+  onSaved: (g: number | null) => void; onError: (e: string | null) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(goal ? String(goal) : '')
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    const n = draft.trim() ? Math.max(1, Math.round(Number(draft))) : null
+    if (draft.trim() && Number.isNaN(n)) return
+    onSaved(n); setEditing(false); onError(null)
+    if (DEMO_MODE || !supabase) return
+    const { error } = await supabase.from('my_home').upsert({ profile_id: meId, closings_goal: n, updated_at: new Date().toISOString() })
+    if (error) onError(error.message)
+  }
+  const pct = goal ? Math.min(100, Math.round((count / goal) * 100)) : 0
+  return (
+    <div className="goalcard">
+      <div className="goalnums">
+        <span className="goalbig">{count}</span>
+        <span className="muted">{goal ? `of ${goal} closings in ${year}` : `closing${count === 1 ? '' : 's'} in ${year} so far`}</span>
+      </div>
+      {goal ? <div className="goalbar" aria-label={`${pct}% of goal`}><span style={{ width: `${pct}%` }} /></div> : null}
+      {volume > 0 && <span className="muted" style={{ fontSize: 14.5 }}>${Math.round(volume).toLocaleString()} in volume</span>}
+      {canSet && (editing ? (
+        <form onSubmit={save} className="lookup" style={{ marginTop: 6 }}>
+          <input value={draft} onChange={(e) => setDraft(e.target.value)} inputMode="numeric" placeholder="e.g. 24" aria-label="Closings goal" autoFocus />
+          <button type="submit" className="btn primary">Save</button>
+          <button type="button" className="btn" onClick={() => setEditing(false)}>Cancel</button>
+        </form>
+      ) : (
+        <button type="button" className="linkbtn" style={{ alignSelf: 'flex-start' }} onClick={() => { setDraft(goal ? String(goal) : ''); setEditing(true) }}>
+          {goal ? 'Change my goal' : '+ Set a goal for the year'}
+        </button>
+      ))}
     </div>
   )
 }

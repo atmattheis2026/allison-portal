@@ -336,6 +336,9 @@ export interface Lead {
   loan_board_position?: number | null
   /** Label beside the name on Loan Clients (migration 084). */
   loan_stage?: 'active' | 'shopping' | null
+  /** Birthdays for My Home's "this week" card (migration 086). Private. */
+  birthday?: string | null
+  birthday_2?: string | null
   closed_date: string | null
   created_at: string
   archived_at: string | null

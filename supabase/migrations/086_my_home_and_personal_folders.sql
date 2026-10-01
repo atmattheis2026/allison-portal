@@ -156,3 +156,13 @@ drop policy if exists market_updates_remove on market_updates;
 create policy market_updates_remove on market_updates for delete to authenticated
   using (author_profile_id = auth.uid() or is_platform_admin()
          or (team_id = my_team_id() and is_database_manager()));
+
+-- More for My Home (same day): a yearly closings goal and the cards each
+-- person chose to hide (Customize), plus client birthdays for the
+-- "birthdays and closing anniversaries this week" card. Birthdays are
+-- private; get_shared_lead() lists its keys explicitly, so clients never
+-- see them. This whole file is safe to run again.
+alter table my_home add column if not exists closings_goal int;
+alter table my_home add column if not exists hidden_cards text[] not null default '{}';
+alter table leads add column if not exists birthday date;
+alter table leads add column if not exists birthday_2 date;

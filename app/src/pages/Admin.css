@@ -410,3 +410,12 @@ a.homerow:hover { background: var(--panel-2); }
   text-transform: none; letter-spacing: normal; }
 .libacts { display: flex; gap: 6px; }
 .libacts .btn { font-size: 14px; padding: 4px 10px; min-height: 0; }
+.homecustomize { margin-left: auto; font-size: 14px; padding: 5px 12px; min-height: 0; }
+.homecustom { margin: 0 !important; display: grid; gap: 8px; }
+.homecustomgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px 14px; }
+.homecustomgrid .clientcheck { white-space: normal; color: var(--ink); }
+.goalcard { display: grid; gap: 6px; }
+.goalnums { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.goalbig { font-family: var(--serif); font-size: 44px; font-weight: 700; line-height: 1; color: var(--gold-bright); }
+.goalbar { height: 10px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); overflow: hidden; }
+.goalbar span { display: block; height: 100%; background: linear-gradient(90deg, var(--gold-soft), var(--gold-bright)); }

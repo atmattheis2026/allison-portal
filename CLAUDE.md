@@ -461,6 +461,16 @@ Google search limited to that site, since each site's own search differs),
 **quick links** (`my_links`), **favorite clients**, **my files** (their
 personal folders). All personal tables are owner-only RLS. Each card shows
 the SQL to run when 086 is missing.
+Added the same day: **My year** (closed & funded since Jan 1 that are
+"mine", count + volume, against `my_home.closings_goal`), **New from clients**
+(unresolved client referrals, showing and offer requests, same sources as the
+Clients page), **Overdue checklist steps** (dated, incomplete, not
+internal_only milestones before today on open deals), **Birthdays &
+anniversaries this week** (`leads.birthday`/`birthday_2`, entered beside
+phone/email on the client file, plus `closed_date` anniversaries of closed
+clients, 1+ years). **Customize** (⚙ in the greeting row): each person ticks
+which cards show, saved in `my_home.hidden_cards` (and localStorage). The
+Mine / Everyone switch applies to every list card. 086 is safe to re-run.
 
 **My files** in the Resource Library: `resource_folders.owner_profile_id`.
 `can_access_resource_folder()` (rewritten in 086) lets only the owner into a
