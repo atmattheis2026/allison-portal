@@ -194,4 +194,21 @@ input:focus, select, textarea:focus { outline: none; border-color: var(--gold-so
   .sidenav .btn.current { opacity: 1 !important; background: #22303F; color: #fff;
                           box-shadow: inset 3px 0 0 #C9A44C; }
   .sidenav .sidesignout { margin: auto 0 0 !important; color: #8E9BA9; font-weight: 500; }
+
+  /* files folded under Transactions / Active Clients / Closed */
+  .sidegroup { display: flex; flex-direction: column; }
+  .siderow { display: flex; align-items: center; }
+  .siderow .btn { flex: 1; min-width: 0; }
+  .sidecaret { flex: none; display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+               color: #8E9BA9; font-size: 13px; border-radius: var(--r-sm); }
+  .sidecaret:hover { color: #fff; background: #22303F; }
+  .sidecount { font-size: 12.5px; font-weight: 700; background: #22303F; color: #C9D2DC;
+               border-radius: 999px; padding: 1px 7px; }
+  .sidefiles { display: flex; flex-direction: column; margin: 2px 0 8px 14px;
+               border-left: 1px solid #2E3D4E; max-height: 38vh; overflow-y: auto; }
+  .sidefile { display: block; padding: 5px 10px; font-size: 14px; color: #A9B5C2; text-decoration: none;
+              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 6px; }
+  .sidefile:hover { color: #fff; background: #22303F; }
+  .sidefile.on { color: #fff; background: #22303F; box-shadow: inset 2px 0 0 #C9A44C; }
+  .sidefile.empty { color: #6E7C8A; font-style: italic; }
 }

@@ -314,9 +314,9 @@ export default function AdminList() {
             placeholder="Search by agent, lender, client, or city…"
             style={{ flex: 1, minWidth: 220, maxWidth: 420 }}
           />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none', whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 1 auto', minWidth: 0, whiteSpace: 'nowrap' }}>
             <label className="muted" style={{ fontSize: 15.5 }}>Sort by</label>
-            <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
+            <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)} style={{ minWidth: 0, maxWidth: '100%' }}>
               <option value="recent">Recently added</option>
               <option value="agent">Agent</option>
               <option value="lender">Lender</option>
