@@ -537,6 +537,31 @@ export default function AdminTransaction() {
     patch((d) => ({ ...d, transaction: { ...d.transaction, closed_and_funded: true, closed_and_funded_date: dateStr, status: 'closed' } }))
   }
 
+  // Cancelling keeps everything on the deal (notes, contacts, checklists) —
+  // it's just the "Cancelled" status, which takes it off the main
+  // Transactions list. Not archived_at: get_shared_transaction refuses
+  // archived deals, so an archived one couldn't even be opened here again.
+  // The client's file is freed up too, so "Convert to transaction" works
+  // for their next deal; this one stays in their Deal history.
+  async function cancelTransaction() {
+    if (!id) return
+    if (!confirm('Cancel this transaction? It moves off your main list into "Cancelled." Nothing on it is deleted, and you can make it active again any time.')) return
+    patch((d) => ({ ...d, transaction: { ...d.transaction, status: 'fell_through' } }))
+    await write('transactions', id, { status: 'fell_through' })
+    if (DEMO_MODE || !supabase) return
+    const { data: leads } = await supabase.from('leads').select('id').eq('converted_transaction_id', id)
+    for (const l of leads ?? []) {
+      const { error } = await supabase.rpc('reactivate_lead', { p_lead_id: l.id })
+      if (error) console.error('reactivate_lead failed', error)
+    }
+  }
+
+  async function reactivateTransaction() {
+    if (!id) return
+    patch((d) => ({ ...d, transaction: { ...d.transaction, status: 'under_contract' } }))
+    await write('transactions', id, { status: 'under_contract' })
+  }
+
   if (loadError) {
     return (
       <div className="centered">
@@ -569,7 +594,14 @@ export default function AdminTransaction() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           flexWrap: 'wrap', gap: 10,
         }}>
-          {data.transaction.closed_and_funded ? (
+          {data.transaction.status === 'fell_through' ? (
+            <>
+              <span style={{ fontWeight: 700, color: 'var(--danger, #cc3311)' }}>
+                ✕ Cancelled — this deal is inactive. Everything on it is still saved.
+              </span>
+              <button className="btn" onClick={reactivateTransaction}>Make active again</button>
+            </>
+          ) : data.transaction.closed_and_funded ? (
             <>
               <span style={{ fontWeight: 700, color: '#2ecc40' }}>
                 ✓ Closed &amp; funded {data.transaction.closed_and_funded_date &&
@@ -582,7 +614,10 @@ export default function AdminTransaction() {
               <span className="muted" style={{ fontSize: 15.5 }}>
                 Once funds have disbursed, mark this closed to move the client's file to Closed.
               </span>
-              <button className="btn primary" onClick={markClosed}>Closed &amp; Funded</button>
+              <span style={{ display: 'flex', gap: 9 }}>
+                <button className="btn" onClick={cancelTransaction}>Cancel transaction</button>
+                <button className="btn primary" onClick={markClosed}>Closed &amp; Funded</button>
+              </span>
             </>
           )}
         </div>

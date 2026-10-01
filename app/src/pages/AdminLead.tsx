@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
-import type { Lead, LeadAppointment, LeadHome, LeadMaybeHome, LeadPriority, LeadPersonalNote, LeadReferral, LeadDocument, LeadNote, TeamMember } from '../lib/types'
+import type { Lead, LeadAppointment, LeadHome, LeadMaybeHome, LeadPriority, LeadPersonalNote, LeadReferral, LeadDocument, LeadNote, TeamMember, TxStatus } from '../lib/types'
 import {
   leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL, REFERRAL_SOURCES, BUDGET_RANGES,
-  parseAddressFromListingUrl, LOAN_TYPES, LOAN_STATUSES,
+  parseAddressFromListingUrl, LOAN_TYPES, LOAN_STATUSES, STATUS_LABEL,
 } from '../lib/types'
 import AdminNav from '../components/AdminNav'
 import './Admin.css'
@@ -1064,7 +1064,7 @@ export default function AdminLead() {
                   {d.closed_and_funded
                     ? `Closed${d.closed_and_funded_date ? ` ${new Date(d.closed_and_funded_date + 'T00:00:00').toLocaleDateString()}` : ''}`
                         + (d.final_purchase_price != null ? ` — $${d.final_purchase_price.toLocaleString()}` : '')
-                    : d.status}
+                    : STATUS_LABEL[d.status as TxStatus] ?? d.status}
                 </span>
               </div>
             ))}

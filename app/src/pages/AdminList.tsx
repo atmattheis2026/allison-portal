@@ -85,6 +85,8 @@ export default function AdminList() {
   const [latestNotes, setLatestNotes] = useState<Record<string, LatestNote>>({})
   const [search, setSearch] = useState('')
   const [sortMode, setSortMode] = useState<SortMode>('recent')
+  // Cancelled deals ("fell_through") stay out of the way unless asked for.
+  const [showCancelled, setShowCancelled] = useState(false)
 
   useEffect(() => {
     if (DEMO_MODE || !supabase) {
@@ -230,14 +232,15 @@ export default function AdminList() {
   const visibleRows = useMemo(() => {
     if (!rows) return null
     const q = search.trim().toLowerCase()
+    const inView = rows.filter((r) => (r.status === 'fell_through') === showCancelled)
     const filtered = q
-      ? rows.filter((r) => {
+      ? inView.filter((r) => {
           const haystack = [
             agentName(r.realtor_member_id), lenderName(r), clientNameByTx[r.id], r.city_state_zip, r.address_line,
           ].filter(Boolean).join(' ').toLowerCase()
           return haystack.includes(q)
         })
-      : rows
+      : inView
 
     const sorted = [...filtered]
     switch (sortMode) {
@@ -263,7 +266,7 @@ export default function AdminList() {
       // 'recent' keeps the order already returned by the query (created_at desc).
     }
     return sorted
-  }, [rows, search, sortMode, roster, clientNameByTx])
+  }, [rows, search, sortMode, roster, clientNameByTx, showCancelled])
 
   const isDatabaseManager = useIsDatabaseManager()
 
@@ -322,6 +325,11 @@ export default function AdminList() {
               <option value="price">Purchase price (highest first)</option>
             </select>
           </div>
+          <button className="btn" style={{ flex: 'none' }} onClick={() => setShowCancelled((v) => !v)}>
+            {showCancelled
+              ? '← Back to active transactions'
+              : `Cancelled (${rows.filter((r) => r.status === 'fell_through').length})`}
+          </button>
         </div>
       )}
 
@@ -336,37 +344,41 @@ export default function AdminList() {
         </div>
       ) : visibleRows && visibleRows.length === 0 ? (
         <div className="centered">
-          <p className="muted">No transactions match "{search}".</p>
+          <p className="muted">
+            {search.trim()
+              ? `No ${showCancelled ? 'cancelled ' : ''}transactions match "${search}".`
+              : showCancelled ? 'No cancelled transactions.' : 'No active transactions.'}
+          </p>
         </div>
       ) : (
         <div className="txlist">
           {visibleRows!.map((r) => (
             <div className="txcard" key={r.id}
-                 style={r.closed_and_funded ? { background: 'var(--panel-2)', borderColor: 'var(--line-soft)' } : undefined}>
+                 style={(r.closed_and_funded || r.status === 'fell_through') ? { background: 'var(--panel-2)', borderColor: 'var(--line-soft)' } : undefined}>
               <Link to={`/admin/t/${r.id}`} className="txmain">
-                <div className="txthumb" style={r.closed_and_funded ? { filter: 'grayscale(1)', opacity: 0.5 } : undefined}>
+                <div className="txthumb" style={(r.closed_and_funded || r.status === 'fell_through') ? { filter: 'grayscale(1)', opacity: 0.5 } : undefined}>
                   {r.photo_url
                     ? <img src={r.photo_url} alt="" />
                     : <span className="muted" style={{ fontSize: 13.5 }}>No photo</span>}
                 </div>
                 <div className="txinfo">
-                  <div className="txaddr" style={r.closed_and_funded ? { opacity: 0.5 } : undefined}>
+                  <div className="txaddr" style={(r.closed_and_funded || r.status === 'fell_through') ? { opacity: 0.5 } : undefined}>
                     {r.address_line || 'Untitled property'}
                   </div>
-                  <div className="txcity" style={r.closed_and_funded ? { opacity: 0.5 } : undefined}>
+                  <div className="txcity" style={(r.closed_and_funded || r.status === 'fell_through') ? { opacity: 0.5 } : undefined}>
                     {r.city_state_zip}
                   </div>
                   {clientNameByTx[r.id] && (
-                    <div className="txcity" style={r.closed_and_funded ? { opacity: 0.5 } : undefined}>
+                    <div className="txcity" style={(r.closed_and_funded || r.status === 'fell_through') ? { opacity: 0.5 } : undefined}>
                       {clientNameByTx[r.id]}
                     </div>
                   )}
                   <div className="txmeta">
                     <span className={`tag${r.deal_type === 'sell' ? ' sell' : ''}`}
-                          style={r.closed_and_funded ? { opacity: 0.5 } : undefined}>
+                          style={(r.closed_and_funded || r.status === 'fell_through') ? { opacity: 0.5 } : undefined}>
                       {r.deal_type === 'sell' ? 'Listing' : r.deal_type === 'loan' ? 'Loan only' : 'Buyer'}
                     </span>
-                    <span className="muted" style={r.closed_and_funded ? { opacity: 0.5 } : undefined}>
+                    <span className="muted" style={(r.closed_and_funded || r.status === 'fell_through') ? { opacity: 0.5 } : undefined}>
                       {STATUS_LABEL[r.status]}
                     </span>
                     {r.closing_date && !r.closed_and_funded && (
@@ -401,7 +413,7 @@ export default function AdminList() {
               )}
               {latestNotes[r.id] && (
                 <Link to={`/admin/t/${r.id}`} className="txlastnote"
-                      style={r.closed_and_funded ? { opacity: 0.6 } : undefined}>
+                      style={(r.closed_and_funded || r.status === 'fell_through') ? { opacity: 0.6 } : undefined}>
                   <span className="txlastnotelabel">
                     Last update · {timeAgo(latestNotes[r.id].created_at)}
                     {latestNotes[r.id].author_name && ` · ${latestNotes[r.id].author_name}`}

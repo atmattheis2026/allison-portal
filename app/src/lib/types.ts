@@ -15,7 +15,7 @@ export const STATUS_LABEL: Record<TxStatus, string> = {
   on_track: 'Under contract — on track',
   attention: 'Needs attention',
   closed: 'Closed',
-  fell_through: 'Fell through',
+  fell_through: 'Cancelled',
 }
 
 export interface Brand {

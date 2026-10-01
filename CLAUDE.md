@@ -174,6 +174,15 @@ row keeps its checkmark/date, and Put back returns it to the same spot.
 `AdminTransaction.tsx` fetches the hidden rows itself (`hiddenMilestones`),
 same as agent-only contacts. Nothing here touches the Settings master lists.
 
+**Cancelling a transaction (2026-10-01).** "Cancel transaction" on her editing
+view sets `status = 'fell_through'` (label now "Cancelled"); nothing is deleted.
+The Transactions list hides cancelled deals behind a "Cancelled (N)" button, and
+"Make active again" sets the status back. It also runs `reactivate_lead` on any
+client file pointing at the deal, so "Convert to transaction" works for their
+next deal (the old one stays in Deal history). **Not `archived_at`** —
+`get_shared_transaction` refuses archived deals, so her own editing page
+couldn't open one again.
+
 ## Agent Recruiting (recruiting/training/mentorship)
 
 Labeled "Agent Network" until 2026-08-13 — every user-visible label now says
