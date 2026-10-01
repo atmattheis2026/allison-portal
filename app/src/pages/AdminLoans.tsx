@@ -29,7 +29,9 @@ function columnFor(r: Lead): Column | 'inactive' {
   return 'nurture'
 }
 
-type SortMode = 'followup' | 'rate' | 'name' | 'recent'
+type SortMode = 'followup' | 'rate' | 'rate_low' | 'type' | 'name' | 'recent'
+
+function loanTypeOf(r: Lead) { return r.loan_type === 'Other' ? (r.loan_type_other || 'Other') : r.loan_type }
 
 function shortDate(d: string) {
   return parseDate(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -40,6 +42,7 @@ export default function AdminLoans() {
   const [roster, setRoster] = useState<TeamMember[]>([])
   const [q, setQ] = useState('')
   const [lenderFilter, setLenderFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
   const [minRate, setMinRate] = useState('')
   const [sortMode, setSortMode] = useState<SortMode>('followup')
   const [showInactive, setShowInactive] = useState(false)
@@ -69,6 +72,14 @@ export default function AdminLoans() {
       case 'rate':
         list.sort((a, b) => (b.loan_closed_rate ?? -1) - (a.loan_closed_rate ?? -1))
         break
+      case 'rate_low':
+        // No rate yet sorts last, not first.
+        list.sort((a, b) => (a.loan_closed_rate ?? 99) - (b.loan_closed_rate ?? 99))
+        break
+      case 'type':
+        list.sort((a, b) => (loanTypeOf(a) ?? '~').localeCompare(loanTypeOf(b) ?? '~')
+          || (b.loan_closed_rate ?? -1) - (a.loan_closed_rate ?? -1))
+        break
       case 'name':
         list.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
         break
@@ -97,6 +108,7 @@ export default function AdminLoans() {
 
   const shown = sorted.filter((r) => {
     if (lenderFilter === 'none' ? r.lender_member_id : lenderFilter && r.lender_member_id !== lenderFilter) return false
+    if (typeFilter && (typeFilter === 'none' ? loanTypeOf(r) : loanTypeOf(r) !== typeFilter)) return false
     if (!needle) return true
     return [r.full_name, r.full_name_2, r.email, r.loan_closed_lender, r.loan_closed_notes, r.followup_note]
       .some((f) => f?.toLowerCase().includes(needle))
@@ -105,6 +117,7 @@ export default function AdminLoans() {
   const inColumn = (c: Column) => shown.filter((r) => columnFor(r) === c
     && (c !== 'refi' || rateFloor === null || Number.isNaN(rateFloor) || (r.loan_closed_rate ?? 0) >= rateFloor))
   const inactive = shown.filter((r) => columnFor(r) === 'inactive')
+  const loanTypes = [...new Set(rows.map(loanTypeOf).filter((t): t is string => !!t))].sort()
   const loanOfficers = roster.filter((m) => rows.some((r) => r.lender_member_id === m.id))
 
   async function patchRow(id: string, values: Partial<Lead>) {
@@ -125,7 +138,7 @@ export default function AdminLoans() {
     const col = columnFor(r)
     const due = isDue(r)
     const officer = memberName(r.lender_member_id)
-    const loanType = r.loan_type === 'Other' ? (r.loan_type_other || 'Other') : r.loan_type
+    const loanType = loanTypeOf(r)
     const extra = col === 'refi'
       ? [{ label: r.loan_closed_rate != null || r.loan_closed_lender ? 'Edit loan details' : 'Add loan details',
            onClick: () => setEditing({ lead: r, markFileClosed: false }) }]
@@ -135,9 +148,17 @@ export default function AdminLoans() {
     return (
       <div className={`clientcard${due ? ' due' : ''}`} key={r.id}>
         <div className="clienttop">
-          <Link to={`/admin/leads/${r.id}`} className="clientname">
-            {r.full_name || 'Unnamed client'}{r.full_name_2 ? ` & ${r.full_name_2}` : ''}
-          </Link>
+          {/* Rate and loan type sit right beside the name. */}
+          <span className="loannamewrap">
+            <Link to={`/admin/leads/${r.id}`} className="clientname">
+              {r.full_name || 'Unnamed client'}{r.full_name_2 ? ` & ${r.full_name_2}` : ''}
+            </Link>
+            {r.loan_closed_rate != null && (
+              <button type="button" className="loantag rate" title="Interest rate they closed at. Click to edit"
+                      onClick={() => setEditing({ lead: r, markFileClosed: false })}>{r.loan_closed_rate}%</button>
+            )}
+            {loanType && <span className="loantag" title="Loan type">{loanType}</span>}
+          </span>
           {hasFollowups && (
             <FollowUpButton date={r.next_followup ?? null} note={r.followup_note ?? null} due={due}
                             overdue={due && parseDate(r.next_followup!) < today}
@@ -151,12 +172,8 @@ export default function AdminLoans() {
             <div className="clientmeta">
               {(() => {
                 const closedOn = r.loan_closed_date || r.closed_date
-                const rest = [r.loan_closed_lender, loanType, closedOn ? `closed ${shortDate(closedOn)}` : null]
+                return [r.loan_closed_lender, closedOn ? `closed ${shortDate(closedOn)}` : null]
                   .filter(Boolean).join(' · ')
-                return <>
-                  {r.loan_closed_rate != null && <span className="loanrate">{r.loan_closed_rate}%</span>}
-                  {r.loan_closed_rate != null && rest ? ' · ' : ''}{rest}
-                </>
               })()}
             </div>
             {r.loan_closed_notes ? (
@@ -169,7 +186,7 @@ export default function AdminLoans() {
           </>
         ) : (
           <div className="clientmeta">
-            {[officer ?? 'No loan officer', loanType, r.loan_status,
+            {[officer ?? 'No loan officer', r.loan_status,
               r.estimated_loan_amount ? `$${Math.round(r.estimated_loan_amount / 1000)}k` : null,
               r.preapproval_on_file ? 'Pre-approved ✓' : null].filter(Boolean).join(' · ')}
           </div>
@@ -218,6 +235,11 @@ export default function AdminLoans() {
             {loanOfficers.map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
             <option value="none">No loan officer yet</option>
           </select>
+          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} aria-label="Loan type">
+            <option value="">All loan types</option>
+            {loanTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+            <option value="none">No loan type yet</option>
+          </select>
           {hasLoanCols && (
             <label className="clientcheck" title="Refi plan shows only loans at or above this rate">
               Refi rate at least
@@ -229,6 +251,8 @@ export default function AdminLoans() {
             <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
               <option value="followup">Next follow-up</option>
               <option value="rate">Rate (highest first)</option>
+              <option value="rate_low">Rate (lowest first)</option>
+              <option value="type">Loan type</option>
               <option value="name">Name (A–Z)</option>
               <option value="recent">Recently added</option>
             </select>
@@ -265,7 +289,7 @@ export default function AdminLoans() {
                   <p className="clientcolhelp">{c.help}</p>
                   <div className="clientcolbody">
                     {list.length === 0 && <p className="muted" style={{ fontSize: 14.5, margin: '6px 2px' }}>
-                      {needle || lenderFilter || (c.key === 'refi' && minRate) ? 'No matches here.' : 'No one here right now.'}</p>}
+                      {needle || lenderFilter || typeFilter || (c.key === 'refi' && minRate) ? 'No matches here.' : 'No one here right now.'}</p>}
                     {list.map(renderCard)}
                   </div>
                 </section>

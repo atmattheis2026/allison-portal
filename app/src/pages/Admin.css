@@ -304,5 +304,10 @@
 .modalrow > label { flex: 1 1 160px; }
 .ratebox { display: flex; align-items: center; gap: 6px; }
 .ratebox input { min-width: 0; }
-.loanrate { font-weight: 800; color: var(--ink); }
 .clientnote.linkish { text-align: left; padding: 0; background: none; border: 0; cursor: pointer; font: inherit; font-size: 13.5px; }
+/* Loan Clients: rate and loan type tags beside the name. */
+.loannamewrap { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; }
+.loannamewrap .clientname { flex: 0 1 auto; }
+.loantag { flex: none; font-size: 13px; font-weight: 700; line-height: 1.3; padding: 1px 7px; border-radius: 6px;
+           background: var(--panel-2); border: 1px solid var(--line); color: var(--ink-dim); }
+.loantag.rate { background: #E8F1F6; border-color: #B9D2E0; color: #1F4E66; cursor: pointer; }

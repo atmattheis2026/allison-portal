@@ -408,6 +408,9 @@ deal's history `wants_loan`, and also sets that file to 'closed' (same as
 `mark_transaction_closed`). On Loan Clients, ⋯ → "Loan closed…" does the same
 for a loan-only client with no deal; refi cards have "Edit loan details".
 Internal only; `get_shared_lead` lists its keys explicitly.
+Rate and loan type show as small tags right beside the name (`.loantag`; the
+rate tag opens the edit pop-up). Sort adds rate lowest first (no rate last)
+and loan type; a loan type filter sits beside the loan officer filter.
 
 ## Agent Recruiting (recruiting/training/mentorship)
 
