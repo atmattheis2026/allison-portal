@@ -53,6 +53,11 @@ export default function AdminResources() {
   const [folderNotes, setFolderNotes] = useState<ResourceFolderNote[]>([])
   const [folderContacts, setFolderContacts] = useState<ResourceFolderContact[]>([])
   const [isMentorViewer, setIsMentorViewer] = useState(false)
+  // Who's signed in, for their private "My files" (086). hasPersonal is false
+  // on a database without 086, and the section says what to run instead.
+  const [myId, setMyId] = useState<string | null>(DEMO_MODE ? 'demo-me' : null)
+  const [hasPersonal, setHasPersonal] = useState(true)
+  const [creatingMine, setCreatingMine] = useState(false)
   const [addingTo, setAddingTo] = useState<{ category: ResourceCategory; folderId: string | null } | null>(null)
   const [creatingFolderIn, setCreatingFolderIn] =
     useState<{ category: ResourceCategory; parentFolderId: string | null } | null>(null)
@@ -73,7 +78,7 @@ export default function AdminResources() {
     for (let f: ResourceFolder | undefined = target; f; f = f.parent_folder_id ? byId.get(f.parent_folder_id) : undefined) {
       chain.unshift(f.id)
     }
-    setPathByCategory((cur) => ({ ...cur, [target.category]: chain }))
+    setPathByCategory((cur) => ({ ...cur, [target.owner_profile_id ? 'mine' : target.category]: chain }))
   }, [folderParam, folders])
   const nav = useNavigate()
   const isDatabaseManager = useIsDatabaseManager()
@@ -93,6 +98,9 @@ export default function AdminResources() {
 
       const { data: me } = await supabase!.from('profiles').select('role').eq('id', auth.user.id).maybeSingle()
       setIsMentorViewer(me?.role === 'mentor')
+      setMyId(auth.user.id)
+      const { error: personalError } = await supabase!.from('resource_folders').select('owner_profile_id').limit(1)
+      setHasPersonal(!personalError)
 
       const { data: folderData, error: folderError } = await supabase!
         .from('resource_folders').select('*').order('category').order('sort_order')
@@ -152,6 +160,7 @@ export default function AdminResources() {
   function createdFolder(f: ResourceFolder) {
     setFolders((cur) => [...cur, f])
     setCreatingFolderIn(null)
+    setCreatingMine(false)
   }
 
   /** Returns true if the folder was actually deleted (false if cancelled),
@@ -177,7 +186,21 @@ export default function AdminResources() {
 
   if (!rows) return <div className="centered"><div className="spinner" /></div>
 
-  const nothingToSee = !isDatabaseManager && folders.length === 0
+  // Shared folders are everything without an owner; personal ones show only
+  // in "My files", and only the signed-in person's own.
+  const sharedFolders = folders.filter((f) => !f.owner_profile_id)
+  const myFolders = folders.filter((f) => myId && f.owner_profile_id === myId)
+  const nothingShared = !isDatabaseManager && sharedFolders.length === 0
+  const minePath = pathByCategory.mine ?? []
+  const mineCurrent = minePath.length > 0 ? myFolders.find((f) => f.id === minePath[minePath.length - 1]) ?? null : null
+  const onNavigateMine = (next: string[]) => setPathByCategory((cur) => ({ ...cur, mine: next }))
+  const folderDetailShared = {
+    rows, folderNotes, folderContacts, isDatabaseManager,
+    addingTo, setAddingTo, creatingFolderIn, setCreatingFolderIn, managingAccessFor, setManagingAccessFor,
+    onAddedResource: addedResource, onRemovedResource: removeResource, onAddedFolderNote: addedFolderNote,
+    onCreatedFolder: createdFolder, onDeletedFolder: deleteFolder, onAddedContact: addedFolderContact,
+    onPatchedContact: patchedFolderContact, onRemovedContact: removedFolderContact,
+  }
 
   return (
     <div className="admin">
@@ -206,35 +229,78 @@ export default function AdminResources() {
         </>
       )}
 
-      {nothingToSee ? (
-        <div className="centered">
-          <p className="muted" style={{ maxWidth: 360, lineHeight: 1.7, textAlign: 'center' }}>
-            Nothing has been shared with you here yet.
-          </p>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gap: 18, maxWidth: 780, margin: '0 auto' }}>
+      <div className="libpage" style={{ display: 'grid', gap: 14, maxWidth: 820, margin: '0 auto' }}>
+          {/* My files: private to whoever is signed in (086). */}
+          {!isMentorViewer && (
+            <div className="card setcard">
+              <div className="libhead">
+                <h2>My files <span className="muted" style={{ fontSize: 14.5, fontWeight: 500 }}>· only you can see these</span></h2>
+                {hasPersonal && !mineCurrent && (
+                  <span className="libacts"><button className="btn" onClick={() => setCreatingMine(true)}>+ Folder</button></span>
+                )}
+              </div>
+              {!hasPersonal ? (
+                <p className="sethelp" style={{ color: 'var(--danger)', fontWeight: 600, overflowWrap: 'anywhere' }}>
+                  One database step turns this on: in Supabase's SQL Editor, run
+                  supabase/migrations/086_my_home_and_personal_folders.sql, then reload this page.
+                </p>
+              ) : mineCurrent ? (
+                <FolderDetail folder={mineCurrent} category={mineCurrent.category} path={minePath} personal ownerId={myId}
+                              crumbs={buildCrumbs('My files', minePath, myFolders)} onNavigate={onNavigateMine}
+                              allFolders={myFolders} {...folderDetailShared} />
+              ) : (
+                <>
+                  {myFolders.filter((f) => !f.parent_folder_id).length > 0 ? (
+                    <div className="foldergrid">
+                      {myFolders.filter((f) => !f.parent_folder_id).map((folder) => (
+                        <FolderTile key={folder.id} folder={folder} onClick={() => onNavigateMine([folder.id])} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="muted" style={{ fontSize: 15, margin: '0 0 6px' }}>
+                      Make a folder for anything you want handy: your scripts, your forms, your marketing.
+                    </p>
+                  )}
+                  {creatingMine && (
+                    <NewFolder category="general" parentFolderId={null} ownerId={myId}
+                               onCancel={() => setCreatingMine(false)} onCreated={createdFolder} />
+                  )}
+                </>
+              )}
+            </div>
+          )}
+          {nothingShared && (
+            <p className="muted" style={{ textAlign: 'center', fontSize: 15 }}>Nothing has been shared with you here yet.</p>
+          )}
           {CATEGORIES.map((cat) => {
             const unfiled = rows.filter((r) => r.category === cat && !r.folder_id)
-            const topFolders = folders.filter((f) => f.category === cat && !f.parent_folder_id)
+            const topFolders = sharedFolders.filter((f) => f.category === cat && !f.parent_folder_id)
             if (!isDatabaseManager && unfiled.length === 0 && topFolders.length === 0) return null
 
             const path = pathByCategory[cat] ?? []
-            const currentFolder = path.length > 0 ? folders.find((f) => f.id === path[path.length - 1]) ?? null : null
+            const currentFolder = path.length > 0 ? sharedFolders.find((f) => f.id === path[path.length - 1]) ?? null : null
             const onNavigate = (next: string[]) => setPathByCategory((cur) => ({ ...cur, [cat]: next }))
 
             return (
               <div className="card setcard" key={cat}>
-                <h2>{RESOURCE_CATEGORY_LABEL[cat]}</h2>
+                <div className="libhead">
+                  <h2>{RESOURCE_CATEGORY_LABEL[cat]}</h2>
+                  {isDatabaseManager && !currentFolder && (
+                    <span className="libacts">
+                      <button className="btn" onClick={() => setAddingTo({ category: cat, folderId: null })}>+ Doc or link</button>
+                      <button className="btn" onClick={() => setCreatingFolderIn({ category: cat, parentFolderId: null })}>+ Folder</button>
+                    </span>
+                  )}
+                </div>
 
                 {currentFolder ? (
                   <FolderDetail
                     folder={currentFolder}
                     category={cat}
                     path={path}
-                    crumbs={buildCrumbs(RESOURCE_CATEGORY_LABEL[cat], path, folders)}
+                    crumbs={buildCrumbs(RESOURCE_CATEGORY_LABEL[cat], path, sharedFolders)}
                     onNavigate={onNavigate}
-                    allFolders={folders}
+                    allFolders={sharedFolders}
                     rows={rows}
                     folderNotes={folderNotes}
                     folderContacts={folderContacts}
@@ -256,80 +322,56 @@ export default function AdminResources() {
                   />
                 ) : (
                   <>
-                    {isDatabaseManager && (
-                      unfiled.length === 0 ? (
-                        <p className="muted" style={{ fontSize: 15 }}>Nothing unfiled here.</p>
-                      ) : (
-                        <ResourceList items={unfiled} onRemove={removeResource} />
-                      )
-                    )}
-
-                    {isDatabaseManager && (
-                      addingTo?.category === cat && addingTo.folderId === null ? (
-                        <AddResource category={cat} folderId={null} onCancel={() => setAddingTo(null)} onAdded={addedResource} />
-                      ) : (
-                        <div className="savebar">
-                          <button className="btn" onClick={() => setAddingTo({ category: cat, folderId: null })}>
-                            + Add a doc or link
-                          </button>
-                        </div>
-                      )
-                    )}
-
+                    {/* Folders first, small; open one to get at what's inside. */}
                     {topFolders.length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 14 }}>
+                      <div className="foldergrid">
                         {topFolders.map((folder) => (
                           <FolderTile key={folder.id} folder={folder} onClick={() => onNavigate([folder.id])} />
                         ))}
                       </div>
                     )}
-
-                    {isDatabaseManager && (
-                      creatingFolderIn?.category === cat && creatingFolderIn.parentFolderId === null ? (
-                        <NewFolder category={cat} parentFolderId={null}
-                                   onCancel={() => setCreatingFolderIn(null)} onCreated={createdFolder} />
-                      ) : (
-                        <div className="savebar" style={{ marginTop: 10 }}>
-                          <button className="btn" onClick={() => setCreatingFolderIn({ category: cat, parentFolderId: null })}>
-                            + New folder
-                          </button>
-                        </div>
-                      )
+                    {isDatabaseManager && <ResourceList items={unfiled} onRemove={removeResource} />}
+                    {isDatabaseManager && topFolders.length === 0 && unfiled.length === 0 && (
+                      <p className="muted" style={{ fontSize: 15, margin: '2px 0' }}>Nothing here yet.</p>
+                    )}
+                    {isDatabaseManager && addingTo?.category === cat && addingTo.folderId === null && (
+                      <AddResource category={cat} folderId={null} onCancel={() => setAddingTo(null)} onAdded={addedResource} />
+                    )}
+                    {isDatabaseManager && creatingFolderIn?.category === cat && creatingFolderIn.parentFolderId === null && (
+                      <NewFolder category={cat} parentFolderId={null}
+                                 onCancel={() => setCreatingFolderIn(null)} onCreated={createdFolder} />
                     )}
                   </>
                 )}
               </div>
             )
           })}
-        </div>
-      )}
+      </div>
     </div>
   )
 }
 
+/** Files and links as slim one-line rows: a small type badge, the title
+ *  (opens it), and a small ✕ that still confirms. Allison wanted the library
+ *  "very small", opened to get at what's inside (2026-10-01). */
 function ResourceList({ items, onRemove }: { items: Resource[]; onRemove: (id: string) => void }) {
   if (items.length === 0) return null
   return (
-    <div className="notelist">
-      {items.map((r) => (
-        <div className="note" key={r.id}>
-          <p className="notebody" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            {r.file_url ? (
-              <a href={r.file_url} target="_blank" rel="noreferrer">{r.title}</a>
-            ) : r.url ? (
-              <a href={r.url} target="_blank" rel="noreferrer">{r.title}</a>
-            ) : (
-              <span>{r.title}</span>
-            )}
-            {r.file_name && <span className="tag" style={{ flex: 'none' }}>{r.file_name}</span>}
-            <button type="button" className="btn" style={{ flex: 'none', marginLeft: 'auto', color: 'var(--danger, #cc3311)' }}
-                    onClick={() => onRemove(r.id)}>
-              Delete
-            </button>
-          </p>
-          {r.description && <p className="muted" style={{ fontSize: 15, margin: '4px 0 0' }}>{r.description}</p>}
-        </div>
-      ))}
+    <div className="reslist">
+      {items.map((r) => {
+        const href = r.file_url || r.url
+        const ext = r.file_name?.split('.').pop()?.slice(0, 4).toUpperCase()
+        return (
+          <div className="resrow" key={r.id} title={r.description || undefined}>
+            <span className="restype">{r.file_url ? (ext || 'FILE') : r.url ? 'LINK' : 'NOTE'}</span>
+            <span className="resmain">
+              {href ? <a href={href} target="_blank" rel="noreferrer">{r.title}</a> : <span>{r.title}</span>}
+              {r.description && <span className="resdesc">{r.description}</span>}
+            </span>
+            <button type="button" className="resdel" onClick={() => onRemove(r.id)} title="Delete" aria-label={`Delete ${r.title}`}>✕</button>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -352,18 +394,10 @@ function FolderTile({ folder, onClick }: { folder: ResourceFolder; onClick: () =
     <button
       type="button"
       onClick={onClick}
-      style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-        width: 96, padding: '12px 6px 10px', background: 'transparent', border: '1px solid transparent',
-        borderRadius: 'var(--r-sm)', cursor: 'pointer', textAlign: 'center', font: 'inherit',
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--panel-2)'; e.currentTarget.style.borderColor = 'var(--line)' }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent' }}
+      className="foldertile" title={`Open ${folder.name}`}
     >
-      <FolderIcon size={36} />
-      <span style={{ fontSize: 15, lineHeight: 1.3, color: 'var(--ink)', wordBreak: 'break-word' }}>
-        {folder.name}
-      </span>
+      <FolderIcon size={26} />
+      <span className="foldertilename">{folder.name}</span>
     </button>
   )
 }
@@ -393,6 +427,10 @@ interface FolderDetailProps {
   onAddedContact: (c: ResourceFolderContact) => void
   onPatchedContact: (id: string, v: Partial<ResourceFolderContact>) => void
   onRemovedContact: (id: string) => void
+  /** A folder in the signed-in person's own "My files" (086): they can make
+   *  subfolders and delete it, and there's no access list. */
+  personal?: boolean
+  ownerId?: string | null
 }
 
 /**
@@ -409,8 +447,11 @@ function FolderDetail(props: FolderDetailProps) {
     folder, category, path, crumbs, onNavigate, allFolders, rows, folderNotes, folderContacts, isDatabaseManager,
     addingTo, setAddingTo, creatingFolderIn, setCreatingFolderIn, managingAccessFor, setManagingAccessFor,
     onAddedResource, onRemovedResource, onAddedFolderNote, onCreatedFolder, onDeletedFolder,
-    onAddedContact, onPatchedContact, onRemovedContact,
+    onAddedContact, onPatchedContact, onRemovedContact, personal = false, ownerId = null,
   } = props
+  // In My files the owner manages their own folders; in shared sections
+  // that's a Database Manager's job.
+  const canManage = personal || isDatabaseManager
 
   const subfolders = allFolders.filter((f) => f.parent_folder_id === folder.id)
   const parentPath = path.slice(0, -1)
@@ -452,12 +493,14 @@ function FolderDetail(props: FolderDetailProps) {
             ← Back
           </button>
           <strong style={{ flex: 1, fontSize: 17.5 }}>{folder.name}</strong>
-          {isDatabaseManager && (
+          {canManage && (
             <>
-              <button type="button" className="btn"
-                      onClick={() => setManagingAccessFor(managingAccessFor === folder.id ? null : folder.id)}>
-                {managingAccessFor === folder.id ? 'Done' : 'Manage access'}
-              </button>
+              {!personal && (
+                <button type="button" className="btn"
+                        onClick={() => setManagingAccessFor(managingAccessFor === folder.id ? null : folder.id)}>
+                  {managingAccessFor === folder.id ? 'Done' : 'Manage access'}
+                </button>
+              )}
               <button type="button" className="btn" style={{ color: 'var(--danger, #cc3311)' }}
                       onClick={handleDelete}>
                 Delete folder
@@ -466,7 +509,7 @@ function FolderDetail(props: FolderDetailProps) {
           )}
         </div>
 
-        {isDatabaseManager && managingAccessFor === folder.id && (
+        {!personal && isDatabaseManager && managingAccessFor === folder.id && (
           <FolderAccessEditor folder={folder} />
         )}
 
@@ -485,7 +528,7 @@ function FolderDetail(props: FolderDetailProps) {
         {subfolders.length > 0 && (
           <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--line-soft)' }}>
             <label className="eyebrow" style={{ display: 'block', marginBottom: 4 }}>Folders</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <div className="foldergrid">
               {subfolders.map((sf) => (
                 <FolderTile key={sf.id} folder={sf} onClick={() => onNavigate([...path, sf.id])} />
               ))}
@@ -493,9 +536,9 @@ function FolderDetail(props: FolderDetailProps) {
           </div>
         )}
 
-        {isDatabaseManager && (
+        {canManage && (
           creatingFolderIn?.parentFolderId === folder.id ? (
-            <NewFolder category={category} parentFolderId={folder.id}
+            <NewFolder category={category} parentFolderId={folder.id} ownerId={personal ? ownerId : null}
                        onCancel={() => setCreatingFolderIn(null)} onCreated={onCreatedFolder} />
           ) : (
             <div className="savebar" style={{ marginTop: 10 }}>
@@ -791,8 +834,10 @@ function FolderNotesBoard({ folder, notes, onAdded }: {
   )
 }
 
-function NewFolder({ category, parentFolderId, onCancel, onCreated }: {
+function NewFolder({ category, parentFolderId, ownerId = null, onCancel, onCreated }: {
   category: ResourceCategory; parentFolderId: string | null
+  /** Set for a personal "My files" folder (086). */
+  ownerId?: string | null
   onCancel: () => void; onCreated: (f: ResourceFolder) => void
 }) {
   const [name, setName] = useState('')
@@ -810,7 +855,8 @@ function NewFolder({ category, parentFolderId, onCancel, onCreated }: {
     if (!me?.team_id) { setErr('Couldn’t work out which team you’re on.'); setBusy(false); return }
 
     const { data, error } = await supabase.from('resource_folders')
-      .insert({ team_id: me.team_id, category, name, parent_folder_id: parentFolderId })
+      .insert({ team_id: me.team_id, category, name, parent_folder_id: parentFolderId,
+                ...(ownerId ? { owner_profile_id: ownerId } : {}) })
       .select('*').single()
 
     setBusy(false)

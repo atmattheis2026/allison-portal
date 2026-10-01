@@ -444,6 +444,49 @@ The client file's agent/lender lists load the file's team **plus** the
 signed-in person's team: Toni Greenwald's file couldn't get an agent or loan
 officer picked (Allison, 2026-10-01), most likely a file on another team.
 
+## My Home (personal landing page) + My files (2026-10-01, migration 086)
+
+`/admin/home` (`AdminHome.tsx`, first in the side menu as "My Home"):
+everyone's own landing page once per session. Cards: **motivation** (their
+own quote/goal, `my_home`), **to-do list** (`my_tasks`: due date optional,
+overdue highlighted, Clear done), **follow-ups** due this week and **closings**
+in the next 30 days (a Mine / Everyone switch remembered in localStorage;
+"mine" = their `team_members` ids as agent/lender, deals they're assigned to,
+clients they starred), **market updates** (`market_updates`, team-wide, mentor
+wall; post box for loan officers, mortgage brokers and Database Managers;
+delete own, Database Managers any), **my websites** (their
+`realtor_website_*`/`lender_website_*` from Settings › Team: Open, Copy link,
+Share (phone share sheet, else copy), and "Look up a house", which opens a
+Google search limited to that site, since each site's own search differs),
+**quick links** (`my_links`), **favorite clients**, **my files** (their
+personal folders). All personal tables are owner-only RLS. Each card shows
+the SQL to run when 086 is missing.
+Added the same day: **My year** (closed & funded since Jan 1 that are
+"mine", count + volume, against `my_home.closings_goal`), **New from clients**
+(unresolved client referrals, showing and offer requests, same sources as the
+Clients page), **Overdue checklist steps** (dated, incomplete, not
+internal_only milestones before today on open deals), **Birthdays &
+anniversaries this week** (`leads.birthday`/`birthday_2`, entered beside
+phone/email on the client file, plus `closed_date` anniversaries of closed
+clients, 1+ years). **Customize** (⚙ in the greeting row): each person ticks
+which cards show, saved in `my_home.hidden_cards` (and localStorage). The
+Mine / Everyone switch applies to every list card. 086 is safe to re-run.
+
+**My files** in the Resource Library: `resource_folders.owner_profile_id`.
+`can_access_resource_folder()` (rewritten in 086) lets only the owner into a
+personal folder or anything under it: not Database Managers, not grants
+(platform admin keeps its bypass; the app only shows people their own).
+Folder insert/update/delete policies were rewritten so Database Managers
+manage shared folders only and anyone manages their own; `resources_dbmanager_rw`
+no longer reaches into personal folders. Personal folders use category
+'general' (no constraint change) and are excluded from the shared sections;
+the side menu's `?folder=` opens them under the 'mine' path. Resource Library
+is in everyone's menu now (it holds their own files). Allison asked for the
+library "very small", opened to get at what's inside: `.foldergrid` /
+`.foldertile` (small icons), `.reslist` rows (type badge, title, small ✕),
+headings with "+ Doc or link" / "+ Folder" beside them, folders before loose
+files, and `.libpage .savebar` made static (the sticky bars left blank bands).
+
 ## Agent Recruiting (recruiting/training/mentorship)
 
 Labeled "Agent Network" until 2026-08-13 — every user-visible label now says
@@ -498,7 +541,11 @@ docs), not tied to any one transaction or lead. Gated with
 `is_database_manager()`, which already existed (migration 052, for deleting
 a transaction).
 
-**It's also the landing page for Database Managers**, once per browser tab:
+**Superseded 2026-10-01: everyone now lands on My Home** (`/admin/home`,
+see "My Home" below), once per tab via `sessionStorage.seenHomeLanding` in
+`AdminList.tsx`; the Database-Manager redirect to this page is gone. The
+paragraph below is history.
+**It was the landing page for Database Managers**, once per browser tab:
 `AdminList.tsx` (the `/admin` transactions list) redirects a Database Manager
 to `/admin/resources` the first time they load `/admin` in a session
 (tracked with a `sessionStorage` flag, not by changing where the magic-link

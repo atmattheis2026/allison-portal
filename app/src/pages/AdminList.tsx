@@ -119,18 +119,14 @@ export default function AdminList() {
       // straight to their own page rather than a confusing empty screen.
       if (me.role === 'mentor') { nav('/mentor', { replace: true }); return }
 
-      // A Database Manager's first stop each browser session is the
-      // Resources page (docs/links for the team) instead of the
-      // transaction list — Allison's choice 2026-08-12, see migration 065.
-      // Only fires once per tab: after that, clicking "Transactions" in the
-      // nav (which also points at /admin) works normally instead of
-      // bouncing back to Resources every time.
-      const { data: myMember } = await supabase!.from('team_members')
-        .select('roles').eq('profile_id', auth.user.id).maybeSingle()
-      const isDatabaseManager = Boolean(myMember?.roles.includes('admin'))
-      if (isDatabaseManager && !sessionStorage.getItem('seenResourcesLanding')) {
-        sessionStorage.setItem('seenResourcesLanding', '1')
-        nav('/admin/resources', { replace: true })
+      // Everyone's first stop each browser session is their own My Home
+      // (Allison, 2026-10-01; before that only Database Managers landed, on
+      // the Resource Library). Only fires once per tab: after that, clicking
+      // "Transactions" in the nav (which also points at /admin) works
+      // normally instead of bouncing back every time.
+      if (!sessionStorage.getItem('seenHomeLanding')) {
+        sessionStorage.setItem('seenHomeLanding', '1')
+        nav('/admin/home', { replace: true })
         return
       }
 
