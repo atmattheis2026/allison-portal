@@ -259,9 +259,10 @@ export default function AdminLead() {
       .then(({ data, error }) => {
         if (error) { setLoadError(error.message); return }
         setLead(data as Lead)
+        // Only this client's own team — see the same fix in AdminTransaction.
+        supabase!.from('team_members').select('*').eq('team_id', (data as Lead).team_id).order('sort_order')
+          .then(({ data: rows }) => setRoster((rows as TeamMember[]) ?? []))
       })
-    supabase.from('team_members').select('*').order('sort_order')
-      .then(({ data }) => setRoster((data as TeamMember[]) ?? []))
     supabase.from('lead_appointments').select('*').eq('lead_id', id).order('sort_order')
       .then(({ data }) => setAppointments((data as LeadAppointment[]) ?? []))
     supabase.from('lead_homes').select('*').eq('lead_id', id).order('sort_order')

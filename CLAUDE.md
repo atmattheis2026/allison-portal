@@ -196,6 +196,19 @@ The client file is found through Deal history (`lead_transactions`), not
 it up there broke cancel → make active → cancel again (2026-10-01). "Make
 active again" points the file back at the deal unless the file has since
 moved on to a different deal.
+Picking "Cancelled" in the status dropdown runs the same cancel (no confirm,
+she already chose it), and picking any other status on a cancelled deal runs
+"Make active again" — so the questions appear either way.
+
+**Roster dropdowns are filtered to the deal's own team (2026-10-01).**
+`team_members` RLS lets `is_platform_admin()` read every team's roster, so an
+unfiltered `select('*')` on her account filled the Realtor/Loan Officer
+dropdowns with other teams' people and duplicate names. `AdminTransaction`
+loads `team_id = <deal's team>` plus whoever is already on the deal;
+`AdminLead` loads the client file's team. `pickerList()` in `Dashboard.tsx`
+always includes the person already chosen (even if untagged) and shows each
+name once. Other pages (`AdminList`, `AdminLeads`, `AdminClosed`, ...) still
+load unfiltered rosters for their chips.
 
 ## Agent Recruiting (recruiting/training/mentorship)
 

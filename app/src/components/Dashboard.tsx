@@ -573,6 +573,26 @@ function AddressBlock({ tx, editable, onPatch }: {
   )
 }
 
+/** People for a Realtor/Loan Officer dropdown. Always includes whoever is
+ *  already chosen on this deal, even if they've lost the tag since (otherwise
+ *  the dropdown reads "Choose…" under their initials), and shows each name
+ *  once even if they're on the roster twice. */
+function pickerList(roster: TeamMember[] | undefined, chosenId: string | null | undefined,
+                    tagged: (m: TeamMember) => boolean): TeamMember[] {
+  const all = roster ?? []
+  const chosen = all.find((m) => m.id === chosenId)
+  const list = all.filter((m) => m === chosen || tagged(m))
+  const seen = new Set<string>()
+  const key = (m: TeamMember) => (m.full_name || m.id).trim().toLowerCase()
+  if (chosen) seen.add(key(chosen))
+  return list.filter((m) => {
+    if (m === chosen) return true
+    if (seen.has(key(m))) return false
+    seen.add(key(m))
+    return true
+  })
+}
+
 const STATUSES: TxStatus[] =
   ['under_contract', 'on_track', 'attention', 'closed', 'fell_through']
 
@@ -688,9 +708,9 @@ function TeamCards({
   const realtorLabel = realtorTitle === 'broker_associate' ? 'Broker Associate' : 'Realtor'
   const lenderLabel = lenderTitle === 'mortgage_broker' ? 'Mortgage Broker' : 'Loan Officer'
   const hasLender = Boolean(lender?.name)
-  const agents = roster?.filter((m) => m.roles.includes('realtor')) ?? []
-  const loanPeople = roster?.filter((m) =>
-    m.roles.includes('loan_officer') || m.roles.includes('mortgage_broker')) ?? []
+  const agents = pickerList(roster, realtorMemberId, (m) => m.roles.includes('realtor'))
+  const loanPeople = pickerList(roster, lenderMemberId, (m) =>
+    m.roles.includes('loan_officer') || m.roles.includes('mortgage_broker'))
   if (hideRealtor && !hasLender && !editable) return null
   if (!hideRealtor && !realtor && !hasLender && !editable) return null
 
