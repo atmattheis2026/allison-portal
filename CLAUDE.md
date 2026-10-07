@@ -113,6 +113,18 @@ a client file also updates their *current* deal only while it's open
 (`syncCurrentDeal` in `AdminLead.tsx`); closed and cancelled deals keep
 whoever worked them (Allison: "I need agent specific transactions").
 
+**Deal and client file show each other's Updates (2026-10-07).** A deal's
+Updates are `notes` (by side); a client file's are `lead_notes`. They're still
+separate tables (each insert emails the client through its own trigger, so
+never copy a post into both). Instead each page *reads* the other: the client
+file's Updates card merges in its current deal's `notes`, tagged "On the deal ·
+Real estate/Loan" (`dealNotes` in `AdminLead.tsx`), and the deal page shows an
+"Updates on the client file" card above the Dashboard (`fileNotes` in
+`AdminTransaction.tsx`, files found via `lead_transactions` or
+`converted_transaction_id`). Found when an update posted on Heather's deal
+didn't appear on her client file. The client's /l/ link already showed both;
+the /t/ link shows only the deal's.
+
 **Do not remove RLS policies.** Every table is locked to the user's team. Turning
 that off means her whole business is readable by anyone with the app's public key.
 
