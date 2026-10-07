@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DEMO_MODE, supabase } from '../lib/supabase'
-import type { Lead, LeadAppointment, LeadHome, LeadMaybeHome, LeadPriority, LeadPersonalNote, LeadReferral, LeadDocument, LeadNote, TeamMember, TxStatus } from '../lib/types'
+import type { Lead, LeadAppointment, LeadHome, LeadMaybeHome, LeadPriority, LeadPersonalNote, LeadReferral, LeadDocument, LeadNote, Note, TeamMember, TxStatus } from '../lib/types'
 import {
   leadTimeframeBand, TIMEFRAME_BAND_COLOR, TIMEFRAME_BAND_LABEL, REFERRAL_SOURCES, BUDGET_RANGES,
   parseAddressFromListingUrl, LOAN_TYPES, LOAN_STATUSES, STATUS_LABEL, LOAN_REFERRAL_SOURCES, LEAD_STATUS_LABEL,
@@ -228,6 +228,10 @@ export default function AdminLead() {
   const [documents, setDocuments] = useState<LeadDocument[]>([])
   const [uploadingDoc, setUploadingDoc] = useState(false)
   const [notes, setNotes] = useState<LeadNote[]>([])
+  // Updates posted on their current deal's page (the `notes` table). The
+  // deal and the client file keep separate Updates boards, so without this
+  // an update posted on the deal never showed up here.
+  const [dealNotes, setDealNotes] = useState<Note[]>([])
   const [buyerOpen, setBuyerOpen] = useState(false)
   // Agent/lender are set once and rarely changed, so they stay folded.
   const [assignOpen, setAssignOpen] = useState(false)
@@ -318,6 +322,14 @@ export default function AdminLead() {
   }
 
   useEffect(() => { loadAll() }, [id])
+
+  const currentDealId = lead?.converted_transaction_id ?? null
+  useEffect(() => {
+    if (!currentDealId || DEMO_MODE || !supabase) { setDealNotes([]); return }
+    supabase.from('notes').select('id, side, author_name, body, created_at')
+      .eq('transaction_id', currentDealId).order('created_at', { ascending: false })
+      .then(({ data }) => setDealNotes((data as Note[]) ?? []))
+  }, [currentDealId])
 
   // Another agent or the lender can have this same client's file open at the
   // same time. Rather than auto-reload (which fought with fields that save
@@ -772,20 +784,34 @@ export default function AdminLead() {
   const lenderChoices = choicesFor(roster, lead.lender_member_id,
     (m) => m.roles.includes('loan_officer') || m.roles.includes('mortgage_broker'))
 
+  // The file's own updates plus their current deal's, newest first.
+  const allUpdates: Array<LeadNote & { dealSide?: Note['side'] }> = [
+    ...notes,
+    ...dealNotes.map((n) => ({ id: `deal-${n.id}`, author_name: n.author_name, body: n.body, created_at: n.created_at, dealSide: n.side })),
+  ].sort((a, b) => b.created_at.localeCompare(a.created_at))
+
   // On a computer, Updates and the just-for-you cards get their own third
   // column instead of sitting above and below everything else.
   const updatesCard = (
         <div className="card setcard notesboard">
           <h2>Updates</h2>
-          <p className="sethelp">Posted here shows up on their client page — check this first.</p>
-          {notes.length === 0 ? (
+          <p className="sethelp">
+            Posted here shows up on their client page — check this first.
+            {dealNotes.length > 0 && <> Updates posted on their deal are included, marked "On the deal."</>}
+          </p>
+          {allUpdates.length === 0 ? (
             <p className="muted" style={{ fontSize: 15 }}>No updates posted yet.</p>
           ) : (
             <div className="notelist">
-              {notes.map((n) => (
+              {allUpdates.map((n) => (
                 <div className="note" key={n.id}>
                   <div className="notemeta">
                     {n.author_name && <span className="noteauthor">{n.author_name}</span>}
+                    {n.dealSide && currentDealId && (
+                      <Link className="notewhen" to={`/admin/t/${currentDealId}`}>
+                        On the deal · {n.dealSide === 'loan' ? 'Loan' : 'Real estate'}
+                      </Link>
+                    )}
                     <span className="notewhen">{new Date(n.created_at).toLocaleDateString('en-US', {
                       month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
                     })}</span>

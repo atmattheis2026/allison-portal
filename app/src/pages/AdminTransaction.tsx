@@ -45,6 +45,11 @@ export default function AdminTransaction() {
   // After Closed & Funded: the loan client's lender / rate / notes pop-up.
   const [loanClosed, setLoanClosed] = useState<{ leadId: string; name: string; initial: Partial<LoanClosedValues> } | null>(null)
   const [startingNew, setStartingNew] = useState(false)
+  // Updates posted on the client file(s) for this deal (`lead_notes`). The
+  // file and the deal keep separate Updates boards; this shows the file's
+  // here so nothing posted on either page is missed.
+  const [fileNotes, setFileNotes] = useState<FileNote[]>([])
+  const [showAllFileNotes, setShowAllFileNotes] = useState(false)
   const nav = useNavigate()
   // On a computer the deal page uses the desk layout: the assigned-to chips
   // and the close/cancel buttons move into the deal's own summary strip.
@@ -120,6 +125,32 @@ export default function AdminTransaction() {
   }
 
   useEffect(() => { loadAll() }, [id])
+
+  useEffect(() => {
+    if (!id || DEMO_MODE || !supabase) return
+    let alive = true
+    ;(async () => {
+      // Linked through Deal history, plus any file still pointing straight at
+      // this deal (older files may predate lead_transactions).
+      const [{ data: history }, { data: direct }] = await Promise.all([
+        supabase!.from('lead_transactions').select('lead_id').eq('transaction_id', id),
+        supabase!.from('leads').select('id').eq('converted_transaction_id', id),
+      ])
+      const leadIds = [...new Set([
+        ...(history ?? []).map((h) => h.lead_id as string),
+        ...(direct ?? []).map((l) => l.id as string),
+      ])]
+      if (!leadIds.length) { if (alive) setFileNotes([]); return }
+      const [{ data: leads }, { data: rows }] = await Promise.all([
+        supabase!.from('leads').select('id, full_name').in('id', leadIds),
+        supabase!.from('lead_notes').select('id, lead_id, author_name, body, created_at')
+          .in('lead_id', leadIds).order('created_at', { ascending: false }),
+      ])
+      const names = new Map((leads ?? []).map((l) => [l.id as string, (l.full_name as string | null) || 'Client']))
+      if (alive) setFileNotes(((rows ?? []) as Omit<FileNote, 'client'>[]).map((r) => ({ ...r, client: names.get(r.lead_id) || 'Client' })))
+    })()
+    return () => { alive = false }
+  }, [id])
 
   // Same file, more than one person: an agent and a lender (or two agents)
   // can have this same transaction open together. Rather than silently
@@ -827,6 +858,37 @@ export default function AdminTransaction() {
           />
         </div>
       )}
+      {fileNotes.length > 0 && (
+        <div className="admin" style={{ paddingTop: 0, paddingBottom: 0 }}>
+          <div className="card setcard notesboard">
+            <h2>Updates on the client file</h2>
+            <p className="sethelp">
+              Posted on {[...new Set(fileNotes.map((n) => n.client))].join(' & ')}'s client file. Their
+              client link shows these too. Updates posted on this deal are in the Updates section below.
+            </p>
+            <div className="notelist">
+              {(showAllFileNotes ? fileNotes : fileNotes.slice(0, 3)).map((n) => (
+                <div className="note" key={n.id}>
+                  <div className="notemeta">
+                    {n.author_name && <span className="noteauthor">{n.author_name}</span>}
+                    <span className="notewhen">{new Date(n.created_at).toLocaleDateString('en-US', {
+                      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+                    })}</span>
+                    <Link className="notewhen" to={`/admin/leads/${n.lead_id}`}>{n.client}'s file</Link>
+                  </div>
+                  <p className="notebody">{n.body}</p>
+                </div>
+              ))}
+            </div>
+            {fileNotes.length > 3 && (
+              <button type="button" className="btn" style={{ marginTop: 10 }}
+                      onClick={() => setShowAllFileNotes((v) => !v)}>
+                {showAllFileNotes ? 'Show fewer' : `Show all ${fileNotes.length}`}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       <Dashboard
         data={data}
         editable
@@ -866,6 +928,15 @@ export default function AdminTransaction() {
       />
     </>
   )
+}
+
+interface FileNote {
+  id: string
+  lead_id: string
+  client: string
+  author_name: string | null
+  body: string
+  created_at: string
 }
 
 interface FollowUp {
